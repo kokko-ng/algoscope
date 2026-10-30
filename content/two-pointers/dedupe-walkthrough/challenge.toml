@@ -1,0 +1,37 @@
+id = "dedupe-walkthrough"
+title = "Watch a slow and fast pair"
+stage = "watch"
+xp = 40
+complexity = "O(n)"
+statement = """
+nums is sorted, so equal values sit next to each other. The goal is to squeeze out the repeats in place and return how many unique values are left. They end up in nums[0..count-1].
+
+Two indices move in the same direction. `fast` reads every element once. `slow` marks the last slot of the unique prefix built so far.
+
+Watch both pointers. slow never gets ahead of fast, so why is it always safe to overwrite nums[slow]?
+"""
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["slow", "fast"]
+
+[[captions]]
+line = 4
+text = "nums[0] is unique on its own, so the unique prefix starts as just index 0."
+
+[[captions]]
+line = 6
+text = "fast scouts ahead. A value equal to nums[slow] is a repeat: skip it and keep scanning."
+
+[[captions]]
+line = 7
+text = "A new value. Grow the prefix by one slot. That slot holds a repeat or the value itself, never anything still needed."
+
+[[captions]]
+line = 8
+text = "Copy the new value in. Every element is read once, so the whole pass is O(n) with no extra list."
+
+[[captions]]
+line = 9
+text = "slow is the last index of the prefix, so the count is slow + 1. Whatever sits past it is leftover."

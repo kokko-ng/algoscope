@@ -1,0 +1,28 @@
+id = "container-water"
+title = "Widest container"
+stage = "apply"
+xp = 130
+complexity = "O(n)"
+statement = """
+heights[i] is the height of a wall at position i. Any two walls i < j hold water up to the shorter wall, so the pair holds min(heights[i], heights[j]) * (j - i). Return the largest amount any pair can hold, or 0 with fewer than two walls.
+
+Trying every pair is O(n^2). Start with the widest pair and decide, at each step, which wall can never be part of a better answer.
+"""
+hints = [
+  "Begin with one pointer at each end. Moving inward makes the width shrink, so only a taller short wall can help.",
+  "The shorter wall limits the area. Pairing it with any closer wall cannot do better, so move the pointer at the shorter wall.",
+]
+
+[[view]]
+var = "heights"
+as = "bars"
+pointers = ["left", "right"]
+window = ["left", "right"]
+
+[[view]]
+var = "area"
+as = "value"
+
+[[view]]
+var = "best"
+as = "value"

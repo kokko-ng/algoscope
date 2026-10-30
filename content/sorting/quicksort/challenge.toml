@@ -1,0 +1,28 @@
+id = "quicksort"
+title = "Build quicksort in place"
+stage = "build"
+xp = 170
+complexity = "O(n log n)"
+output = "arg0"
+forbid = ["sorted", "sort", "heapq", "bisect", "min", "max", "remove", "insert"]
+statement = """
+Sort values in place in ascending order. Whatever you return is ignored: the suite checks values afterwards. The same helpers as merge sort are off limits.
+
+Merge sort needs a second list at every level. Quicksort does its work inside the list: partition a range around a pivot so smaller values sit left of it and the rest sit right, then the pivot is in its final slot. Sort the two sides the same way.
+
+The partition is the boundary-and-scan pass you built in two pointers. Pick the pivot from the middle of the range so already-sorted input does not degrade to O(n^2).
+"""
+hints = [
+  "Write a helper that sorts values[low..high] and recurses, stopping when low >= high. Call it with 0 and len(values) - 1.",
+  "To partition: swap the middle element to `high` and use it as pivot. Move every smaller value to `boundary`, then swap the pivot into values[boundary] and return that index.",
+]
+
+[[view]]
+var = "values"
+as = "bars"
+pointers = ["boundary", "scan"]
+window = ["low", "high"]
+
+[[view]]
+var = "pivot"
+as = "value"

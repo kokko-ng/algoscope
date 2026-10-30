@@ -1,0 +1,33 @@
+id = "hash-map"
+title = "Build a hash map"
+stage = "build"
+xp = 180
+kind = "class"
+entry = "HashMap"
+complexity = "O(n)"
+forbid = ["dict", "set"]
+sizes = [100, 200, 400, 800]
+statement = """
+Implement HashMap on a list of buckets, where each bucket is a list of [key, value] pairs. No dict or set.
+
+- put(key, value): store value under key, overwriting an existing value
+- get(key): the value stored under key, or None
+- remove(key): delete key; return True if it was there, False otherwise
+- __len__(): the number of keys stored
+
+Pick a bucket with hash(key) % len(self.buckets). The suite runs n puts, n gets and some removes. With a fixed number of buckets every chain grows to length O(n) and the whole run turns O(n^2). Keep the chains short by growing the table as it fills, so the total work stays O(n).
+"""
+hints = [
+  "Track how many keys are stored. When that count passes the number of buckets, double the bucket list.",
+  "After resizing, every pair has to move: its bucket index depends on len(self.buckets), which just changed. Rehash each pair into the new list.",
+]
+
+[[view]]
+var = "self.buckets"
+label = "buckets"
+as = "buckets"
+
+[[view]]
+var = "self.size"
+label = "size"
+as = "value"

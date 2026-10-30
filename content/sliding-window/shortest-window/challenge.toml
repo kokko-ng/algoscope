@@ -1,0 +1,30 @@
+id = "shortest-window"
+title = "Build a variable-size window"
+stage = "build"
+xp = 160
+complexity = "O(n)"
+statement = """
+nums holds positive integers. Return the length of the shortest contiguous run whose sum is at least target, or 0 if no run reaches it.
+
+Checking every start and end is O(n^2). Because every value is positive, adding on the right only raises the sum and dropping on the left only lowers it. That lets the window grow and shrink without ever moving backwards.
+
+Grow the window until it is big enough, then shrink it from the left for as long as it stays big enough, recording the length each time.
+"""
+hints = [
+  "Move `right` forward in a for loop and keep a running `window_sum`. Only shrink when the sum reaches target.",
+  "Use a while loop to drop nums[left] while window_sum >= target. left only moves forward, so both pointers make at most n moves in total.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["left", "right"]
+window = ["left", "right"]
+
+[[view]]
+var = "window_sum"
+as = "value"
+
+[[view]]
+var = "best"
+as = "value"

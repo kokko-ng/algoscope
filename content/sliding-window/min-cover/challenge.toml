@@ -1,0 +1,34 @@
+id = "min-cover"
+title = "Smallest covering window"
+stage = "apply"
+xp = 160
+complexity = "O(n + m)"
+statement = """
+stream and needed are lists of single-character strings, and needed has at least one item. Return the length of the shortest contiguous run of stream that contains every item of needed, counting repeats: if needed holds two "a", the run must too. Return 0 if no run qualifies.
+
+There are O(n^2) runs, and checking each one against needed costs more on top. Instead keep a tally of what the window still lacks, plus one number saying how many needed items are still outstanding, so "does this window cover everything?" is a constant-time question.
+
+Grow on the right until nothing is outstanding, then shrink from the left while that stays true.
+"""
+hints = [
+  "Store, per item, how many more copies the window needs. Adding an item lowers its count, removing one raises it.",
+  "outstanding only changes when a count crosses zero: it drops when a still-needed item enters and rises when a removal makes an item needed again.",
+]
+
+[[view]]
+var = "stream"
+as = "array"
+pointers = ["left", "right"]
+window = ["left", "right"]
+
+[[view]]
+var = "missing"
+as = "map"
+
+[[view]]
+var = "outstanding"
+as = "value"
+
+[[view]]
+var = "best"
+as = "value"

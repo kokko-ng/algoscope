@@ -108,6 +108,24 @@ pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
         .filter(|t| topic_filter.is_none_or(|f| t.meta.id.contains(f)))
         .flat_map(|t| t.challenges.iter())
         .collect();
+    let mut order_problems = Vec::new();
+    for t in &lib.topics {
+        let stages: Vec<Stage> = t.challenges.iter().map(|c| c.meta.stage).collect();
+        let watch = stages.iter().filter(|s| **s == Stage::Watch).count();
+        let build = stages.iter().filter(|s| **s == Stage::Build).count();
+        let apply = stages.iter().filter(|s| **s == Stage::Apply).count();
+        let mut sorted = stages.clone();
+        sorted.sort_by_key(|s| *s as u8);
+        if watch != 1 || build == 0 || !(1..=4).contains(&apply) || sorted != stages {
+            order_problems.push(format!(
+                "topic {}: expected one watch, then builds, then 1-4 applies; got {:?}",
+                t.meta.id, stages
+            ));
+        }
+    }
+    for p in &order_problems {
+        println!("FAIL {p}");
+    }
     let queue = Mutex::new(jobs.iter().enumerate().collect::<Vec<_>>());
     let results = Mutex::new(vec![Vec::new(); jobs.len()]);
     let workers = thread::available_parallelism().map_or(4, |n| n.get()).min(8);
@@ -137,6 +155,7 @@ pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
             println!("  - {p}");
         }
     }
+    failed += order_problems.len();
     println!("\n{} challenges checked, {failed} with problems", jobs.len());
     if failed > 0 {
         bail!("{failed} challenges failed the content check");

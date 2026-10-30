@@ -1,0 +1,7 @@
+id = "sorting"
+title = "Sorting"
+zone = "The Sorting Mill"
+summary = "Putting values in order is the first step of countless other algorithms. Simple sorts take O(n^2); dividing the work brings it to O(n log n); and when values come from a small range, counting beats comparing altogether."
+prereqs = ["foundations"]
+order = 5
+challenges = ["insertion-walkthrough", "merge-sort", "quicksort", "counting-sort", "sort-colours"]

@@ -1,0 +1,28 @@
+id = "flip-zeros"
+title = "Longest run with k flips"
+stage = "apply"
+xp = 110
+complexity = "O(n)"
+statement = """
+bits is a list of 0s and 1s. You may flip at most k of the 0s to 1. Return the length of the longest run of 1s you can end up with.
+
+Rephrase it: find the longest window that contains at most k zeros. Trying every window is O(n^2). The window you want can be found in one sweep if you track a single count as it moves.
+"""
+hints = [
+  "Count the zeros inside the window. Extending on the right may push the count over k.",
+  "When zeros > k, move `left` forward until a zero leaves the window. Record right - left + 1 after every step.",
+]
+
+[[view]]
+var = "bits"
+as = "array"
+pointers = ["left", "right"]
+window = ["left", "right"]
+
+[[view]]
+var = "zeros"
+as = "value"
+
+[[view]]
+var = "best"
+as = "value"

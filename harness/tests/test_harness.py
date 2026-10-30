@@ -161,3 +161,18 @@ def test_infinite_loop_in_suite_is_reported_quickly(tmp_path):
     out = run(tmp_path, "def solve(nums):\n    while True:\n        pass\n", "score", case_step_limit=50000)
     assert "infinite loop" in out["error"]["text"]
     assert time.monotonic() - start < 10
+
+
+def test_forbid_catches_literals_but_not_variables_named_like_builtins(tmp_path):
+    out = run(tmp_path, "def solve(nums):\n    seen = {}\n    return max(nums) if nums else None\n", "score", forbid=["dict"])
+    assert "dict literal" in out["error"]["text"]
+    ok = "def solve(nums):\n    index = 0\n    best = None\n    for x in nums:\n        if best is None or x > best:\n            best = x\n    return best\n"
+    out = run(tmp_path, ok, "score", forbid=["index"])
+    assert "error" not in out
+
+
+def test_crashing_check_counts_as_a_failed_case(tmp_path):
+    cases = CASES + "\ndef check(case, got, expected):\n    a, b = got\n    return True\n"
+    out = run(tmp_path, "def solve(nums):\n    return None\n", "score", cases=cases)
+    assert "error" not in out
+    assert out["passed"] < out["total"]

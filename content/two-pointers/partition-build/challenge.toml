@@ -1,0 +1,27 @@
+id = "partition-build"
+title = "Build an in-place partition"
+stage = "build"
+xp = 150
+complexity = "O(n)"
+output = "arg0"
+forbid = ["sorted", "sort"]
+statement = """
+Rearrange nums in place so that every value smaller than pivot comes before every value that is pivot or larger. Order inside each group does not matter, and whatever you return is ignored: the suite checks nums itself.
+
+Sorting would do it in O(n log n), and copying into two new lists costs O(n) extra memory. Sorting is off limits here: do it in one pass, swapping inside nums, with O(1) extra space.
+
+Keep a `boundary` index: everything left of it is already known to be small. A second index scans forward and hands each small value to the boundary. This routine is the heart of quicksort, which comes later.
+"""
+hints = [
+  "Two indices move in the same direction. One scans every element, the other only moves when it receives a small value.",
+  "When nums[scan] < pivot, swap nums[scan] with nums[boundary] and advance boundary. Large values get pushed right as a side effect.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["boundary", "scan"]
+
+[[view]]
+var = "pivot"
+as = "value"

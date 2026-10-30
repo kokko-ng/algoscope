@@ -1,0 +1,35 @@
+id = "insertion-walkthrough"
+title = "Watch insertion sort"
+stage = "watch"
+xp = 40
+complexity = "O(n^2)"
+statement = """
+Insertion sort grows a sorted prefix one element at a time. It lifts the next value out, slides every larger neighbour one slot right, and drops the value into the gap.
+
+Watch the bars. Everything left of `i` is already in order before each pass. Which inputs make the inner loop run zero times, and which make it run as far as it can?
+"""
+
+[[view]]
+var = "values"
+as = "bars"
+pointers = ["i", "j"]
+
+[[view]]
+var = "current"
+as = "value"
+
+[[captions]]
+line = 3
+text = "Lift values[i] out. Everything to its left is already sorted, so it only needs to find its place in that prefix."
+
+[[captions]]
+line = 5
+text = "Walk left while the neighbour is larger than current. On sorted input this test fails at once."
+
+[[captions]]
+line = 6
+text = "Shift the larger value one slot right, opening a gap. Reverse-sorted input shifts every time: O(n^2) overall."
+
+[[captions]]
+line = 8
+text = "The gap is where current belongs. Drop it in; the sorted prefix is now one longer."

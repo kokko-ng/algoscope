@@ -1,0 +1,47 @@
+id = "chaining-walkthrough"
+title = "Watch a hash table chain"
+stage = "watch"
+xp = 40
+kind = "class"
+entry = "ChainedMap"
+complexity = "O(1)"
+statement = """
+A hash table keeps a fixed row of buckets. To store a key it computes hash(key) % number_of_buckets and goes straight to that bucket, with no searching through the rest of the table.
+
+Two keys can map to the same bucket. Here each bucket is a list (a chain) of [key, value] pairs, and colliding keys simply share it.
+
+Watch where 12, 7 and 22 land. Every key costs one hash to place, so what makes a lookup slow, and what could the table do once its chains grow long?
+"""
+
+[[view]]
+var = "self.buckets"
+label = "buckets"
+as = "buckets"
+
+[[view]]
+var = "index"
+as = "value"
+
+[[view]]
+var = "pair"
+as = "value"
+
+[[captions]]
+line = 6
+text = "hash turns the key into an integer and % folds it onto one of the 5 buckets. The same key always lands in the same bucket."
+
+[[captions]]
+line = 8
+text = "Different keys can share a bucket. Walk this one chain to see whether the key is already stored."
+
+[[captions]]
+line = 10
+text = "The key is already here: overwrite its value in place. The table does not grow."
+
+[[captions]]
+line = 12
+text = "Not found, so chain a new pair onto the bucket. A collision makes the chain longer but loses nothing."
+
+[[captions]]
+line = 16
+text = "A lookup scans only one chain. Short chains make it O(1) on average; if every key collided it would be O(n)."

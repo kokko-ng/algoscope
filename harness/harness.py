@@ -62,9 +62,19 @@ def check_forbidden(path, forbid):
         return None
     with open(path, encoding="utf-8") as fh:
         tree = ast.parse(fh.read(), filename=path)
+    # names the solution binds itself (variables, parameters, functions) are not the builtin
+    bound = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            bound.add(node.id)
+        elif isinstance(node, ast.arg):
+            bound.add(node.arg)
+        elif isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            bound.add(node.name)
+    literals = {ast.Dict: "dict", ast.DictComp: "dict", ast.Set: "set", ast.SetComp: "set"}
     for node in ast.walk(tree):
         hit = None
-        if isinstance(node, ast.Name) and node.id in forbid:
+        if isinstance(node, ast.Name) and node.id in forbid and node.id not in bound:
             hit = node.id
         elif isinstance(node, ast.Attribute) and node.attr in forbid:
             # calls to the solution's own methods (self.append) are fine
@@ -74,6 +84,8 @@ def check_forbidden(path, forbid):
             hit = next((a.name for a in node.names if a.name.split(".")[0] in forbid), None)
         elif isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] in forbid:
             hit = node.module
+        elif type(node) in literals and literals[type(node)] in forbid:
+            hit = f"{literals[type(node)]} literal"
         if hit:
             return {"text": f"`{hit}` is off limits in this exercise: build it yourself.", "line": node.lineno}
     return None
@@ -178,7 +190,11 @@ def as_tuple(case):
 
 def compare(cases_mod, case, got, expected):
     if hasattr(cases_mod, "check"):
-        return bool(cases_mod.check(case, got, expected))
+        # a custom check that trips over a malformed answer means the answer is wrong
+        try:
+            return bool(cases_mod.check(copy.deepcopy(case), got, expected))
+        except Exception:
+            return False
     return canon(got) == canon(expected)
 
 

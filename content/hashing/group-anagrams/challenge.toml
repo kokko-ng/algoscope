@@ -1,0 +1,26 @@
+id = "group-anagrams"
+title = "Group anagrams"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+statement = """
+Two words are anagrams when one is a rearrangement of the other's letters. Return the words of `words` split into groups of anagrams. Every word appears in exactly one group; the order of groups and of words inside a group does not matter.
+
+Words are short, but there are many of them. Comparing every pair of words is O(n^2). Instead give each word a canonical form that all of its anagrams share, and use it as a dict key.
+"""
+hints = [
+  "Anagrams contain the same letters, so they look identical once their letters are put in order.",
+  "Map the sorted-letters string to a list of words. Each word costs one key computation and one dict lookup.",
+]
+
+[[view]]
+var = "words"
+as = "array"
+
+[[view]]
+var = "key"
+as = "value"
+
+[[view]]
+var = "groups"
+as = "map"

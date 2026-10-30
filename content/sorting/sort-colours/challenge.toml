@@ -1,0 +1,22 @@
+id = "sort-colours"
+title = "Three-way partition"
+stage = "apply"
+xp = 130
+complexity = "O(n)"
+output = "arg0"
+forbid = ["sorted", "sort"]
+statement = """
+colours holds only the values 0, 1 and 2. Sort it in place so all 0s come first, then 1s, then 2s. Whatever you return is ignored: the suite checks colours afterwards.
+
+A general sort is O(n log n). With only three values, one pass is enough: split the list into four regions, known 0s, known 1s, not yet seen, and known 2s, and shrink the unseen region by one element per step.
+"""
+hints = [
+  "Use three indices: `low` ends the 0s, `mid` scans the unseen region, `high` starts the 2s from the right.",
+  "A 0 swaps to low and both low and mid advance. A 1 just advances mid. A 2 swaps to high and only high moves, because the value swapped in has not been looked at yet.",
+]
+
+[[view]]
+var = "colours"
+as = "bars"
+pointers = ["low", "mid", "high"]
+window = ["mid", "high"]

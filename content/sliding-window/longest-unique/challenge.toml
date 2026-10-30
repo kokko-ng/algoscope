@@ -1,0 +1,30 @@
+id = "longest-unique"
+title = "Longest run without repeats"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+statement = """
+letters is a list of single-character strings. Return the length of the longest contiguous run in which every letter is different.
+
+Testing every run and checking it for repeats is O(n^2) or worse. Slide a window instead: extend it on the right, and when the new letter already appears inside the window, move the left edge just past its earlier copy.
+
+You need to answer "where did I last see this letter?" in constant time.
+"""
+hints = [
+  "Keep a dict from letter to the index where it was last seen.",
+  "A remembered index left of the window is stale and must not move `left`. Only jump when last_seen[letter] >= left.",
+]
+
+[[view]]
+var = "letters"
+as = "array"
+pointers = ["left", "right"]
+window = ["left", "right"]
+
+[[view]]
+var = "last_seen"
+as = "map"
+
+[[view]]
+var = "best"
+as = "value"

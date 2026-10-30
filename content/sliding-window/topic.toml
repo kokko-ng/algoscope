@@ -1,0 +1,7 @@
+id = "sliding-window"
+title = "Sliding window"
+zone = "The Moving Frame"
+summary = "A contiguous range that grows on the right and shrinks on the left, carrying a running summary as it moves. Each element enters and leaves once, so questions about every subarray cost a single pass instead of a nested loop."
+prereqs = ["two-pointers"]
+order = 3
+challenges = ["window-walkthrough", "shortest-window", "longest-unique", "flip-zeros", "min-cover"]

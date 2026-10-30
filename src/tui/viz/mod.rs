@@ -271,6 +271,15 @@ fn lerp(a: f64, b: f64, t: f64) -> f64 {
 
 fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let t = ctx.theme;
+    // strings are drawn as one cell per character
+    let chars;
+    let v = if let V::Str(s) = v {
+        let items: Vec<V> = s.chars().map(|c| V::Str(c.to_string())).collect();
+        chars = V::Seq { kind: crate::runner::trace::SeqKind::List, len: items.len(), items };
+        &chars
+    } else {
+        v
+    };
     let Some(vals) = items(v) else {
         header(spec, ctx, area, buf, &v.label());
         return;

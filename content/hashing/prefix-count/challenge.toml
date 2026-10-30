@@ -1,0 +1,33 @@
+id = "prefix-count"
+title = "Count runs with a given sum"
+stage = "apply"
+xp = 140
+complexity = "O(n)"
+statement = """
+Return how many contiguous runs nums[a..b] add up to exactly k. Values can be negative or zero.
+
+Negative values break the sliding window: adding an element might lower the sum, so there is no safe moment to shrink. Summing every run is O(n^2).
+
+Use prefix sums. If prefix[b] is the sum of everything up to b, then a run ending at b sums to k exactly when an earlier prefix equals prefix[b] - k. Count how often each prefix has appeared so far.
+"""
+hints = [
+  "Keep a running `prefix` and a dict from prefix value to how many times it has occurred. Start it at {0: 1}: the empty prefix before index 0.",
+  "At each index, add counts[prefix - k] to the answer first, then record the current prefix. The order matters when k is 0.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "prefix"
+as = "value"
+
+[[view]]
+var = "counts"
+as = "map"
+
+[[view]]
+var = "total"
+as = "value"

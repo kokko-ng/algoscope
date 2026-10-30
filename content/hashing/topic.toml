@@ -1,0 +1,7 @@
+id = "hashing"
+title = "Hashing and prefix sums"
+zone = "The Key Vaults"
+summary = "A hash function turns a key into a bucket index, so storing and finding a value takes constant time on average. Remembering what you have already seen, including running totals, turns many searches into a single lookup."
+prereqs = ["foundations"]
+order = 4
+challenges = ["chaining-walkthrough", "hash-map", "pair-lookup", "prefix-count", "group-anagrams"]

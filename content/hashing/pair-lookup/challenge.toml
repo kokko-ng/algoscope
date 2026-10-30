@@ -1,0 +1,27 @@
+id = "pair-lookup"
+title = "Pair sum without sorting"
+stage = "apply"
+xp = 100
+complexity = "O(n)"
+statement = """
+nums is in no particular order. Return [i, j] with i < j and nums[i] + nums[j] == target, or [-1, -1] if no pair exists. Any valid pair is accepted.
+
+Checking every pair is O(n^2), and sorting first costs O(n log n) and scrambles the indices. One pass is enough if each element can ask, in constant time, whether its partner has already gone by.
+"""
+hints = [
+  "For nums[j], the partner it needs is target - nums[j].",
+  "Keep a dict from value to index for everything left of j. Look the partner up before storing nums[j], so an element never pairs with itself.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["j"]
+
+[[view]]
+var = "want"
+as = "value"
+
+[[view]]
+var = "seen"
+as = "map"

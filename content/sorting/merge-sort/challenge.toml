@@ -1,0 +1,33 @@
+id = "merge-sort"
+title = "Build merge sort"
+stage = "build"
+xp = 180
+complexity = "O(n log n)"
+forbid = ["sorted", "sort", "heapq", "bisect", "min", "max", "remove", "insert"]
+statement = """
+Return a new list holding the values in ascending order. Built-in sorting is off limits, and so are helpers that hide a linear scan behind one call (min, max, remove, insert, heapq, bisect).
+
+Insertion sort is O(n^2), which is too slow once n reaches the hundreds. Merge sort splits the list in half, sorts each half recursively, and merges the two sorted halves in a single pass. There are about log n levels of splitting and each level does O(n) merging work.
+"""
+hints = [
+  "A list of length 0 or 1 is already sorted: that is the base case. Otherwise sort values[:middle] and values[middle:] with recursive calls.",
+  "To merge, keep an index into each sorted half and repeatedly append the smaller front value. When one half runs out, append the rest of the other.",
+]
+
+[[view]]
+var = "values"
+as = "bars"
+
+[[view]]
+var = "left"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "right"
+as = "array"
+pointers = ["j"]
+
+[[view]]
+var = "merged"
+as = "array"

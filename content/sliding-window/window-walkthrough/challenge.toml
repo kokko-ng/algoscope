@@ -1,0 +1,42 @@
+id = "window-walkthrough"
+title = "Watch a fixed window slide"
+stage = "watch"
+xp = 40
+complexity = "O(n)"
+statement = """
+The task: return the sum of every run of k consecutive values in nums, from left to right.
+
+Re-adding k values for each window costs O(n * k). Instead the window keeps a running total. One value enters on the right, one leaves on the left, and the total is patched rather than rebuilt.
+
+Watch `window_sum` as the shaded window moves. Once the first window is built, how many additions does each new window cost, and why does k stop mattering?
+"""
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["left", "right"]
+window = ["left", "right"]
+
+[[view]]
+var = "window_sum"
+as = "value"
+
+[[view]]
+var = "sums"
+as = "array"
+
+[[captions]]
+line = 6
+text = "The new value enters on the right. One addition, whatever k is."
+
+[[captions]]
+line = 7
+text = "The window is now one wider than k. Something has to leave."
+
+[[captions]]
+line = 8
+text = "The oldest value leaves on the left. Subtracting it is cheaper than re-adding the other k - 1 values."
+
+[[captions]]
+line = 11
+text = "Exactly k wide: window_sum already holds this window's total, so record it."
