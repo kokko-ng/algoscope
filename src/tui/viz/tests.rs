@@ -146,6 +146,19 @@ fn array_with_pointers_window_and_access() {
 }
 
 #[test]
+fn bits_view_marks_changed_bits_and_pointers() {
+    let prev = json!({"line": 1, "vars": {"mask": 41, "i": 3}});
+    let frame = json!({"line": 2, "vars": {"mask": 45, "i": 2}});
+    insta::assert_snapshot!(draw(
+        "[[view]]\nvar = \"mask\"\nas = \"bits\"\npointers = [\"i\"]",
+        frame,
+        Some(prev),
+        30,
+        6
+    ));
+}
+
+#[test]
 fn bars_view() {
     let frame = json!({"line": 1, "vars": {"a": list(json!([5, 1, 4, 2, 8, 3])), "i": 2}});
     insta::assert_snapshot!(draw("[[view]]\nvar = \"a\"\nas = \"bars\"\npointers = [\"i\"]", frame, None, 40, 13));

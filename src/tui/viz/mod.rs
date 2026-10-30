@@ -82,7 +82,7 @@ fn view_height(spec: &ViewSpec, ctx: &Ctx, width: u16) -> u16 {
         ViewKind::Map => 1 + map_len(v).min(10) as u16,
         ViewKind::Buckets => 1 + items(v).map_or(0, |r| r.len().min(16) as u16),
         ViewKind::Stack => 2 + items(v).map_or(0, |r| r.len().min(12) as u16),
-        ViewKind::Queue => 4,
+        ViewKind::Queue | ViewKind::Bits => 4,
         ViewKind::Linked => 5,
         ViewKind::Tree | ViewKind::Heap => nodes::tree_height(spec, ctx, width),
         ViewKind::Trie => nodes::trie_height(spec, ctx),
@@ -229,6 +229,7 @@ fn render_view(spec: &ViewSpec, ctx: &Ctx, area: Rect, buf: &mut Buffer) {
             put(buf, area, area.x + name_w, area.y, &format!(" = {}", ctx.frame.label(v)), t.text());
         }
         ViewKind::Array => array(spec, ctx, v, area, buf),
+        ViewKind::Bits => bits(spec, ctx, v, area, buf),
         ViewKind::Bars => bars(spec, ctx, v, area, buf),
         ViewKind::Grid => grid(spec, ctx, v, area, buf),
         ViewKind::Map => map(spec, ctx, v, area, buf),
@@ -386,6 +387,49 @@ fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         let out_of_range = i < 0 || i >= vals.len() as i64;
         let style = if out_of_range { t.dim() } else { t.bold(t.pointer) };
         put(buf, area, x, top + 4 + row as u16, &label, style);
+    }
+}
+
+/// An integer as binary digits, bit 0 on the right. Changed bits are highlighted; pointers mark bit positions.
+fn bits(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
+    let t = ctx.theme;
+    let Some(n) = v.as_int() else {
+        header(spec, ctx, area, buf, &v.label());
+        return;
+    };
+    // negative values show their low bits in two's complement, like Python's n & mask
+    let width = (64 - n.unsigned_abs().leading_zeros()).max(8).div_ceil(8) * 8;
+    let width = width.min(32).min(u32::from(area.width.saturating_sub(1) / 2).max(1));
+    header(spec, ctx, area, buf, &format!("= {n}"));
+    let prev = ctx.prev_var(&spec.var).and_then(V::as_int);
+    for i in 0..width {
+        let bit = width - 1 - i;
+        let x = area.x + (i * 2) as u16;
+        let on = (n >> bit) & 1 == 1;
+        let changed = prev.is_some_and(|p| ((p >> bit) & 1 == 1) != on);
+        let style = if changed {
+            t.bold(t.write).add_modifier(Modifier::REVERSED)
+        } else if on {
+            t.bold(t.accent)
+        } else {
+            t.dim()
+        };
+        put(buf, area, x, area.y + 1, &format!("{bit:>2}").chars().last().map_or(String::new(), String::from), t.dim());
+        put(buf, area, x, area.y + 2, if on { "1" } else { "0" }, style);
+    }
+    let mut x_used = 0u16;
+    for name in &spec.pointers {
+        let Some(b) = ctx.int(name) else { continue };
+        if !(0..i64::from(width)).contains(&b) {
+            continue;
+        }
+        let x = area.x + ((width - 1 - b as u32) * 2) as u16;
+        if x < x_used {
+            continue;
+        }
+        let label = format!("↑{name}");
+        put(buf, area, x, area.y + 3, &label, t.bold(t.pointer));
+        x_used = x + label.width() as u16 + 1;
     }
 }
 

@@ -1,0 +1,10 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"mask\\\"\\nas = \\\"bits\\\"\\npointers = [\\\"i\\\"]\", frame,\nSome(prev), 30, 6)"
+---
+ mask  = 45
+ 7 6 5 4 3 2 1 0
+ 0 0 1 0 1 1 0 1
+           ↑i
+
+ locals

@@ -5,7 +5,8 @@ use std::thread;
 
 use anyhow::{Result, bail};
 
-use crate::content::{Challenge, DiagramStep, Library, Stage, Track};
+use crate::content::{Alternative, Challenge, DiagramStep, Expect, Library, Question, Stage, Track};
+use crate::quiz;
 use crate::runner::{self, Mode, Outcome};
 use crate::scoring::{self, Grade};
 
@@ -24,6 +25,39 @@ pub fn expected_slope(decl: &str) -> Option<(f64, f64)> {
         "o(2^n)" | "o(n2^n)" | "o(n·2^n)" | "o(n*2^n)" | "o(n!)" | "o(n·n!)" => (2.5, 100.0),
         _ => return None,
     })
+}
+
+/// Answer, tolerance, reject and accept checks for one quiz question.
+fn check_question(q: &Question, at: &str) -> Vec<String> {
+    let mut problems = Vec::new();
+    if q.is_choice() {
+        let n = q.choices.len() as f64;
+        if q.answer.fract() != 0.0 || q.answer < 1.0 || q.answer > n {
+            problems.push(format!("{at}: answer {} is not a choice number from 1 to {n}", q.answer));
+        }
+        if q.choices.len() < 2 {
+            problems.push(format!("{at}: needs at least two choices"));
+        }
+    } else if !(q.tolerance > 0.0 && q.tolerance <= 1.0) {
+        problems.push(format!("{at}: tolerance {} must be in (0, 1]", q.tolerance));
+    }
+    if q.explanation.trim().is_empty() {
+        problems.push(format!("{at}: no explanation"));
+    }
+    if q.is_choice() && !(q.reject.is_empty() && q.accept.is_empty()) {
+        problems.push(format!("{at}: reject and accept are for number questions"));
+    }
+    for &v in &q.reject {
+        if quiz::is_correct(q, quiz::Answer::Number(v)) {
+            problems.push(format!("{at}: the wrong answer {v} is accepted; tighten the tolerance"));
+        }
+    }
+    for &v in &q.accept {
+        if !quiz::is_correct(q, quiz::Answer::Number(v)) {
+            problems.push(format!("{at}: the reasonable answer {v} is rejected; widen the tolerance"));
+        }
+    }
+    problems
 }
 
 /// Longest note under a diagram node before it runs into its neighbours.
@@ -104,26 +138,60 @@ pub fn check_design(ch: &Challenge) -> Vec<String> {
             }
             for (i, q) in m.questions.iter().enumerate() {
                 let at = format!("question {}", i + 1);
-                if q.is_choice() {
-                    let n = q.choices.len() as f64;
-                    if q.answer.fract() != 0.0 || q.answer < 1.0 || q.answer > n {
-                        problems.push(format!("{at}: answer {} is not a choice number from 1 to {n}", q.answer));
-                    }
-                    if q.choices.len() < 2 {
-                        problems.push(format!("{at}: needs at least two choices"));
-                    }
-                } else if !(q.tolerance > 0.0 && q.tolerance <= 1.0) {
-                    problems.push(format!("{at}: tolerance {} must be in (0, 1]", q.tolerance));
-                }
-                if q.explanation.trim().is_empty() {
-                    problems.push(format!("{at}: no explanation"));
-                }
+                problems.extend(check_question(q, &at));
                 check_steps(&q.steps, &at, &mut problems);
             }
         }
         other => problems.push(format!("stage {other:?} is not used in system design")),
     }
     problems
+}
+
+/// Run an alternative solution and compare its outcome with the one it declares.
+fn check_alternative(ch: &Challenge, alt: &Alternative) -> Vec<String> {
+    let outcome = match runner::run(ch, Mode::Score, &alt.code) {
+        Ok(Outcome::Score(s)) => s,
+        Ok(_) => return vec![format!("{}: wrong outcome kind", alt.name)],
+        Err(e) => {
+            // a timeout or crash is a failure, which is only right for `fail`
+            return if alt.expect == Expect::Fail { Vec::new() } else { vec![format!("{}: {e}", alt.name)] };
+        }
+    };
+    let passed = outcome.error.is_none() && outcome.total > 0 && outcome.passed == outcome.total;
+    let grade =
+        outcome.steps.as_ref().filter(|_| passed).map(|st| scoring::grade(st, outcome.step_limit_hit.is_some()));
+    let got = match (&grade, passed) {
+        (_, false) => "fail".to_string(),
+        (Some(r), true) => {
+            format!("{:?} (exponent {:.2} vs {:.2}, {:.2}x steps)", r.grade, r.user_slope, r.ref_slope, r.ratio)
+                .to_lowercase()
+        }
+        (None, true) => "pass without a grade".to_string(),
+    };
+    let ok = match alt.expect {
+        Expect::Fail => !passed,
+        Expect::Pass => passed,
+        Expect::Gold => grade.as_ref().is_some_and(|r| r.grade == Grade::Gold),
+        Expect::Silver => grade.as_ref().is_some_and(|r| r.grade == Grade::Silver),
+        Expect::Bronze => grade.as_ref().is_some_and(|r| r.grade == Grade::Bronze),
+        Expect::Slow => grade.as_ref().is_some_and(|r| r.grade != Grade::Gold),
+    };
+    if ok {
+        return Vec::new();
+    }
+    let detail = outcome
+        .failures
+        .first()
+        .map(|f| format!(" (first failure: input {} expected {} got {})", f.input, f.expected, f.got));
+    let err = outcome
+        .error
+        .as_ref()
+        .map(|e| format!(" (error: {})", e.text.lines().last().unwrap_or("")))
+        .unwrap_or_default();
+    vec![
+        format!("{}: expected {:?}, got {got}{}{err}", alt.name, alt.expect, detail.unwrap_or_default())
+            .replace("Expect::", ""),
+    ]
 }
 
 fn check_one(ch: &Challenge) -> Vec<String> {
@@ -197,6 +265,9 @@ fn check_one(ch: &Challenge) -> Vec<String> {
         }
         Ok(_) => problems.push("score: wrong outcome kind".into()),
         Err(e) => problems.push(format!("score: {e}")),
+    }
+    for alt in &ch.alternatives {
+        problems.extend(check_alternative(ch, alt));
     }
     match runner::run(ch, Mode::Score, &ch.starter) {
         Ok(Outcome::Score(s)) => {

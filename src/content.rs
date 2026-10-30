@@ -119,6 +119,12 @@ pub struct Question {
     /// Animation that plays with the explanation.
     #[serde(default)]
     pub steps: Vec<DiagramStep>,
+    /// Answers from common wrong methods: `check-content` fails if any of them is accepted.
+    #[serde(default)]
+    pub reject: Vec<f64>,
+    /// Sensibly rounded answers: `check-content` fails if any of them is rejected.
+    #[serde(default)]
+    pub accept: Vec<f64>,
 }
 
 fn default_tolerance() -> f64 {
@@ -161,6 +167,8 @@ pub enum ViewKind {
     Trie,
     Set,
     Value,
+    /// An integer drawn as binary digits, bit 0 on the right.
+    Bits,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -254,6 +262,56 @@ pub struct Challenge {
     pub starter: String,
     pub reference: String,
     pub cases: String,
+    /// Other solutions with the outcome each must get, from `alternatives/*.py`.
+    pub alternatives: Vec<Alternative>,
+}
+
+/// The outcome an alternative solution must get from the suite.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Expect {
+    /// Fails at least one case, or raises.
+    Fail,
+    /// Passes every case, at any grade.
+    Pass,
+    Gold,
+    Silver,
+    Bronze,
+    /// Passes every case but grades below gold.
+    Slow,
+}
+
+impl Expect {
+    fn parse(word: &str) -> Option<Expect> {
+        Some(match word {
+            "fail" => Expect::Fail,
+            "pass" => Expect::Pass,
+            "gold" => Expect::Gold,
+            "silver" => Expect::Silver,
+            "bronze" => Expect::Bronze,
+            "slow" => Expect::Slow,
+            _ => return None,
+        })
+    }
+}
+
+/// An extra solution used only by `check-content`: a brute force that must grade below gold, a literal
+/// reading of the statement that must pass, a common mistake that must fail.
+#[derive(Debug, Clone)]
+pub struct Alternative {
+    pub name: String,
+    pub code: String,
+    pub expect: Expect,
+}
+
+impl Alternative {
+    /// Read the expectation from the first line: `# expect: slow`.
+    fn parse(name: &str, code: String) -> Result<Alternative> {
+        let first = code.lines().next().unwrap_or("");
+        let word = first.trim().strip_prefix("# expect:").map_or("", str::trim);
+        let expect = Expect::parse(word)
+            .ok_or_else(|| anyhow!("{name}: the first line must be `# expect: fail|pass|gold|silver|bronze|slow`"))?;
+        Ok(Alternative { name: name.to_string(), code, expect })
+    }
 }
 
 impl Challenge {
@@ -300,7 +358,41 @@ fn read_text(dir: &Dir, rel: &str) -> Option<String> {
 }
 
 /// Parse one topic directory. `read` returns a file's text by path relative to the topic directory.
-fn parse_topic(path: &str, track: Track, read: impl Fn(&str) -> Option<String>) -> Result<Topic> {
+/// Python files directly inside a folder of the embedded content, as (file name, text).
+fn embedded_py_files(dir: &Dir, rel: &str) -> Vec<(String, String)> {
+    let Some(sub) = dir.get_dir(dir.path().join(rel)) else { return Vec::new() };
+    let mut files: Vec<(String, String)> = sub
+        .files()
+        .filter(|f| f.path().extension().is_some_and(|e| e == "py"))
+        .filter_map(|f| {
+            let name = f.path().file_name()?.to_str()?.to_string();
+            Some((name, f.contents_utf8()?.to_string()))
+        })
+        .collect();
+    files.sort();
+    files
+}
+
+/// Python files directly inside a folder on disk, as (file name, text).
+fn disk_py_files(dir: &Path) -> Vec<(String, String)> {
+    let mut files: Vec<(String, String)> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "py"))
+        .filter_map(|p| Some((p.file_name()?.to_str()?.to_string(), std::fs::read_to_string(&p).ok()?)))
+        .collect();
+    files.sort();
+    files
+}
+
+fn parse_topic(
+    path: &str,
+    track: Track,
+    read: impl Fn(&str) -> Option<String>,
+    list: impl Fn(&str) -> Vec<(String, String)>,
+) -> Result<Topic> {
     let raw = read("topic.toml").ok_or_else(|| anyhow!("{path} has no topic.toml"))?;
     let mut meta: TopicMeta = toml::from_str(&raw).with_context(|| format!("parsing {path}/topic.toml"))?;
     meta.track = track;
@@ -321,6 +413,7 @@ fn parse_topic(path: &str, track: Track, read: impl Fn(&str) -> Option<String>) 
                 starter: String::new(),
                 reference: String::new(),
                 cases: String::new(),
+                alternatives: Vec::new(),
             });
             continue;
         }
@@ -330,7 +423,11 @@ fn parse_topic(path: &str, track: Track, read: impl Fn(&str) -> Option<String>) 
             Stage::Watch => reference.clone(),
             _ => file("starter.py").ok_or_else(|| anyhow!("{at} has no starter.py"))?,
         };
-        challenges.push(Challenge { meta: cm, topic: meta.id.clone(), starter, reference, cases });
+        let alternatives = list(&format!("{cid}/alternatives"))
+            .into_iter()
+            .map(|(name, code)| Alternative::parse(&format!("{at}/alternatives/{name}"), code))
+            .collect::<Result<Vec<_>>>()?;
+        challenges.push(Challenge { meta: cm, topic: meta.id.clone(), starter, reference, cases, alternatives });
     }
     Ok(Topic { meta, challenges })
 }
@@ -347,7 +444,8 @@ impl Library {
             let track = Track::from_dir(name).ok_or_else(|| anyhow!("unknown track folder content/{name}"))?;
             for topic_dir in track_dir.dirs() {
                 let read = |rel: &str| read_text(topic_dir, rel);
-                topics.push(parse_topic(&topic_dir.path().display().to_string(), track, read)?);
+                let list = |rel: &str| embedded_py_files(topic_dir, rel);
+                topics.push(parse_topic(&topic_dir.path().display().to_string(), track, read, list)?);
             }
         }
         let lib = Library::assemble(topics);
@@ -374,7 +472,8 @@ impl Library {
                     continue;
                 }
                 let read = |rel: &str| std::fs::read_to_string(topic_dir.join(rel)).ok();
-                topics.push(parse_topic(&topic_dir.display().to_string(), track, read)?);
+                let list = |rel: &str| disk_py_files(&topic_dir.join(rel));
+                topics.push(parse_topic(&topic_dir.display().to_string(), track, read, list)?);
             }
         }
         Ok(Library::assemble(topics))

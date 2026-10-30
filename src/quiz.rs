@@ -101,6 +101,8 @@ mod tests {
             hint: String::new(),
             explanation: String::new(),
             steps: Vec::new(),
+            reject: Vec::new(),
+            accept: Vec::new(),
         }
     }
 

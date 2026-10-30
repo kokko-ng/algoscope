@@ -80,6 +80,7 @@ text = "What is happening and why."
 | `tree` | a node with `val`, `left`, `right` (TreeNode) | variables holding nodes |
 | `heap` | list used as a binary heap | int index variables |
 | `trie` | a node with a `children` dict and an `end`/`is_end` flag | variables holding nodes |
+| `bits` | an int, drawn as binary digits with bit 0 on the right; changed bits are highlighted | int variables, drawn as arrows under bit positions |
 | `graph` | dict `{node: [neighbours]}` or list of lists; weighted neighbours as `(v, w)` | scalar = current node; first collection = visited; second = frontier |
 
 Views only show variables in scope at that step; anything else reads "(not assigned yet)". Every
@@ -132,6 +133,35 @@ def check(case, got, expected):
 - The step-count fit must match the declared complexity: `O(1)`/`O(log n)` below 0.4, `O(n)` 0.75-1.2,
   `O(n log n)` 0.95-1.5, `O(n^2)` 1.6-2.4, `O(2^n)`/`O(n!)` above 2.5. Recognised strings are listed
   in `src/check.rs`; add a mapping there if you need a new one.
+
+## Alternative solutions
+
+A build or apply challenge can have an `alternatives/` folder of extra solutions. `check-content` runs
+each one through the full suite and checks the outcome it declares on its first line:
+
+```python
+# expect: slow
+# Compare every pair: correct, but O(n^2).
+def solve(readings): ...
+```
+
+| expect | the alternative must |
+|---|---|
+| `fail` | fail at least one case, raise, or time out |
+| `pass` | pass every case, at any grade |
+| `gold`, `silver`, `bronze` | pass every case with exactly that grade |
+| `slow` | pass every case with a grade below gold |
+
+Use them to lock in the behaviour the statement promises:
+
+- **The brute force grades `slow`:** proves the profiling separates the target complexity from the naive one.
+- **A literal reading of the statement passes:** proves the statement specifies everything the tests check, for
+  example tuples instead of lists, or extra return values from class methods.
+- **Common mistakes `fail`:** proves the tests catch them, for example off-by-one ranges, ignoring order,
+  mutating when the statement forbids it, or missing the empty input.
+- **A valid alternative technique passes:** for example a recursive version of an iterative reference.
+
+Alternatives are checked only by `check-content`. Learners never see them.
 
 ## Checking
 
@@ -204,6 +234,11 @@ answer = 3             # 1-based: the third choice
 explanation = "..."
 ```
 
+- `reject = [...]` lists answers from common wrong methods (a forgotten factor, the average used for
+  the peak, added probabilities). `check-content` fails if the tolerance accepts any of them. Comment
+  each value with the mistake it represents.
+- `accept = [...]` lists sensibly rounded answers (for example the 100,000-seconds-a-day shortcut).
+  `check-content` fails if the tolerance rejects any of them.
 - Number answers accept forms like `12000`, `12k`, `1.5M`, `3e6` and `2.5GB`. State the unit in
   the prompt when it matters (for example "in TB").
 - Set the tolerance so that sensible rounding passes and a wrong method fails: 0.25 for estimates,

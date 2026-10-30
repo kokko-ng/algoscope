@@ -30,6 +30,8 @@ prompt = "What is the average number of photo views per second?"
 answer = 2315
 tolerance = 0.25
 unit = "views per second"
+reject = [116, 55556, 231]  # forgot the 20 views; divided by 3,600; divided by 864,000
+accept = [2000, 2300]       # the 100,000-second shortcut; rounding
 hint = "Multiply users by views per user, then divide by the seconds in a day."
 explanation = "10,000,000 x 20 = 200,000,000 views a day. 200,000,000 / 86,400 = about 2,315 views per second. With 100,000 seconds as a shortcut you get 2,000, which is close enough for a first estimate."
 
@@ -44,6 +46,8 @@ prompt = "The busiest hour has two times the average traffic. How many views per
 answer = 4630
 tolerance = 0.25
 unit = "views per second"
+reject = [2315]             # forgot the peak
+accept = [4000, 4600]
 explanation = "2 x 2,315 = about 4,630 views per second. Capacity is planned for the peak. A service that handles only the average fails every day at the busiest hour."
 
 [[questions.steps]]
