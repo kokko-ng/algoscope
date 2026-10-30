@@ -20,6 +20,7 @@ import os
 import random
 import sys
 import traceback
+import types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -39,6 +40,46 @@ def load(path, name):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+class ListsToCostLists(ast.NodeTransformer):
+    """Route list displays, comprehensions and list() calls through traced.cost_list."""
+
+    def _wrap(self, node):
+        call = ast.Call(func=ast.Name(id="__cost_list__", ctx=ast.Load()), args=[node], keywords=[])
+        return ast.copy_location(call, node)
+
+    def visit_List(self, node):
+        self.generic_visit(node)
+        return self._wrap(node) if isinstance(node.ctx, ast.Load) else node
+
+    def visit_ListComp(self, node):
+        self.generic_visit(node)
+        return self._wrap(node)
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Name) and node.func.id == "list":
+            node.func = ast.copy_location(ast.Name(id="__cost_list__", ctx=ast.Load()), node.func)
+        return node
+
+
+def load_costed(path, name):
+    """Load a module for profiling: lists it builds and the builtins it calls charge their real cost."""
+    with open(path, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read(), filename=path)
+    tree = ast.fix_missing_locations(ListsToCostLists().visit(tree))
+    module = types.ModuleType(name)
+    module.__file__ = path
+    module.__dict__.update(traced.BUILTINS)
+    sys.modules[name] = module
+    exec(compile(tree, path, "exec"), module.__dict__)
+    return module
+
+
+def use_costed_libraries():
+    sys.modules["heapq"] = traced.costed_heapq()
+    sys.modules["bisect"] = traced.costed_bisect()
 
 
 class Capture(io.StringIO):
@@ -248,12 +289,14 @@ def run_visual(cfg, run_dir, out):
 def run_limited(runner, filename, case, limit):
     """Run one case with a step budget so runaway loops stop quickly. Raises traced.StepLimit."""
     meter = traced.Meter(limit)
+    traced.METER = meter
     counter = tracer.Counter(filename, meter)
     sys.settrace(counter.global_trace)
     try:
         return runner.run(case)
     finally:
         sys.settrace(None)
+        traced.METER = None
 
 
 def measure(cfg, runner, filename, case, limit):
@@ -284,7 +327,8 @@ def run_score(cfg, run_dir, out):
         out["error"] = forbidden
         return
     capture = Capture()
-    ref = Runner(cfg, load(ref_path, "reference"), "reference.py")
+    use_costed_libraries()
+    ref = Runner(cfg, load_costed(ref_path, "reference"), "reference.py")
     seeds = cfg.get("seeds", 2)
 
     suite = []
@@ -299,7 +343,7 @@ def run_score(cfg, run_dir, out):
     failures = []
     with contextlib.redirect_stdout(capture):
         try:
-            sol = Runner(cfg, load(sol_path, "solution"), "your code")
+            sol = Runner(cfg, load_costed(sol_path, "solution"), "your code")
         except SolutionError as exc:
             out["error"] = {"text": str(exc), "line": None}
             return
@@ -309,7 +353,7 @@ def run_score(cfg, run_dir, out):
                 got = run_limited(sol, sol_path, copy.deepcopy(case), cfg.get("case_step_limit", 3_000_000))
             except traced.StepLimit:
                 out["error"] = {
-                    "text": "a test case ran for over 3,000,000 steps: look for an infinite loop",
+                    "text": "a small test case ran for over 3,000,000 steps: an infinite loop, or an approach far slower than needed",
                     "line": None,
                     "input": args_text(case),
                 }

@@ -127,7 +127,7 @@ impl VizView<'_> {
             status.push(Span::styled(format!("op {op}  "), t.bold(t.warn)));
         }
         if f.ev == "return" {
-            let ret = f.ret.as_ref().map(V::label).unwrap_or_else(|| "None".into());
+            let ret = f.ret.as_ref().map(|r| f.label(r)).unwrap_or_else(|| "None".into());
             let func = f.stack.last().map_or("?", |s| s.func.as_str());
             status.push(Span::styled(format!("{func} returns {ret}"), t.bold(t.good)));
         }
@@ -158,7 +158,7 @@ impl VizView<'_> {
                 let changed = ctx.prev.is_some_and(|p| p.var(name) != Some(v));
                 let style = if changed { t.bold(t.write) } else { t.text() };
                 spans.push(Span::styled(format!("{name}="), t.dim()));
-                spans.push(Span::styled(format!("{}  ", v.label()), style));
+                spans.push(Span::styled(format!("{}  ", f.label(v)), style));
             }
             buf.set_line(main.x + 1, ly, &Line::from(spans), main.width.saturating_sub(2));
         }
@@ -220,12 +220,12 @@ fn render_view(spec: &ViewSpec, ctx: &Ctx, area: Rect, buf: &mut Buffer) {
             let name_w = spec.label.as_deref().unwrap_or(&spec.var).width() as u16;
             let changed = ctx.prev.is_some() && ctx.prev_var(&spec.var) != Some(v);
             let style = if changed { t.bold(t.write) } else { t.text() };
-            put(buf, area, area.x + name_w, area.y, &format!(" = {}", v.label()), style);
+            put(buf, area, area.x + name_w, area.y, &format!(" = {}", ctx.frame.label(v)), style);
         }
         ViewKind::Set => {
             header(spec, ctx, area, buf, "");
             let name_w = spec.label.as_deref().unwrap_or(&spec.var).width() as u16;
-            put(buf, area, area.x + name_w, area.y, &format!(" = {}", v.label()), t.text());
+            put(buf, area, area.x + name_w, area.y, &format!(" = {}", ctx.frame.label(v)), t.text());
         }
         ViewKind::Array => array(spec, ctx, v, area, buf),
         ViewKind::Bars => bars(spec, ctx, v, area, buf),
@@ -289,7 +289,7 @@ fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         _ => vals.len(),
     };
     header(spec, ctx, area, buf, &format!("len {len}"));
-    let labels: Vec<String> = vals.iter().map(V::cell).collect();
+    let labels: Vec<String> = vals.iter().map(|x| ctx.frame.cell(x)).collect();
     let cw = labels.iter().map(|l| l.width()).max().unwrap_or(1).clamp(1, 8) + 2;
     let fit = ((area.width as usize).saturating_sub(4) / (cw + 1)).max(1);
     let reads = ctx.reads(&spec.var);
@@ -437,7 +437,7 @@ fn bars(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             let ch = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"][fill];
             put(buf, area, x, base - 1 - row as u16, &ch.repeat(bw), Style::default().fg(color));
         }
-        let label = vals[i].cell();
+        let label = ctx.frame.cell(&vals[i]);
         let label: String = label.chars().take(bw).collect();
         put(buf, area, x, base, &format!("{label:^bw$}"), t.dim());
     }
@@ -501,7 +501,7 @@ fn grid(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             if focus == Some((r as i64, ci)) {
                 style = style.add_modifier(Modifier::UNDERLINED).fg(t.pointer);
             }
-            put(buf, area, x, y, &format!("{:>cw$}", cell.cell()), style);
+            put(buf, area, x, y, &format!("{:>cw$}", ctx.frame.cell(cell)), style);
         }
     }
 }
@@ -529,7 +529,7 @@ fn map(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             Some(o) if o != val => t.bold(t.write),
             _ => t.text(),
         };
-        put(buf, area, x, y, &format!("{:>kw$} → {}", k.label(), val.label()), style);
+        put(buf, area, x, y, &format!("{:>kw$} → {}", ctx.frame.label(k), ctx.frame.label(val)), style);
     }
 }
 
@@ -552,9 +552,9 @@ fn buckets(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         put(buf, area, area.x, y, &format!("{i:>3} │"), idx_style);
         let text = match b {
             V::Seq { items, .. } if items.is_empty() => "·".to_string(),
-            V::Seq { items, .. } => items.iter().map(V::label).collect::<Vec<_>>().join(" → "),
+            V::Seq { items, .. } => items.iter().map(|x| ctx.frame.label(x)).collect::<Vec<_>>().join(" → "),
             V::None => "·".to_string(),
-            other => other.label(),
+            other => ctx.frame.label(other),
         };
         put(buf, area, area.x + 6, y, &text, t.text());
     }
@@ -564,14 +564,14 @@ fn stack(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let t = ctx.theme;
     let Some(vals) = items(v) else { return };
     header(spec, ctx, area, buf, &format!("size {}", vals.len()));
-    let cw = vals.iter().map(|x| x.label().width()).max().unwrap_or(1).clamp(3, 14) + 2;
+    let cw = vals.iter().map(|x| ctx.frame.label(x).width()).max().unwrap_or(1).clamp(3, 14) + 2;
     let grew = ctx.prev_var(&spec.var).and_then(items).map_or(false, |p| p.len() < vals.len());
     let rows = area.height.saturating_sub(2) as usize;
     for (i, val) in vals.iter().rev().take(rows).enumerate() {
         let y = area.y + 1 + i as u16;
         let style = if i == 0 && grew { t.bold(t.write) } else { t.text() };
         put(buf, area, area.x, y, "│", t.dim());
-        put(buf, area, area.x + 1, y, &format!("{:^cw$}", val.label()), style);
+        put(buf, area, area.x + 1, y, &format!("{:^cw$}", ctx.frame.label(val)), style);
         put(buf, area, area.x + 1 + cw as u16, y, "│", t.dim());
         if i == 0 {
             put(buf, area, area.x + 3 + cw as u16, y, "← top", t.accent());
@@ -592,7 +592,7 @@ fn queue(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let mut x = area.x + 7;
     put(buf, area, area.x, area.y + 2, "front", t.accent());
     for (i, val) in vals.iter().enumerate() {
-        let label = format!(" {} ", val.label());
+        let label = format!(" {} ", ctx.frame.label(val));
         let w = label.width() as u16;
         if x + w + 8 > area.right() {
             put(buf, area, x, area.y + 2, "..", t.dim());

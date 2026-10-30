@@ -170,14 +170,15 @@ pub fn render(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             continue;
         }
         let mut style = t.text();
-        if let Some((_, frontier)) = sets.get(1) {
-            if frontier.contains(name) {
-                style = t.bold(t.warn);
-            }
-        }
         if let Some((_, visited)) = sets.first() {
             if visited.contains(name) {
                 style = t.bold(t.good);
+            }
+        }
+        // the frontier is drawn over visited: queued nodes are usually also marked seen
+        if let Some((_, frontier)) = sets.get(1) {
+            if frontier.contains(name) {
+                style = t.bold(t.warn);
             }
         }
         if current.contains(name) {

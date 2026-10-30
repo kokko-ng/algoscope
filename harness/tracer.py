@@ -73,7 +73,8 @@ class Encoder:
                 heap[key] = None  # placeholder breaks cycles
                 heap[key] = {
                     "cls": type(v).__name__,
-                    "fields": {name: self.encode(val, heap, depth + 1) for name, val in fields},
+                    # objects are stored flat in the heap table, so their fields start a fresh depth
+                    "fields": {name: self.encode(val, heap, 0) for name, val in fields},
                 }
             return {"k": "ref", "id": ident}
         return {"k": "repr", "v": _short_repr(v)}

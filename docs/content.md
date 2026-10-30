@@ -115,9 +115,13 @@ def check(case, got, expected):
   every file, and solutions get the same import. Outputs that are nodes are compared by value
   (a list for linked lists, level order for trees).
 - Outputs are compared after normalising: tuples become lists, sets sort, floats round to 6 places.
-- Profiling counts executed lines in the solution file, plus linear-time list methods (`in`, `index`,
-  `insert(0, ..)`, slices) on the input lists. Builtins like `sorted` count as one step, so list
-  them in `forbid` when the exercise is about implementing them.
+- Profiling counts executed lines in the solution file plus the real cost of hidden work: linear
+  list operations (`in`, `index`, `insert(0, ..)`, `pop(0)`, slices, `+`, `*`) on every list, `sorted`
+  and `list.sort` at n log n, single-iterable `min`/`max`/`sum` at n, and `heapq`/`bisect` calls at
+  log n. Still list builtins in `forbid` when the exercise is about implementing them.
+- Each correctness case has a budget of 3,000,000 steps (`case_step_limit` in the harness). Keep
+  `check_sizes` small enough that the slow-but-correct approaches you want graded bronze finish
+  within it; exponential approaches that blow it are reported as far too slow.
 - Keep the reference's profiled sizes under ~1M steps at the largest n. Exponential problems
   (backtracking) use small sizes such as `sizes = [6, 8, 10, 12]`.
 - The step-count fit must match the declared complexity: `O(1)`/`O(log n)` below 0.4, `O(n)` 0.75-1.2,

@@ -171,6 +171,43 @@ pub struct Frame {
 }
 
 impl Frame {
+    /// Like `V::label`, but node references show their `val` (or `key`) instead of an id.
+    pub fn label(&self, v: &V) -> String {
+        self.text(v, false)
+    }
+
+    /// Like `V::cell`, resolving node references.
+    pub fn cell(&self, v: &V) -> String {
+        self.text(v, true)
+    }
+
+    fn text(&self, v: &V, bare: bool) -> String {
+        match v {
+            V::Ref(id) => match self.heap.get(id) {
+                Some(o) => match o.field("val").or_else(|| o.field("key")).or_else(|| o.field("value")) {
+                    Some(inner @ (V::Int(_) | V::Float(_) | V::Str(_) | V::Bool(_))) => format!("<{}>", inner.cell()),
+                    _ => format!("<{}>", o.cls),
+                },
+                None => v.label(),
+            },
+            V::Seq { kind, items, len } if items.iter().any(|x| matches!(x, V::Ref(_))) => {
+                let (open, close) = match kind {
+                    SeqKind::List => ("[", "]"),
+                    SeqKind::Tuple => ("(", ")"),
+                    SeqKind::Deque => ("deque[", "]"),
+                    SeqKind::Set => ("{", "}"),
+                };
+                let mut parts: Vec<String> = items.iter().take(8).map(|x| self.label(x)).collect();
+                if *len > parts.len() {
+                    parts.push("...".into());
+                }
+                format!("{open}{}{close}", parts.join(", "))
+            }
+            other if bare => other.cell(),
+            other => other.label(),
+        }
+    }
+
     pub fn var(&self, name: &str) -> Option<&V> {
         self.vars
             .iter()

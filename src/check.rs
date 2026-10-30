@@ -17,7 +17,7 @@ pub fn expected_slope(decl: &str) -> Option<(f64, f64)> {
         "o(1)" | "o(logn)" | "o(log n)" => (-0.2, 0.4),
         "o(n)" | "o(v+e)" | "o(n+k)" | "o(n+m)" | "o(m+n)" | "o(e)" | "o(l)" | "o(nl)" | "o(n·l)" => (0.75, 1.2),
         "o(nlogn)" | "o(eloge)" | "o(elogv)" | "o((v+e)logv)" | "o(nlogk)" | "o(e·α(v))" | "o(eα(v))" => (0.95, 1.5),
-        "o(n^2)" | "o(n²)" | "o(nm)" | "o(n·m)" | "o(n*m)" | "o(nk)" | "o(n·w)" | "o(nw)" => (1.6, 2.4),
+        "o(n^2)" | "o(n²)" | "o(nm)" | "o(n·m)" | "o(n*m)" | "o(nk)" | "o(n·k)" | "o(n*k)" | "o(n·w)" | "o(nw)" => (1.6, 2.4),
         "o(n^3)" => (2.5, 3.4),
         "o(2^n)" | "o(n2^n)" | "o(n·2^n)" | "o(n*2^n)" | "o(n!)" | "o(n·n!)" => (2.5, 100.0),
         _ => return None,
@@ -105,7 +105,12 @@ pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
     let jobs: Vec<&Challenge> = lib
         .topics
         .iter()
-        .filter(|t| topic_filter.is_none_or(|f| t.meta.id.contains(f)))
+        .filter(|t| match topic_filter {
+            // an exact id wins over substring matches
+            Some(f) if lib.topic(f).is_some() => t.meta.id == f,
+            Some(f) => t.meta.id.contains(f),
+            None => true,
+        })
         .flat_map(|t| t.challenges.iter())
         .collect();
     let mut order_problems = Vec::new();

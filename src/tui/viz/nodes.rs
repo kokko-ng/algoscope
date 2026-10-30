@@ -155,11 +155,11 @@ fn build_ref_tree(frame: &Frame, root: &V) -> Vec<TNode> {
     nodes
 }
 
-fn build_array_tree(vals: &[V]) -> Vec<TNode> {
+fn build_array_tree(frame: &Frame, vals: &[V]) -> Vec<TNode> {
     let n = vals.len().min(63);
     let mut nodes: Vec<TNode> = (0..n)
         .map(|i| TNode {
-            label: vals[i].cell(),
+            label: frame.cell(&vals[i]),
             depth: (usize::BITS - (i + 1).leading_zeros() - 1) as usize,
             x: 0,
             left: (2 * i + 1 < n).then_some(2 * i + 1),
@@ -197,7 +197,7 @@ fn depth_of(nodes: &[TNode]) -> usize {
 pub fn tree_height(spec: &ViewSpec, ctx: &Ctx, _width: u16) -> u16 {
     let Some(v) = ctx.frame.var(&spec.var) else { return 1 };
     let (d, extra) = match spec.kind {
-        crate::content::ViewKind::Heap => (depth_of(&build_array_tree(items(v).unwrap_or(&[]))), 3),
+        crate::content::ViewKind::Heap => (depth_of(&build_array_tree(ctx.frame, items(v).unwrap_or(&[]))), 3),
         _ => (depth_of(&build_ref_tree(ctx.frame, v)), 0),
     };
     (1 + d.max(1) * 2 + extra) as u16
@@ -289,7 +289,7 @@ pub fn heap(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let t = ctx.theme;
     let vals = items(v).unwrap_or(&[]);
     header(spec, ctx, area, buf, &format!("size {}", vals.len()));
-    let mut nodes = build_array_tree(vals);
+    let mut nodes = build_array_tree(ctx.frame, vals);
     let mut hot = HashMap::new();
     for i in ctx.reads(&spec.var) {
         hot.insert(i, Style2::Read);
@@ -316,7 +316,7 @@ pub fn heap(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let y = area.y + 1 + d * 2;
     let mut x = area.x;
     for (i, val) in vals.iter().enumerate() {
-        let label = format!("{}", val.cell());
+        let label = ctx.frame.cell(val);
         let w = label.width().max(2) as u16 + 1;
         if x + w > area.right() {
             put(buf, area, x, y, "..", t.dim());

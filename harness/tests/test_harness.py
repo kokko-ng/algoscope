@@ -176,3 +176,29 @@ def test_crashing_check_counts_as_a_failed_case(tmp_path):
     out = run(tmp_path, "def solve(nums):\n    return None\n", "score", cases=cases)
     assert "error" not in out
     assert out["passed"] < out["total"]
+
+
+def test_lists_the_solution_builds_are_charged(tmp_path):
+    slow = """
+    def solve(nums):
+        queue = list(nums)
+        best = None
+        while queue:
+            x = queue.pop(0)
+            if best is None or x > best:
+                best = x
+        return best
+    """
+    out = run(tmp_path, slow, "score")
+    ref = dict(map(tuple, out["steps"]["ref"]))
+    user = dict(map(tuple, out["steps"]["user"]))
+    assert user[80] > 4 * ref[80]
+
+
+def test_sorted_and_heapq_are_charged_n_log_n(tmp_path):
+    via_sort = "def solve(nums):\n    return sorted(nums)[-1] if nums else None\n"
+    via_heap = "import heapq\n\ndef solve(nums):\n    h = []\n    for x in nums:\n        heapq.heappush(h, -x)\n    return -h[0] if h else None\n"
+    for code in (via_sort, via_heap):
+        out = run(tmp_path, code, "score", sizes=[64, 256, 1024])
+        steps = [s for _, s in out["steps"]["user"]]
+        assert steps[2] > 4.4 * steps[1], steps
