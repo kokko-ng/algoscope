@@ -1,0 +1,13 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"root\\\"\\nas = \\\"trie\\\"\", frame, None, 30, 9)"
+---
+ root
+ (root)
+ └─ c
+    └─ a
+       ├─ t *
+       └─ r *
+
+
+ locals

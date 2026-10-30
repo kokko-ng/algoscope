@@ -1,0 +1,13 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"root\\\"\\nas = \\\"tree\\\"\\npointers = [\\\"cur\\\"]\", frame,\nNone, 40, 9)"
+---
+ root  cur=10
+               8
+       ┌───────┴───┐
+       3           10
+   ┌───┴───┐       └───┐
+   1       6           14
+
+
+ locals

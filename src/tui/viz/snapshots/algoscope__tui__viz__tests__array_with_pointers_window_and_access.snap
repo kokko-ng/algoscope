@@ -1,0 +1,13 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"nums\\\"\\nas = \\\"array\\\"\\npointers = [\\\"lo\\\", \\\"hi\\\"]\\nwindow = [\\\"lo\\\", \\\"hi\\\"]\",\nframe, None, 60, 9)"
+---
+ nums  len 6
+ ┌────┬────┬────┬────┬────┬────┐
+ │ 4  │ 8  │ 15 │ 16 │ 23 │ 42 │
+ └────┴────┴────┴────┴────┴────┘
+   0    1    2    3    4    5
+         ↑lo            ↑hi
+
+
+ locals k=3

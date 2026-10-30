@@ -40,6 +40,7 @@ pub fn linked(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let mut seen = HashSet::new();
     let mut cur = v.clone();
     let mut count = 0;
+    let mut label_end = 0u16;
     let prev_ids: HashSet<u64> = ctx
         .prev
         .map(|p| p.heap.keys().copied().collect())
@@ -68,7 +69,15 @@ pub fn linked(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
                 };
                 put(buf, area, x, y, &label, style);
                 if let Some(names) = names {
-                    put(buf, area, x, y - 1, &format!("↓{}", names.join(",")), t.bold(t.pointer));
+                    // alternate above and below when labels would touch
+                    let label = format!("↓{}", names.join(","));
+                    let below = x <= label_end;
+                    if below {
+                        put(buf, area, x, y + 1, &format!("↑{}", names.join(",")), t.bold(t.pointer));
+                    } else {
+                        put(buf, area, x, y - 1, &label, t.bold(t.pointer));
+                        label_end = x + label.width() as u16;
+                    }
                 }
                 x += w;
                 let next = ctx
@@ -111,7 +120,7 @@ pub fn linked(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         .map(|(id, n)| format!("{} → [{}]", n.join(","), node_val(ctx.frame, *id)))
         .collect();
     if !off.is_empty() {
-        put(buf, area, area.x, y + 1, &off.join("   "), t.dim());
+        put(buf, area, area.x, y + 2, &off.join("   "), t.dim());
     }
 }
 

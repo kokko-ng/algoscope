@@ -78,11 +78,11 @@ fn view_height(spec: &ViewSpec, ctx: &Ctx, width: u16) -> u16 {
         ViewKind::Array => 5 + pointer_rows(spec, ctx),
         ViewKind::Bars => 10 + pointer_rows(spec, ctx),
         ViewKind::Grid => 2 + items(v).map_or(0, |r| r.len().min(14) as u16),
-        ViewKind::Map => 2 + map_len(v).min(10) as u16,
+        ViewKind::Map => 1 + map_len(v).min(10) as u16,
         ViewKind::Buckets => 1 + items(v).map_or(0, |r| r.len().min(16) as u16),
-        ViewKind::Stack => 3 + items(v).map_or(0, |r| r.len().min(12) as u16),
+        ViewKind::Stack => 2 + items(v).map_or(0, |r| r.len().min(12) as u16),
         ViewKind::Queue => 4,
-        ViewKind::Linked => 4,
+        ViewKind::Linked => 5,
         ViewKind::Tree | ViewKind::Heap => nodes::tree_height(spec, ctx, width),
         ViewKind::Trie => nodes::trie_height(spec, ctx),
         ViewKind::Graph => graph::height(spec, ctx),
@@ -557,7 +557,7 @@ fn stack(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     header(spec, ctx, area, buf, &format!("size {}", vals.len()));
     let cw = vals.iter().map(|x| x.label().width()).max().unwrap_or(1).clamp(3, 14) + 2;
     let grew = ctx.prev_var(&spec.var).and_then(items).map_or(false, |p| p.len() < vals.len());
-    let rows = area.height.saturating_sub(3) as usize;
+    let rows = area.height.saturating_sub(2) as usize;
     for (i, val) in vals.iter().rev().take(rows).enumerate() {
         let y = area.y + 1 + i as u16;
         let style = if i == 0 && grew { t.bold(t.write) } else { t.text() };

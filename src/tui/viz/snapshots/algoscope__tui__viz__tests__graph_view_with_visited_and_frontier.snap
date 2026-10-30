@@ -1,0 +1,13 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"graph\\\"\\nas = \\\"graph\\\"\\npointers = [\\\"node\\\", \\\"seen\\\", \\\"queue\\\"]\",\nframe, None, 50, 9)"
+---
+ graph  4 nodes  ● seen  ◆ queue
+
+ (A)············(B)············(D)
+          ·······        ·······
+                (C)······
+
+
+
+ locals

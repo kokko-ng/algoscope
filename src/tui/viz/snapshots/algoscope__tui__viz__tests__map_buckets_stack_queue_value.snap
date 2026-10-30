@@ -1,0 +1,30 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(views, frame, None, 50, 26)"
+---
+ seen  2 keys
+ 'a' → 1
+ 'b' → 2
+
+ table  3 buckets
+   0 │ ·
+   1 │ ['x', 1]
+   2 │ ·
+
+ stack  size 2
+ │ '[' │ ← top
+ │ '(' │
+ └─────┘
+
+ q  deque size 3
+        ┌───┐┌───┐┌───┐
+ front  │ 1 ││ 2 ││ 3 │ back
+        └───┘└───┘└───┘
+
+ best = 7
+
+
+
+
+
+ locals

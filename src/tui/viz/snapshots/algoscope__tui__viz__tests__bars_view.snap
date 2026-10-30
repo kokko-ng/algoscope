@@ -1,0 +1,17 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"a\\\"\\nas = \\\"bars\\\"\\npointers = [\\\"i\\\"]\", frame, None,\n40, 13)"
+---
+ a  len 6
+                 ███
+                 ███
+ ▃▃▃             ███
+ ███     ▄▄▄     ███
+ ███     ███     ███ ▅▅▅
+ ███     ███ ▆▆▆ ███ ███
+ ███ ▇▇▇ ███ ███ ███ ███
+  5   1   4   2   8   3
+         ↑i
+
+
+ locals

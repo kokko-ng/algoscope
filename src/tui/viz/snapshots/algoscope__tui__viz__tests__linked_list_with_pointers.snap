@@ -1,0 +1,9 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"head\\\"\\nas = \\\"linked\\\"\\npointers = [\\\"slow\\\", \\\"fast\\\"]\",\nframe, None, 50, 5)"
+---
+ head
+      ↓slow
+ [1]─▶[2]─▶[3]─▶None
+           ↑fast
+ locals

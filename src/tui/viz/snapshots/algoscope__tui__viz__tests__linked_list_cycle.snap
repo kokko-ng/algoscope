@@ -1,0 +1,9 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"head\\\"\\nas = \\\"linked\\\"\", frame, None, 50, 5)"
+---
+ head
+
+ [1]─▶[2]─▶↺ back to 1
+
+ locals

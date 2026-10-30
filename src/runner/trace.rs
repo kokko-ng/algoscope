@@ -179,7 +179,7 @@ impl Frame {
             .map(|(_, v)| v)
     }
 
-    fn from_json(v: &Value) -> Frame {
+    pub fn from_json(v: &Value) -> Frame {
         let pairs = |key: &str| -> Vec<(String, V)> {
             v.get(key)
                 .and_then(Value::as_object)

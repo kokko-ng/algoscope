@@ -1,0 +1,10 @@
+---
+source: src/tui/viz/tests.rs
+expression: "draw(\"[[view]]\\nvar = \\\"dp\\\"\\nas = \\\"grid\\\"\\npointers = [\\\"r\\\", \\\"c\\\"]\",\nframe, Some(prev), 40, 6)"
+---
+ dp  2x3
+      0  1  2
+   0  1  2  3
+   1  4  6  0
+
+ locals
