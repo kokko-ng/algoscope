@@ -18,11 +18,21 @@ git pull -q --ff-only
 
 if [ $# -gt 0 ]; then cz bump --yes "$1"; else cz bump --yes; fi
 version="$(cz version --project)"
-git push -q --follow-tags
+# push the tag by name: --follow-tags skips lightweight tags
+git push -q origin main "v$version"
 
 echo "waiting for the release workflow for v$version"
-sleep 10
-run="$(gh run list --workflow release.yml --branch "v$version" --limit 1 --json databaseId -q '.[0].databaseId')"
+run=""
+for _ in $(seq 1 30); do
+    run="$(gh run list --workflow release.yml --limit 10 --json databaseId,headBranch \
+        -q ".[] | select(.headBranch == \"v$version\") | .databaseId" | head -1)"
+    [ -n "$run" ] && break
+    sleep 10
+done
+if [ -z "$run" ]; then
+    echo "no release workflow run found for v$version" >&2
+    exit 1
+fi
 gh run watch "$run" --exit-status --interval 30 > /dev/null
 gh release view "v$version" --json url -q .url
 

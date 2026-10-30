@@ -46,6 +46,7 @@ mypy_path = "harness"
 name = "cz_conventional_commits"
 version_provider = "cargo"
 tag_format = "v$version"
+annotated_tag = true
 major_version_zero = true
 update_changelog_on_bump = true
 changelog_incremental = true
