@@ -33,6 +33,12 @@ flow = ["services", "collector", "store"]
 prompt = "If the collector keeps every trace, how much trace data arrives each day? Give the answer in TB."
 answer = 43.2
 tolerance = 0.25
+reject = [
+  2.16,   # forgot the 20 spans
+  1.8,    # multiplied by 3,600
+  302.4,  # counted 7 days
+]
+accept = [43, 50]  # rounded; the 100,000-second shortcut
 unit = "TB per day"
 hint = "Requests per second x spans x bytes per span, then x 86,400."
 explanation = "50,000 x 20 x 500 bytes = 500,000,000 bytes = 500 MB per second. 500 MB x 86,400 = 43,200,000 MB = 43.2 TB each day. Kept for 7 days, that is over 300 TB just for traces."
@@ -48,6 +54,12 @@ caption = "Full tracing at high request rates costs more than the service it wat
 prompt = "The collector keeps a random 1% of traces. How much storage do 7 days of traces need? Give the answer in TB."
 answer = 3.02
 tolerance = 0.25
+reject = [
+  0.432,  # counted one day
+  302.4,  # forgot the 1% sample
+  30.24,  # used 10%
+]
+accept = [3, 3.5]  # rounded; the 100,000-second shortcut
 unit = "TB"
 explanation = "43.2 TB x 1% = 0.432 TB per day. 0.432 TB x 7 = 3.02 TB. A 1% sample still has 500 traces per second, which is plenty to study common requests."
 
@@ -77,6 +89,12 @@ caption = "Decide after the request ends, when you know whether it failed."
 prompt = "The collector keeps every failed trace plus 1% of the successful ones. How many traces per second does it keep?"
 answer = 525
 tolerance = 0.03
+reject = [
+  500,    # forgot the failed traces
+  25,     # forgot the successful traces
+  747.5,  # used 0.5% for 0.05%
+]
+accept = [524.75, 520]  # exact; 2 significant figures
 unit = "traces per second"
 hint = "Count the failed requests first, then 1% of the rest."
 explanation = "Failed: 50,000 x 0.05% = 25 traces per second, all kept. Successful: 49,975 x 1% = 499.75 per second. Total: about 525 traces per second. Storage grows by only 5%, and every error is kept."

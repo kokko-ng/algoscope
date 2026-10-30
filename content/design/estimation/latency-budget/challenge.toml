@@ -43,6 +43,12 @@ explanation = "The round trip between continents is about 150 ms. That is 15 tim
 prompt = "What is the latency of the request when every step runs one after the other?"
 answer = 23.5
 tolerance = 0.05
+reject = [
+  22,    # forgot the 0.5 ms network time
+  14.5,  # counted one pricing call, or ran them in parallel
+  15.5,  # counted one query, not 5
+]
+accept = [24]  # rounded
 unit = "ms"
 hint = "Add the 5 queries, then add 3 x (network + work) for the pricing calls."
 explanation = "Queries: 5 x 2 ms = 10 ms. Pricing calls: 3 x (0.5 + 4) ms = 13.5 ms. Total: 23.5 ms. Sequential steps add up."

@@ -1,0 +1,119 @@
+id = "balances-reconciliation"
+title = "Balances and reconciliation"
+stage = "quiz"
+xp = 140
+statement = """
+The ledger keeps a balance for each account, updated in the same transaction as its entries.
+
+- A large merchant receives 3,000 payments per second at peak. Each payment updates the merchant's balance row under a lock. One row takes at most 500 locked updates per second, and the team keeps a row at most 50% busy.
+- The platform charges merchants a fee of 2.9% of each payment plus 0.30.
+- Each night, reconciliation matches 50 million payments against the card processor's settlement file. 0.01% do not match and go to people for review. A review takes 3 minutes, and an analyst spends 7 hours a day on reviews.
+"""
+
+[diagram]
+nodes = [
+  { id = "api", label = "Payment API", at = [0, 0] },
+  { id = "ledger", label = "Ledger leader", at = [1, 0] },
+  { id = "replica", label = "Read replica", at = [2, 0] },
+  { id = "processor", label = "Card processor", at = [0, 1] },
+  { id = "recon", label = "Reconciliation", at = [1, 1] },
+  { id = "review", label = "Review queue", at = [2, 1] },
+]
+links = [["api", "ledger"], ["ledger", "replica"], ["processor", "recon"], ["ledger", "recon"], ["recon", "review"]]
+
+[[diagram.steps]]
+flow = ["api", "ledger", "replica"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["processor", "recon", "review"]
+
+[[questions]]
+prompt = "A wallet holds 100.00. Two withdrawals of 80.00 arrive at the same moment on two servers. What stops both from succeeding?"
+choices = [
+  "Run the balance check and the debit as one transaction on the leader, for example an update that subtracts 80.00 only where the balance is at least 80.00",
+  "Read the balance from the nearest read replica, which is faster",
+  "Allow both and fix the negative balance in the next day's reconciliation",
+  "Cache the balance in each server's memory and check it there",
+]
+answer = 1
+explanation = "A conditional update on the leader checks and debits in one step, under the row's lock, so the second withdrawal sees 20.00 and fails. A replica may lag and show 100.00 to both. Fixing it the next day means the money has already left. Each server's cache sees only its own withdrawals. Balances that money depends on need strong consistency."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+packets = 2
+highlight = ["ledger"]
+labels = { ledger = "100 -> 20, then fail" }
+caption = "Check and debit happen together, so only one withdrawal fits."
+
+[[questions]]
+prompt = "The merchant's balance row is a hot spot. The team splits it into sub-account rows, each payment updates one at random, and the balance is their sum. How many rows keep each at most 50% busy?"
+answer = 12
+tolerance = 0.1
+unit = "rows"
+reject = [
+  6,  # filled each row to 100% of its 500 updates per second
+  3,  # multiplied by 50% instead of dividing by it
+]
+accept = [12]
+explanation = "At 50%, a row takes 500 x 0.5 = 250 updates per second. 3,000 / 250 = 12 rows. Reading the balance now sums 12 rows, which is still one fast query. This is the hot-key fix from partitioning, applied to money."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+packets = 10
+labels = { api = "3,000/s", ledger = "12 rows x 250/s" }
+caption = "Splitting one hot row spreads its locks."
+
+[[questions]]
+prompt = "A customer pays 100.00. The transaction has three entries: +100.00 to the funds held at the processor, the merchant's share to the account the platform owes the merchant, and the fee to fee revenue. How much is the merchant's share?"
+answer = 96.8
+tolerance = 0.001
+unit = "currency units"
+reject = [
+  97.1,  # forgot the fixed 0.30
+  99.7,  # forgot the 2.9%
+]
+accept = [96.8]
+explanation = "The fee is 100.00 x 0.029 + 0.30 = 2.90 + 0.30 = 3.20. The merchant gets 100.00 - 3.20 = 96.80. The entries are +100.00, -96.80 and -3.20, which add up to 0, so the transaction balances."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+highlight = ["ledger"]
+labels = { ledger = "+100 -96.80 -3.20" }
+caption = "A fee is one more entry, and the sum is still 0."
+
+[[questions]]
+prompt = "A 50.00 payment was recorded twice by mistake. Ledger entries are never changed or deleted. How is it fixed?"
+choices = [
+  "Write a new transaction with the opposite entries of the duplicate, linked to it and to the reason",
+  "Delete the entries of the duplicate",
+  "Update the amounts of the duplicate to 0.00",
+  "Write a single entry of -50.00 to the merchant's account",
+]
+answer = 1
+explanation = "A reversing transaction cancels the duplicate's effect while both stay on record, so an auditor can see what happened, when and why. Deleting or editing entries destroys that history, which audit rules forbid. A single entry would not add up to 0, so the ledger rejects it."
+
+[[questions.steps]]
+flow = ["api", "ledger", "replica"]
+labels = { ledger = "-50 +50: reversal" }
+caption = "Append, never edit: history stays complete."
+
+[[questions]]
+prompt = "How many analysts does the nightly review need?"
+answer = 36
+tolerance = 0.1
+unit = "analysts"
+reject = [
+  357,   # read 0.01% as 0.1%
+  2143,  # forgot to turn minutes into hours
+]
+accept = [36, 35.7]
+hint = "Mismatches x minutes per review, in hours, divided by the hours per analyst."
+explanation = "50,000,000 x 0.0001 = 5,000 mismatches a night. 5,000 x 3 minutes = 15,000 minutes = 250 hours. 250 / 7 = 35.7, so 36 analysts. Every point of extra automatic matching (for example, matching on amount and time when an ID is missing) cuts this team directly."
+
+[[questions.steps]]
+flow = ["processor", "recon", "review"]
+packets = 5
+highlight = ["review"]
+labels = { review = "5,000 a night" }
+caption = "Automatic matching clears almost everything. People handle the rest."

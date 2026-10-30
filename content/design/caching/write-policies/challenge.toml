@@ -43,6 +43,12 @@ caption = "A write-back cache that crashes loses every change it had not yet sav
 prompt = "A page view counter gets 50,000 increments per second, spread over 2,000 pages. With write-back, the cache saves each page's count to the database once every 10 seconds. How many database writes per second does that make?"
 answer = 200
 tolerance = 0.1
+reject = [
+  5000,  # saved per increment, not per page
+  2000,  # forgot the 10-second interval
+  25,    # divided increments by pages
+]
+accept = [200]  # exact
 unit = "writes per second"
 hint = "Each page makes one database write per save, however many increments it got."
 explanation = "Each of the 2,000 counters is saved once every 10 seconds: 2,000 / 10 = 200 writes per second, instead of 50,000. Write-back suits data like counters, where losing a few seconds of counts in a crash is acceptable."
@@ -79,6 +85,12 @@ caption = "Then the cached copy goes. The next read misses and loads the new nam
 prompt = "A hot entry gets 10,000 reads per second. It expires, and rebuilding it takes a 100 ms database query. With no protection, about how many requests miss and query the database before the first rebuild finishes?"
 answer = 1000
 tolerance = 0.25
+reject = [
+  10000,  # used a full second, not 100 ms
+  100,    # treated 100 ms as 0.01 s
+  1,      # assumed only one request misses
+]
+accept = [1000]  # exact
 unit = "requests"
 hint = "Every read in the 100 ms before the entry is back is a miss."
 explanation = "During the 100 ms of the first rebuild, every read misses: 10,000 x 0.1 s = 1,000 requests, and each runs the same query. One expiry becomes 1,000 identical queries at once, which can overload the database."

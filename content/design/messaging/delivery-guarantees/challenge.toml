@@ -74,6 +74,11 @@ caption = "No ack means the queue redelivers, and the card is charged again."
 prompt = "Workers crash between the charge and the ack for 0.2% of messages. Without any protection, about how many duplicate charges happen each day?"
 answer = 1000
 tolerance = 0.1
+reject = [
+  100000,  # used 0.2 as the fraction
+  10000,   # used 2%
+]
+accept = [1000]  # exact
 unit = "duplicate charges per day"
 explanation = "500,000 x 0.002 = 1,000 duplicate charges a day. A rare failure becomes a daily stream at scale, so the duplicates must be handled by design."
 

@@ -1,0 +1,121 @@
+id = "egress"
+title = "Size the egress"
+stage = "quiz"
+xp = 120
+statement = """
+A video service has these numbers:
+
+- At peak, 5 million viewers watch at the same time.
+- Averaged over the whole day, 2 million viewers watch at the same time.
+- The average stream is 3 Mbps (megabits per second).
+- The CDN serves 95% of the bytes from its edges. The rest comes from the origin.
+- One origin server can send 10 Gbps, and the team runs them at 50% of that.
+
+1 Tbps = 1,000 Gbps = 1,000,000 Mbps. There are 8 bits in a byte. Use 86,400 seconds in a day and 1 PB = 10^15 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "viewers", label = "Viewers", at = [0, 0] },
+  { id = "cdn", label = "CDN edges", at = [1, 0] },
+  { id = "origin", label = "Origin servers", at = [2, 0] },
+  { id = "storage", label = "Object storage", at = [2, 1] },
+]
+links = [["viewers", "cdn"], ["cdn", "origin"], ["origin", "storage"]]
+
+[[diagram.steps]]
+flow = ["cdn", "viewers"]
+packets = 10
+
+[[diagram.steps]]
+flow = ["storage", "origin", "cdn"]
+
+[[questions]]
+prompt = "How much bandwidth do all viewers use at peak? Give the answer in Tbps."
+answer = 15
+tolerance = 0.25
+unit = "Tbps"
+reject = [
+  1.875,  # divided by 8, which gives terabytes per second, not terabits
+  15000,  # that is the answer in Gbps
+]
+accept = [15]
+explanation = "5,000,000 x 3 Mbps = 15,000,000 Mbps = 15,000 Gbps = 15 Tbps. No single data center serves that, which is why video goes through a CDN with servers in many places."
+
+[[questions.steps]]
+flow = ["cdn", "viewers"]
+packets = 12
+labels = { viewers = "5M x 3 Mbps", cdn = "15 Tbps" }
+caption = "Viewers times bitrate gives the egress."
+
+[[questions]]
+prompt = "How much of that comes from the origin at peak? Give the answer in Gbps."
+answer = 750
+tolerance = 0.25
+unit = "Gbps"
+reject = [
+  14250,  # used the 95% served by the edges instead of the 5% they miss
+  15000,  # forgot the CDN
+]
+accept = [750]
+explanation = "The edges miss 5% of the bytes. 15,000 Gbps x 0.05 = 750 Gbps. The CDN's offload ratio sets the size of the origin: at 90% offload, the origin would need 1,500 Gbps, twice as much."
+
+[[questions.steps]]
+flow = ["cdn", "origin"]
+packets = 2
+labels = { origin = "5% = 750 Gbps" }
+caption = "Only edge misses reach the origin."
+
+[[questions]]
+prompt = "How many origin servers serve that at the 50% target?"
+answer = 150
+tolerance = 0.1
+unit = "servers"
+reject = [
+  75,    # ran the servers at 100%
+  3000,  # forgot the CDN
+]
+accept = [150]
+explanation = "Each server sends 10 Gbps x 0.5 = 5 Gbps. 750 / 5 = 150 servers. Without the CDN, the origin would need 15,000 / 5 = 3,000 servers."
+
+[[questions.steps]]
+flow = ["storage", "origin", "cdn"]
+packets = 3
+highlight = ["origin"]
+labels = { origin = "5 Gbps each" }
+caption = "Origin egress divided by safe egress per server gives the count."
+
+[[questions]]
+prompt = "How much data do viewers download in a whole day? Give the answer in PB."
+answer = 64.8
+tolerance = 0.25
+unit = "PB"
+reject = [
+  518.4,  # forgot to divide bits by 8
+  162,    # used the peak viewers for the whole day
+]
+accept = [65, 75]
+hint = "Use the daily average of viewers, and turn bits into bytes."
+explanation = "2,000,000 x 3 Mbps = 6,000,000 Mbps = 6 x 10^12 bits per second. Divided by 8: 7.5 x 10^11 bytes per second. x 86,400 = 6.48 x 10^16 bytes = 64.8 PB a day. With the 100,000-second shortcut, 75 PB. Daily totals use the average; the peak sizes the network."
+
+[[questions.steps]]
+flow = ["cdn", "viewers"]
+packets = 8
+labels = { cdn = "~65 PB a day" }
+caption = "Average rate times a day gives the daily volume."
+
+[[questions]]
+prompt = "Which requests miss the CDN edge most often?"
+choices = [
+  "Segments of old videos that few people watch",
+  "The first segments of a new episode that everyone is watching",
+  "Segments of the most popular videos of the week",
+  "The manifest of a popular video",
+]
+answer = 1
+explanation = "An edge keeps what was asked for recently. A popular video's segments are requested again and again, so they stay at the edge. The long tail of rarely watched videos is too large to keep everywhere, so each view of an old video is likely a miss that goes to the origin. That tail sets most of the origin load."
+
+[[questions.steps]]
+flow = ["viewers", "cdn", "origin"]
+labels = { cdn = "long tail: miss" }
+caption = "Popular segments stay at the edge. Rare ones come from the origin."

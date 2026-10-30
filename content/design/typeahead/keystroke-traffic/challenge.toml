@@ -1,0 +1,122 @@
+id = "keystroke-traffic"
+title = "Count the keystrokes"
+stage = "quiz"
+xp = 120
+statement = """
+A search box suggests completions as the user types.
+
+- 100 million daily active users each make 5 searches a day.
+- A user types 10 characters per search, on average, before picking a suggestion or pressing enter.
+- Without any delay, the browser sends one request per keystroke.
+- The busiest hour has 2 times the average traffic.
+
+Use 86,400 seconds in a day.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Browsers", at = [0, 0] },
+  { id = "edge", label = "Edge cache", at = [1, 0] },
+  { id = "suggest", label = "Suggest service", at = [2, 0] },
+]
+links = [["users", "edge"], ["edge", "suggest"]]
+
+[[diagram.steps]]
+flow = ["users", "edge"]
+packets = 8
+
+[[diagram.steps]]
+flow = ["edge", "suggest"]
+packets = 2
+
+[[questions]]
+prompt = "With one request per keystroke, how many suggestion requests per second arrive on average?"
+answer = 57870
+tolerance = 0.25
+unit = "requests per second"
+reject = [
+  5787,    # counted searches, not keystrokes
+  115741,  # used the peak, not the average
+]
+accept = [50000, 58000]
+hint = "Users x searches x characters, divided by the seconds in a day."
+explanation = "100,000,000 x 5 x 10 = 5,000,000,000 keystrokes a day. 5,000,000,000 / 86,400 = about 57,900 requests per second. That is 10 times the search traffic itself, because each search is typed one character at a time."
+
+[[questions.steps]]
+flow = ["users", "edge"]
+packets = 8
+labels = { users = "5 x 10 per user", edge = "~58,000/s" }
+caption = "Every character is a request, so typeahead traffic is searches times length."
+
+[[questions]]
+prompt = "How many requests per second arrive in the busiest hour?"
+answer = 115741
+tolerance = 0.25
+unit = "requests per second"
+reject = [
+  57870,  # the average; forgot the peak factor
+  11574,  # counted searches, not keystrokes
+]
+accept = [100000, 116000]
+explanation = "2 x 57,870 = about 115,700 requests per second. The edge, the service and the table are sized for this number, not for the average."
+
+[[questions.steps]]
+flow = ["users", "edge"]
+packets = 12
+highlight = ["edge"]
+labels = { edge = "~116,000/s at peak" }
+caption = "Capacity is planned for the busiest hour."
+
+[[questions]]
+prompt = "The browser now waits for a 100 ms pause before it sends. Measured over all users, this sends 4 requests for every 10 keystrokes. What is the new peak rate?"
+answer = 46296
+tolerance = 0.25
+unit = "requests per second"
+reject = [
+  115741,  # forgot the delay
+  69444,   # cut the rate by 40% instead of to 40%
+]
+accept = [46000, 40000]
+explanation = "4 of every 10 keystrokes send a request: 115,741 x 0.4 = about 46,300 requests per second. Fast typists skip the middle prefixes, which nobody would see anyway. Cancelling a request whose answer is no longer needed saves server work too."
+
+[[questions.steps]]
+flow = ["users", "edge"]
+packets = 5
+labels = { users = "4 per 10 keys" }
+caption = "A short delay removes requests for prefixes the user has already typed past."
+
+[[questions]]
+prompt = "The edge cache answers 80% of those requests. How many per second reach the suggest service at peak?"
+answer = 9259
+tolerance = 0.25
+unit = "requests per second"
+reject = [
+  37037,  # used the hit ratio as the share that reaches the service
+  46296,  # forgot the edge cache
+]
+accept = [9000, 9300]
+explanation = "Misses are 100% - 80% = 20%. 46,296 x 0.2 = about 9,260 requests per second. The edge removes 4 of every 5 requests and also cuts latency for them."
+
+[[questions.steps]]
+flow = ["edge", "suggest"]
+packets = 3
+labels = { edge = "hit 80%", suggest = "~9,300/s" }
+caption = "Only edge misses reach the service."
+
+[[questions]]
+prompt = "Which requests does the edge cache answer best?"
+choices = [
+  "Short prefixes of 1 to 3 characters",
+  "Long prefixes of 15 characters or more",
+  "Prefixes typed by logged-in users",
+  "Prefixes that contain a spelling mistake",
+]
+answer = 1
+explanation = "There are few short prefixes (26 x 26 = 676 two-letter ones in English letters), and every user types them, so each is requested constantly and stays cached. Long prefixes are nearly unique, so most are requested once and miss. Being logged in or misspelling does not make a prefix more common."
+
+[[questions.steps]]
+flow = ["users", "edge"]
+packets = 6
+highlight = ["edge"]
+labels = { edge = "\"ca\": always cached" }
+caption = "The fewer the distinct keys and the more they are shared, the higher the hit ratio."

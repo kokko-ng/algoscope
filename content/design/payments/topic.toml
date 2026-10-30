@@ -1,0 +1,7 @@
+id = "payments"
+title = "Case study: payments ledger"
+zone = "The Strongroom"
+summary = "A payments ledger records every movement of money as balanced entries that are never changed. Keep the books balanced, make retries safe with idempotency keys, publish events exactly once in effect with an outbox, and check the ledger against the outside world every day."
+prereqs = ["consistency", "messaging"]
+order = 18
+challenges = ["payments-walkthrough", "ledger-sizing", "idempotent-retries", "balances-reconciliation"]

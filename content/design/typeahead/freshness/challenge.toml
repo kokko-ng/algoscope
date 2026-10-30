@@ -1,0 +1,99 @@
+id = "freshness"
+title = "Fresh enough suggestions"
+stage = "quiz"
+xp = 130
+statement = """
+Suggestions reach users through this pipeline:
+
+- A rebuild starts on every hour. It reads the search logs up to its start time.
+- A rebuild takes 30 minutes. Copying the new table to all suggest servers takes 5 more minutes.
+- There are 20 edge sites. Each keeps the lists of its 200,000 most popular prefixes, with a TTL of 10 minutes, and fetches each of them again once per TTL.
+"""
+
+[diagram]
+nodes = [
+  { id = "logs", label = "Search logs", at = [0, 0] },
+  { id = "builder", label = "Batch builder", at = [1, 0] },
+  { id = "table", label = "Prefix table", at = [2, 0] },
+  { id = "user", label = "Browser", at = [0, 1] },
+  { id = "edge", label = "Edge cache", at = [1, 1] },
+  { id = "suggest", label = "Suggest service", at = [2, 1] },
+]
+links = [["logs", "builder"], ["builder", "table"], ["table", "suggest"], ["suggest", "edge"], ["edge", "user"]]
+
+[[diagram.steps]]
+flow = ["logs", "builder", "table"]
+
+[[diagram.steps]]
+flow = ["user", "edge", "suggest", "table"]
+
+[[questions]]
+prompt = "A new query starts trending one minute after a rebuild starts. In the worst case, how many minutes pass from the start of that rebuild until every user can see the new suggestion?"
+answer = 105
+tolerance = 0.1
+unit = "minutes"
+reject = [
+  60,  # counted only the rebuild interval
+  45,  # counted one rebuild, copy and TTL, but the current rebuild has already read its logs
+]
+accept = [105, 100]
+hint = "The current rebuild missed the query. Follow the next one to the users."
+explanation = "The rebuild that started at :00 read its logs at :00, so it misses the query. The next one starts at 60 minutes, finishes at 90, and is on every suggest server by 95. An edge copy fetched just before 95 still holds the old list for its 10-minute TTL, until 105. Users wait up to 105 minutes for a trend."
+
+[[questions.steps]]
+flow = ["logs", "builder", "table", "suggest", "edge"]
+labels = { builder = "next run: 60 + 30", table = "+5 copy", edge = "+10 TTL" }
+caption = "Freshness adds up every stage: the wait for a rebuild, its run time, the copy and the TTL."
+
+[[questions]]
+prompt = "How many requests per second do the edge refreshes send to the suggest service?"
+answer = 6667
+tolerance = 0.25
+unit = "requests per second"
+reject = [
+  333,     # forgot the 20 edge sites
+  400000,  # divided by 10 instead of by 600 seconds
+]
+accept = [6700, 6667]
+explanation = "20 x 200,000 = 4,000,000 cached lists. Each is fetched once per 600 seconds. 4,000,000 / 600 = about 6,667 requests per second. A TTL of 1 minute would cut 9 minutes of staleness but cost 10 times as many refreshes: about 66,700 per second."
+
+[[questions.steps]]
+flow = ["edge", "suggest"]
+packets = 6
+labels = { edge = "20 x 200,000 / 600 s" }
+caption = "A shorter TTL buys freshness with origin load."
+
+[[questions]]
+prompt = "A breaking news event makes a new query popular within minutes. How can suggestions show it quickly without rebuilding the whole table every minute?"
+choices = [
+  "A small stream job counts the last few minutes of searches and keeps a short list of fast-rising queries. The suggest service merges them into the lists it returns.",
+  "Rebuild the whole table every minute",
+  "Remove the edge cache, so that every request reaches the suggest service",
+  "Raise the edge TTL to 1 hour",
+]
+answer = 1
+explanation = "Only a few queries rise suddenly, so a small, fast path for them is cheap, while the big table keeps its hourly rebuild. A full rebuild each minute would need 30 times the builder fleet, since one rebuild already needs 30 minutes of 20 workers. Removing the edge cache saves at most 10 minutes and multiplies the service load. A longer TTL makes suggestions staler."
+
+[[questions.steps]]
+flow = ["logs", "builder"]
+packets = 3
+highlight = ["suggest"]
+labels = { suggest = "merge risers" }
+caption = "A small stream path handles what the batch path is too slow for."
+
+[[questions]]
+prompt = "A harmful suggestion must disappear within minutes. What does the service do?"
+choices = [
+  "Add it to a block list that the suggest service checks on every response, and remove the cached lists that contain it from the edge",
+  "Wait for the next hourly rebuild to drop it",
+  "Lower the edge TTL to 1 second for all prefixes",
+  "Delete the query from the search logs",
+]
+answer = 1
+explanation = "A block list is checked when each response is built, so the change applies at once, and removing the affected edge copies stops the cached lists from serving it. Waiting for a rebuild can take up to 105 minutes. A 1-second TTL for every prefix would multiply the refresh load 600 times. Deleting the logs changes only future rebuilds, not the table or the edge copies."
+
+[[questions.steps]]
+flow = ["suggest", "edge", "user"]
+highlight = ["suggest"]
+labels = { suggest = "block list", edge = "remove copies" }
+caption = "Rules that must apply now are checked at request time."

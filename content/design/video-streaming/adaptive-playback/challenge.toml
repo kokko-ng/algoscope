@@ -1,0 +1,116 @@
+id = "adaptive-playback"
+title = "Start fast, then adapt"
+stage = "quiz"
+xp = 140
+statement = """
+A player streams segments from the CDN edge:
+
+- Renditions: 0.5, 1, 2.5, 5 and 8 Mbps.
+- Before playing, the player fetches the manifest (one round trip) and then the first segment (one more round trip, plus the download). Playback starts when the first segment has arrived.
+- The round trip to the edge is 50 ms. The manifest is so small that its download time is 0.
+- The viewer's connection gives 10 Mbps.
+
+A segment of S seconds at a bitrate of R Mbps holds S x R megabits.
+"""
+
+[diagram]
+nodes = [
+  { id = "player", label = "Player", at = [0, 0] },
+  { id = "cdn", label = "CDN edge", at = [1, 0] },
+  { id = "origin", label = "Origin", at = [2, 0] },
+]
+links = [["player", "cdn"], ["cdn", "origin"]]
+
+[[diagram.steps]]
+flow = ["player", "cdn"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["cdn", "player"]
+packets = 4
+
+[[questions]]
+prompt = "The player starts at the 5 Mbps rendition, with 6-second segments. How many seconds pass before playback starts?"
+answer = 3.1
+tolerance = 0.1
+unit = "seconds"
+reject = [
+  0.475,  # divided by 8, as if the connection were 10 megabytes per second
+  24.1,   # multiplied by 8, as if the segment were 30 megabytes
+]
+accept = [3.1, 3]
+explanation = "The segment holds 6 x 5 = 30 megabits. At 10 Mbps it downloads in 3 seconds. Two round trips add 0.1 s. Total: 3.1 seconds, a slow start."
+
+[[questions.steps]]
+flow = ["cdn", "player"]
+packets = 4
+labels = { player = "30 Mb / 10 Mbps" }
+caption = "Startup is dominated by the size of the first segment."
+
+[[questions]]
+prompt = "Instead, the player starts at the 1 Mbps rendition with 2-second segments. How many seconds pass before playback starts?"
+answer = 0.3
+tolerance = 0.1
+unit = "seconds"
+reject = [
+  0.2,   # forgot both round trips
+  0.25,  # counted only one round trip
+]
+accept = [0.3]
+explanation = "The segment holds 2 x 1 = 2 megabits, which downloads in 0.2 s. With two round trips of 0.05 s: 0.3 seconds, ten times faster. Players often start low and short, then step up as the buffer fills."
+
+[[questions.steps]]
+flow = ["cdn", "player"]
+packets = 2
+labels = { player = "0.1 + 2 / 10" }
+caption = "A small first segment gets the picture moving quickly."
+
+[[questions]]
+prompt = "5 million viewers watch with 2-second segments. How many segment requests per second reach the CDN?"
+answer = 2500000
+tolerance = 0.25
+unit = "requests per second"
+reject = [
+  10000000,  # multiplied by the segment length instead of dividing
+  5000000,   # assumed one request per viewer per second
+]
+accept = [2500000]
+explanation = "Each viewer needs one segment every 2 seconds: 5,000,000 / 2 = 2,500,000 requests per second. With 6-second segments it would be about 833,000. Shorter segments start faster and adapt sooner, but cost more requests and slightly worse compression."
+
+[[questions.steps]]
+flow = ["player", "cdn"]
+packets = 10
+labels = { cdn = "5M / 2 s" }
+caption = "Segment length sets the request rate."
+
+[[questions]]
+prompt = "Measured throughput drops to 3 Mbps. The player picks the highest rendition at or under 80% of the measured throughput. Which rendition does it pick?"
+choices = ["0.5 Mbps", "1 Mbps", "2.5 Mbps", "5 Mbps"]
+answer = 2
+explanation = "80% of 3 Mbps is 2.4 Mbps. 2.5 Mbps is just over that, so the highest rendition that fits is 1 Mbps. The 20% margin covers swings in throughput, so the buffer does not drain while the player waits for the next measurement."
+
+[[questions.steps]]
+flow = ["cdn", "player"]
+packets = 3
+highlight = ["player"]
+labels = { player = "0.8 x 3 = 2.4 Mbps" }
+caption = "Adaptive bitrate picks the next segment's rendition from the bandwidth just measured."
+
+[[questions]]
+prompt = "The player has 20 seconds of video in its buffer and stays on the 5 Mbps rendition while throughput is 3 Mbps. How many seconds until the buffer is empty and playback stalls?"
+answer = 50
+tolerance = 0.1
+unit = "seconds"
+reject = [
+  20,  # assumed nothing more arrives while the buffer plays
+  10,  # treated the 2 Mbps shortfall as 2 seconds of buffer lost per second
+]
+accept = [50]
+hint = "Each second, 1 second of video plays. How many seconds of video arrive?"
+explanation = "Each second, 3 megabits arrive, which is 3 / 5 = 0.6 seconds of 5 Mbps video, while 1 second plays. The buffer shrinks by 0.4 seconds each second. 20 / 0.4 = 50 seconds. Switching to a rendition under 3 Mbps makes the buffer grow again."
+
+[[questions.steps]]
+flow = ["cdn", "player"]
+packets = 3
+labels = { player = "+0.6 s, -1 s each s" }
+caption = "A rendition above the throughput drains the buffer at a steady rate until playback stalls."

@@ -1,0 +1,120 @@
+id = "prefix-table"
+title = "Precompute the top 10"
+stage = "quiz"
+xp = 130
+statement = """
+The suggest service answers from a prefix table built ahead of time.
+
+- The logs hold 500 million searches a day. The builder ranks completions over the last 7 days.
+- The queries seen in those days have 300 million distinct prefixes.
+- For each prefix, the table stores the IDs of its top 10 queries, 8 bytes each, plus 20 bytes for the prefix and overhead: 100 bytes a prefix.
+- A builder worker processes 100,000 log rows per second. The rebuild must finish within 30 minutes.
+
+Use 1 GB = 10^9 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "logs", label = "Search logs", at = [0, 0] },
+  { id = "builder", label = "Builder workers", at = [1, 0] },
+  { id = "table", label = "Prefix table", at = [2, 0] },
+  { id = "suggest", label = "Suggest service", at = [2, 1] },
+]
+links = [["logs", "builder"], ["builder", "table"], ["suggest", "table"]]
+
+[[diagram.steps]]
+flow = ["logs", "builder", "table"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["suggest", "table"]
+packets = 2
+
+[[questions]]
+prompt = "How large is the prefix table? Give the answer in GB."
+answer = 30
+tolerance = 0.25
+unit = "GB"
+reject = [
+  8.4,  # stored one query ID per prefix instead of 10
+  240,  # multiplied by 8, as if converting bytes to bits
+]
+accept = [30]
+explanation = "10 x 8 bytes + 20 bytes = 100 bytes a prefix. 300,000,000 x 100 bytes = 30,000,000,000 bytes = 30 GB. The text of the queries lives once in a separate table of IDs, so the lists stay small. 30 GB fits in the memory of one large server, and copies of it serve the reads."
+
+[[questions.steps]]
+flow = ["builder", "table"]
+highlight = ["table"]
+labels = { table = "300M x 100 B" }
+caption = "Prefixes times bytes per prefix gives the table size."
+
+[[questions]]
+prompt = "Without the table, the service would walk a tree of words (a trie) at request time. For the prefix \"c\", it must visit 5 million queries under \"c\" to find the top 10. At 100 ns per visit, how long does one request take, in ms?"
+answer = 500
+tolerance = 0.25
+unit = "ms"
+reject = [
+  0.5,     # that is the time in seconds, not in ms
+  500000,  # that is the time in microseconds, not in ms
+]
+accept = [500]
+explanation = "5,000,000 x 100 ns = 500,000,000 ns = 500 ms, five times the whole 100 ms budget, for one request. With the table, the same request is one lookup of well under a millisecond. Storing the top 10 at every node of the trie gives the same result: the work moves from request time to build time."
+
+[[questions.steps]]
+flow = ["suggest", "table"]
+packets = 6
+labels = { suggest = "5M x 100 ns" }
+caption = "Short prefixes have the most completions, and they are also the most requested."
+
+[[questions]]
+prompt = "How many builder workers does one rebuild need, to finish within 30 minutes?"
+answer = 20
+tolerance = 0.25
+unit = "workers"
+reject = [
+  2.78,  # read one day of logs instead of 7
+  1167,  # used 30 seconds instead of 30 minutes
+]
+accept = [20, 19.4]
+hint = "Rows to read divided by the rows one worker reads in 30 minutes."
+explanation = "7 x 500,000,000 = 3,500,000,000 rows. One worker reads 100,000 x 1,800 = 180,000,000 rows in 30 minutes. 3,500,000,000 / 180,000,000 = 19.4, so 20 workers. That is the precompute budget: a fleet that runs for half of every hour, so that reads cost one lookup."
+
+[[questions.steps]]
+flow = ["logs", "builder"]
+packets = 8
+highlight = ["builder"]
+labels = { builder = "3.5B rows / 30 min" }
+caption = "The rebuild budget sets the size of the builder fleet."
+
+[[questions]]
+prompt = "Why does the service store a top-10 list for every prefix instead of ranking completions at request time?"
+choices = [
+  "A request becomes one key lookup, and the ranking runs in the batch builder, off the request path",
+  "A table of lists takes less memory than the queries themselves",
+  "The lists are always fresher than results ranked at request time",
+  "A tree of words cannot hold non-English characters",
+]
+answer = 1
+explanation = "Reads outnumber rebuilds by billions, so it pays to rank once per rebuild and look up the answer many times. The table repeats each query ID in the lists of many prefixes, so it takes more memory, not less. The lists are only as fresh as the last rebuild. A trie can hold any characters."
+
+[[questions.steps]]
+flow = ["logs", "builder", "table"]
+labels = { table = "rank once, read often" }
+caption = "Precomputing trades build time and memory for fast reads."
+
+[[questions]]
+prompt = "The table is split across servers. Which partition key spreads the load evenly?"
+choices = [
+  "A hash of the whole prefix",
+  "The first character of the prefix",
+  "The length of the prefix",
+  "The hour the table was built",
+]
+answer = 1
+explanation = "A hash spreads prefixes evenly, and each request still reads one partition, because it looks up one whole prefix. By first character, letters such as \"s\" hold far more queries than \"x\", so a few servers get most of the data and traffic. By length, the short prefixes, which are the most requested, land together. By build hour, every read goes to the newest partition."
+
+[[questions.steps]]
+flow = ["suggest", "table"]
+packets = 3
+labels = { suggest = "hash(\"cat\")" }
+caption = "Hash the full lookup key to spread it."

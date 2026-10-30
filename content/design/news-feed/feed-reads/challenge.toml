@@ -67,6 +67,11 @@ caption = "The cursor marks the last entry seen, so new entries cannot shift the
 prompt = "How many workers does the fan-out need at the normal rate?"
 answer = 35
 tolerance = 0.1
+reject = [
+  350,  # dropped a zero from 2,000
+  3.5,  # dropped a zero from 70,000
+]
+accept = [35]  # exact
 unit = "workers"
 explanation = "70,000 / 2,000 = 35 workers. Run more than that, so the queue drains after a spike instead of growing."
 
@@ -80,6 +85,12 @@ caption = "Arrival rate divided by the rate of one worker gives the worker count
 prompt = "After an incident, 36 million feed writes are waiting in the queue. The fleet now runs 45 workers, and 70,000 new writes per second keep arriving. How many minutes until the backlog is gone?"
 answer = 30
 tolerance = 0.1
+reject = [
+  6.67,  # forgot the new arrivals
+  1800,  # gave seconds, not minutes
+  8.57,  # divided by the arrival rate
+]
+accept = [30]  # exact
 unit = "minutes"
 hint = "The backlog shrinks by the difference between the work done and the work arriving."
 explanation = "45 x 2,000 = 90,000 writes per second done. 90,000 - 70,000 = 20,000 per second of net progress. 36,000,000 / 20,000 = 1,800 seconds = 30 minutes. During that time, new posts reach feeds late, but nothing is lost."

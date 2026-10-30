@@ -1,9 +1,23 @@
-from algoscope import build_list
+class Node:
+    """A list node with fixed fields, so marking nodes (node.seen = True) raises AttributeError."""
+
+    __slots__ = ("next", "val")
+
+    def __init__(self, val, next=None):  # noqa: A002 - the conventional field name
+        self.val = val
+        self.next = next
+
+
+def build_fixed(values):
+    head = None
+    for v in reversed(values):
+        head = Node(v, head)
+    return head
 
 
 def with_cycle(values, pos):
     """Build a list and link its tail back to the node at index pos (no cycle when pos is None)."""
-    head = build_list(values)
+    head = build_fixed(values)
     if head is None or pos is None:
         return head
     tail, entry, i = head, None, 0

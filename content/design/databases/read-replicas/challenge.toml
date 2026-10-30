@@ -35,6 +35,12 @@ packets = 3
 prompt = "How many reads per second reach the followers at the peak?"
 answer = 27000
 tolerance = 0.1
+reject = [
+  3000,   # gave the writes
+  30000,  # counted all queries
+  2700,   # dropped a zero
+]
+accept = [27000]  # exact
 unit = "reads per second"
 explanation = "90% of 30,000 = 27,000 reads per second. The other 3,000 queries per second are writes, which go to the leader."
 
@@ -48,6 +54,11 @@ caption = "Reads and writes take different paths."
 prompt = "How many reads per second can one follower still serve?"
 answer = 5000
 tolerance = 0.1
+reject = [
+  8000,  # forgot the replicated writes
+  7200,  # took 90% of the capacity
+]
+accept = [5000]  # exact
 unit = "reads per second"
 hint = "Subtract the writes that each follower applies from its capacity."
 explanation = "Each follower applies all 3,000 writes per second, which leaves 8,000 - 3,000 = 5,000 queries per second for reads. Followers copy the write load. They do not share it."
@@ -62,6 +73,12 @@ caption = "Applying the writes uses part of every follower's capacity."
 prompt = "How many followers do the reads need? Round up to a whole follower."
 answer = 6
 tolerance = 0.05
+reject = [
+  4,    # forgot the replicated writes
+  5,    # rounded down
+  5.4,  # did not round up
+]
+accept = [6]  # exact
 unit = "followers"
 explanation = "27,000 / 5,000 = 5.4, so round up to 6 followers. If you forget the replicated writes, you get 27,000 / 8,000 = 3.4, so 4 followers. Those 4 can serve only 20,000 reads per second, and the peak would be 35% over their capacity."
 

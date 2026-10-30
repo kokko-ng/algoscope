@@ -43,6 +43,11 @@ packets = 2
 prompt = "Reads use R = 2. What is the smallest W that makes every read see the latest successful write?"
 answer = 4
 tolerance = 0.1
+reject = [
+  3,  # used R + W >= N
+  5,  # required every replica
+]
+accept = [4]  # exact
 unit = "replicas"
 hint = "You need R + W > N. Solve for W."
 explanation = "R + W > N means W > N - R = 5 - 2 = 3. The smallest whole number above 3 is 4. Check: 2 + 4 = 6 > 5. With W = 3, the write could land on A, B and C while the read asks D and E, and the read would miss it."
@@ -58,6 +63,11 @@ caption = "A write on 4 of 5 replicas leaves only 1 without it. Any 2 replicas a
 prompt = "The store uses majority quorums: R = 3 and W = 3. How many replicas can be down while both reads and writes still succeed?"
 answer = 2
 tolerance = 0.1
+reject = [
+  3,  # gave the quorum size
+  1,  # gave the overlap R + W - N
+]
+accept = [2]  # exact
 unit = "replicas"
 explanation = "Reads and writes each need 3 live replicas. With 5 replicas, 5 - 3 = 2 can be down. Majority quorums are a common default because they overlap (3 + 3 = 6 > 5) and tolerate the most failures for both reads and writes."
 
@@ -72,6 +82,11 @@ caption = "Two replicas are down. The other three are still a majority, so reads
 prompt = "With W = 4 and R = 3, at least how many replicas are in both the write set and the read set?"
 answer = 2
 tolerance = 0.1
+reject = [
+  7,  # added R and W without subtracting N
+  3,  # took the smaller set size
+]
+accept = [2]  # exact
 unit = "replicas"
 explanation = "Overlap is at least R + W - N = 3 + 4 - 5 = 2. Even if the read picks the one replica the write missed, its other 2 replicas both hold the write."
 

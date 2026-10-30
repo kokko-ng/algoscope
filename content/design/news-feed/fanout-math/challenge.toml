@@ -36,6 +36,12 @@ packets = 5
 prompt = "How many posts are made per second, on average?"
 answer = 347
 tolerance = 0.25
+reject = [
+  8333,   # divided by 3,600
+  69444,  # multiplied by the followers
+  34.7,   # divided by 864,000
+]
+accept = [300, 350]  # the 100,000-second shortcut; rounded
 unit = "posts per second"
 explanation = "30,000,000 / 86,400 = about 347 posts per second."
 
@@ -49,6 +55,12 @@ caption = "Daily posts divided by seconds in a day."
 prompt = "How many feed-cache writes per second does fan-out on write create?"
 answer = 69444
 tolerance = 0.25
+reject = [
+  347,      # forgot the fan-out
+  1666667,  # divided by 3,600
+  34722,    # computed feed reads
+]
+accept = [60000, 70000]  # the 100,000-second shortcut; rounded
 unit = "writes per second"
 hint = "Each post is written once into the feed of each follower."
 explanation = "347 posts per second x 200 followers = about 69,400 feed writes per second. One post becomes 200 writes, so the fan-out multiplies the write load by the average follower count."
@@ -64,6 +76,12 @@ caption = "Posts times followers gives the fan-out writes."
 prompt = "How many feed reads per second does the app serve, on average?"
 answer = 34722
 tolerance = 0.25
+reject = [
+  3472,     # forgot the 10 opens per user
+  833333,   # divided by 3,600
+  6944444,  # multiplied by 200 followed accounts
+]
+accept = [30000, 35000]  # the 100,000-second shortcut; rounded
 unit = "reads per second"
 explanation = "300,000,000 x 10 = 3,000,000,000 feed opens a day. 3,000,000,000 / 86,400 = about 34,700 reads per second. With fan-out on write, each read is one cache lookup."
 
@@ -95,6 +113,11 @@ caption = "Fan-out on read moves the work from the post to every read."
 prompt = "The 40-million-follower account posts. The workers can spare 100,000 feed writes per second for it. How many minutes until the last follower's feed has the post?"
 answer = 6.67
 tolerance = 0.1
+reject = [
+  400,    # gave seconds, not minutes
+  24000,  # multiplied by 60
+]
+accept = [6.7, 7]  # rounded; rounded to minutes
 unit = "minutes"
 explanation = "40,000,000 / 100,000 = 400 seconds. 400 / 60 = about 6.7 minutes. During that time the post also competes with normal fan-out. The hybrid approach skips the push for such accounts and pulls their posts at read time instead."
 

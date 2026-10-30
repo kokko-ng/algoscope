@@ -202,10 +202,73 @@ class CostList(list[Any]):
         return CostList(self)
 
 
+class CostStr(str):
+    """A string whose linear-time operations charge their real cost: slices, comparisons, searches."""
+
+    __slots__ = ()
+    __hash__ = str.__hash__
+
+    def __getitem__(self, i: SupportsIndex | slice) -> str:
+        """Charge for copying a slice (returned as a CostStr); a single character is one step."""
+        if isinstance(i, slice):
+            out = CostStr(str.__getitem__(self, i))
+            _charge(len(out))
+            return out
+        return str.__getitem__(self, i)
+
+    def __eq__(self, other: object) -> bool:
+        """Charge for comparing up to the shorter length."""
+        if isinstance(other, str):
+            _charge(min(len(self), len(other)))
+        return str.__eq__(self, other)
+
+    def __ne__(self, other: object) -> bool:
+        """Charge like __eq__."""
+        return not self.__eq__(other)
+
+    def __add__(self, other: str) -> CostStr:
+        """Charge for building the joined string."""
+        out = CostStr(str.__add__(self, other))
+        _charge(len(out))
+        return out
+
+    def __contains__(self, sub: object) -> bool:
+        """Charge a scan of the whole string."""
+        _charge(len(self))
+        return str.__contains__(self, sub)  # type: ignore[operator]
+
+    def startswith(self, prefix: str | tuple[str, ...], *args: Any) -> bool:
+        """Charge for the characters compared."""
+        _charge(max(len(p) for p in prefix) if isinstance(prefix, tuple) else len(prefix))
+        return str.startswith(self, prefix, *args)
+
+    def endswith(self, suffix: str | tuple[str, ...], *args: Any) -> bool:
+        """Charge for the characters compared."""
+        _charge(max(len(p) for p in suffix) if isinstance(suffix, tuple) else len(suffix))
+        return str.endswith(self, suffix, *args)
+
+    def find(self, sub: str, *args: Any) -> int:
+        """Charge a scan; the worst case of a substring search is longer, but a scan is the floor."""
+        _charge(len(self))
+        return str.find(self, sub, *args)
+
+    def index(self, sub: str, *args: Any) -> int:
+        """Charge like find."""
+        _charge(len(self))
+        return str.index(self, sub, *args)
+
+    def count(self, sub: str, *args: Any) -> int:
+        """Charge like find."""
+        _charge(len(self))
+        return str.count(self, sub, *args)
+
+
 def costed(value: Any) -> Any:
-    """Wrap lists (and lists of lists) in CostList."""
+    """Wrap lists (and lists of lists) in CostList, and strings in CostStr."""
     if type(value) is list:
-        return CostList(costed(x) if type(x) is list else x for x in value)
+        return CostList(costed(x) if type(x) in {list, str} else x for x in value)
+    if type(value) is str:
+        return CostStr(value)
     return value
 
 

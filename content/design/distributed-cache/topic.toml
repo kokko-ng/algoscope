@@ -1,0 +1,7 @@
+id = "distributed-cache"
+title = "Case study: distributed cache"
+zone = "The Memory Wells"
+summary = "A distributed cache spreads hundreds of gigabytes of hot data over the memory of many nodes. Size the cluster, place keys with consistent hashing, survive a lost node, and handle hot keys, expiry and writes without flooding the database."
+prereqs = ["caching", "partitioning"]
+order = 15
+challenges = ["cache-cluster-walkthrough", "cluster-sizing", "node-failures", "hot-keys-writes"]

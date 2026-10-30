@@ -1,0 +1,59 @@
+id = "video-walkthrough"
+title = "From upload to playback"
+stage = "watch"
+xp = 40
+statement = """
+A video is uploaded once and watched many times, on phones, laptops and TVs, over connections from 1 to 100 Mbps. One file cannot suit them all.
+
+So the service makes several renditions of each video, from low to high bitrate, and cuts each one into short segments of a few seconds. A player downloads segments one after another and picks the rendition for each segment from the bandwidth it measures.
+"""
+
+[diagram]
+nodes = [
+  { id = "creator", label = "Uploader", at = [0, 0] },
+  { id = "upload", label = "Upload service", at = [1, 0] },
+  { id = "queue", label = "Transcode queue", at = [2, 0] },
+  { id = "storage", label = "Object storage", at = [1, 1] },
+  { id = "workers", label = "Transcoders", at = [2, 1] },
+  { id = "viewer", label = "Viewer", at = [0, 2] },
+  { id = "cdn", label = "CDN edge", at = [1, 2] },
+]
+links = [["creator", "upload"], ["upload", "storage"], ["upload", "queue"], ["queue", "workers"], ["workers", "storage"], ["storage", "cdn"], ["cdn", "viewer"]]
+
+[[diagram.steps]]
+flow = ["creator", "upload", "storage"]
+packets = 4
+labels = { storage = "original file" }
+caption = "The upload goes in chunks, so a broken connection resumes instead of starting over. The original file lands in object storage."
+
+[[diagram.steps]]
+flow = ["upload", "queue", "workers"]
+packets = 3
+highlight = ["queue"]
+labels = { queue = "job per segment" }
+caption = "The upload service puts transcode jobs on a queue. Splitting the video into segments lets many workers transcode one video at once, and a burst of uploads waits in the queue."
+
+[[diagram.steps]]
+flow = ["workers", "storage"]
+packets = 5
+labels = { storage = "240p ... 1080p" }
+caption = "Workers write each rendition as segments of a few seconds, plus a manifest: a small file that lists the renditions and their segments."
+
+[[diagram.steps]]
+flow = ["viewer", "cdn", "storage"]
+labels = { cdn = "miss: fetch once" }
+caption = "The player fetches the manifest, then the first segments. A segment the edge does not have is fetched from storage once, then served from the edge to every later viewer."
+
+[[diagram.steps]]
+flow = ["cdn", "viewer"]
+packets = 8
+highlight = ["cdn"]
+labels = { cdn = "95% from edge" }
+caption = "Most views go to popular videos, so most segments come from the edge. Only the misses, about 5% of the bytes, reach the origin."
+
+[[diagram.steps]]
+flow = ["cdn", "viewer"]
+packets = 4
+highlight = ["viewer"]
+labels = { viewer = "1080p -> 480p" }
+caption = "The viewer's bandwidth drops. The player asks for the next segment from a lower rendition, so the video keeps playing instead of stopping to buffer."

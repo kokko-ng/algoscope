@@ -25,5 +25,6 @@ def cases(n, rng):
 
 
 def bench(n, rng):
-    shared = _word(rng, "abcd", 4, 4)
-    return [([shared + _word(rng, "abcd", 4, 4) for _ in range(n)],)]
+    # a few words whose shared prefix grows with n: repeated prefix checks cost O(L^2), one pass costs O(L)
+    shared = _word(rng, "abcd", n, n)
+    return [([shared + _word(rng, "abcd", 1, 3) for _ in range(8)],)]

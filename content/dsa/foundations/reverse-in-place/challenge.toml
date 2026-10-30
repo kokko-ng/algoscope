@@ -4,7 +4,7 @@ stage = "apply"
 xp = 80
 complexity = "O(n)"
 output = "arg0"
-forbid = ["reverse", "reversed"]
+forbid = ["reverse", "reversed", "slice", "list literal"]
 statement = """
 Reverse the list `items` in place, without building a second list. Whatever you return is ignored: the suite checks `items` itself afterwards.
 

@@ -1,0 +1,120 @@
+id = "ledger-sizing"
+title = "Size the ledger"
+stage = "quiz"
+xp = 120
+statement = """
+A payments ledger has these numbers:
+
+- 50 million payments a day.
+- Each payment writes 4 entries: two for the charge and two for the fee.
+- An entry, with its indexes, takes 250 bytes.
+- The busiest hour has 3 times the average traffic.
+- Entries are kept for 7 years for audits, with 3 copies.
+
+Use 86,400 seconds in a day, 365 days in a year and 1 TB = 10^12 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "api", label = "Payment API", at = [0, 0] },
+  { id = "ledger", label = "Ledger DB", at = [1, 0] },
+  { id = "replicas", label = "Replicas", at = [2, 0] },
+  { id = "archive", label = "Audit archive", at = [1, 1] },
+]
+links = [["api", "ledger"], ["ledger", "replicas"], ["ledger", "archive"]]
+
+[[diagram.steps]]
+flow = ["api", "ledger", "replicas"]
+packets = 4
+
+[[diagram.steps]]
+flow = ["ledger", "archive"]
+
+[[questions]]
+prompt = "How many entries per second does the ledger write in the busiest hour?"
+answer = 6944
+tolerance = 0.25
+unit = "entries per second"
+reject = [
+  1736,  # forgot the 4 entries per payment
+  2315,  # used the average, not the peak
+]
+accept = [7000, 6000]
+hint = "Payments per second x entries per payment x peak factor."
+explanation = "50,000,000 / 86,400 = about 579 payments per second. x 4 entries = 2,315 entries per second on average. x 3 at peak = about 6,900 entries per second. With the 100,000-second shortcut: 500 x 4 x 3 = 6,000. Each payment's entries go in one transaction, so the database also commits about 1,700 transactions per second at peak."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+packets = 8
+labels = { ledger = "579 x 4 x 3" }
+caption = "Payments times entries times peak factor gives the write rate."
+
+[[questions]]
+prompt = "How much new ledger data does a year bring, before copies? Give the answer in TB."
+answer = 18.25
+tolerance = 0.25
+unit = "TB"
+reject = [
+  4.56,  # forgot the 4 entries per payment
+  146,   # multiplied by 8, as if converting bytes to bits
+]
+accept = [18]
+explanation = "50,000,000 x 4 x 250 bytes = 50,000,000,000 bytes = 50 GB a day. x 365 = 18,250 GB = 18.25 TB a year."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+packets = 3
+highlight = ["ledger"]
+labels = { ledger = "50 GB a day" }
+caption = "Entries a day times entry size gives the daily growth."
+
+[[questions]]
+prompt = "How much storage do 7 years of entries need, with 3 copies? Give the answer in TB."
+answer = 383.25
+tolerance = 0.25
+unit = "TB"
+reject = [
+  127.75,  # forgot the 3 copies
+  54.75,   # forgot the 7 years
+]
+accept = [380, 400]
+explanation = "18.25 TB x 7 = 127.75 TB. x 3 copies = 383.25 TB. Only recent entries are read often, so older years can move to a cheaper audit archive, as long as they stay complete, unchanged and searchable."
+
+[[questions.steps]]
+flow = ["ledger", "archive"]
+highlight = ["archive"]
+labels = { archive = "18.25 x 7 x 3" }
+caption = "Retention and copies multiply the yearly growth."
+
+[[questions]]
+prompt = "A bug writes a transaction with a single entry of -50.00 to a merchant's account and no matching entry. Which rule lets the ledger reject it?"
+choices = [
+  "The entries of each transaction must add up to 0",
+  "No account balance may be negative",
+  "No two entries may have the same amount",
+  "Each transaction must have exactly 4 entries",
+]
+answer = 1
+explanation = "Money cannot appear or vanish: whatever leaves one account must arrive in another, so the entries of a transaction sum to 0. A lone -50.00 sums to -50.00 and is rejected. Some accounts, such as money owed to merchants, are negative by design. Equal amounts are normal, and a transaction can have 2 entries or many."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+highlight = ["ledger"]
+labels = { ledger = "sum -50: reject" }
+caption = "A transaction that does not balance never commits."
+
+[[questions]]
+prompt = "Which type should store an amount?"
+choices = [
+  "A 64-bit integer count of the smallest currency unit (such as cents), stored with the currency code",
+  "A 64-bit binary floating-point number of whole units (such as dollars)",
+  "A text string such as \"50.00\", parsed when needed",
+  "A floating-point number, rounded to 2 decimal places after each sum",
+]
+answer = 1
+explanation = "Integers of the smallest unit add exactly, so 0.10 + 0.20 is 10 + 20 = 30 cents. Binary floating point cannot represent 0.10 exactly, so sums drift, and rounding after each step hides the drift without removing it. Strings cannot be summed by the database. The currency code keeps 50 dollars from being added to 50 yen."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+labels = { ledger = "5000 cents, USD" }
+caption = "Exact integer amounts keep every sum exact."

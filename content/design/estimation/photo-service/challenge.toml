@@ -61,6 +61,12 @@ caption = "The peak sets the number of servers, the cache size and the database 
 prompt = "How much new photo data arrives each day, before copies? Give the answer in TB."
 answer = 2
 tolerance = 0.25
+reject = [
+  6,     # counted the 3 copies
+  2000,  # gave GB, not TB
+  16,    # bits, not bytes
+]
+accept = [2]  # exact
 unit = "TB per day"
 explanation = "1,000,000 photos x 2 MB = 2,000,000 MB = 2,000 GB = 2 TB each day."
 
@@ -74,6 +80,12 @@ caption = "Write volume times object size gives the daily growth of storage."
 prompt = "How much storage do 5 years of photos need, with 3 copies of each photo? Give the answer in PB (1 PB = 1,000 TB)."
 answer = 10.95
 tolerance = 0.25
+reject = [
+  3.65,   # forgot the 3 copies
+  10950,  # gave TB, not PB
+  0.03,   # forgot the 365 days a year
+]
+accept = [11, 10]  # rounded; 1 significant figure
 unit = "PB"
 hint = "Daily growth x days in 5 years x number of copies."
 explanation = "2 TB x 365 x 5 = 3,650 TB. With 3 copies: 10,950 TB, which is about 11 PB. Numbers of this size show that the photos must go to object storage, not to the main database."

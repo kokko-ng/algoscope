@@ -1,0 +1,53 @@
+id = "typeahead-walkthrough"
+title = "Suggestions as you type"
+stage = "watch"
+xp = 40
+statement = """
+A search box shows the 10 most popular completions of what the user has typed so far. The list must update within about 100 ms of a keystroke, or it feels slow.
+
+The trick is to do the hard work ahead of time. A batch job turns the search logs into a table that maps every prefix to its top 10 completions. At request time, a suggestion is one lookup.
+"""
+
+[diagram]
+nodes = [
+  { id = "user", label = "Browser", at = [0, 1] },
+  { id = "edge", label = "Edge cache", at = [1, 1] },
+  { id = "suggest", label = "Suggest service", at = [2, 1] },
+  { id = "table", label = "Prefix table", at = [2, 0] },
+  { id = "logs", label = "Search logs", at = [0, 2] },
+  { id = "builder", label = "Batch builder", at = [1, 2] },
+]
+links = [["user", "edge"], ["edge", "suggest"], ["suggest", "table"], ["logs", "builder"], ["builder", "table"]]
+
+[[diagram.steps]]
+flow = ["user", "edge"]
+packets = 3
+labels = { user = "c, ca, cat" }
+caption = "Each keystroke can send the prefix typed so far. The browser waits a short pause, about 100 ms, before it sends, so a fast typist sends fewer requests than keystrokes."
+
+[[diagram.steps]]
+flow = ["user", "edge"]
+highlight = ["edge"]
+labels = { edge = "hit: \"ca\"" }
+caption = "Short prefixes are few, and millions of users type the same ones. An edge cache near the user answers them without a trip to the data center."
+
+[[diagram.steps]]
+flow = ["edge", "suggest", "table"]
+labels = { table = "cat -> top 10" }
+caption = "A rarer prefix misses the edge. The suggest service looks it up in the prefix table: one key read, with no search through a tree of words at request time."
+
+[[diagram.steps]]
+flow = ["table", "suggest", "edge", "user"]
+labels = { user = "cat food, cats, ..." }
+caption = "The list goes back to the browser, and the edge keeps a copy with a TTL of a few minutes."
+
+[[diagram.steps]]
+flow = ["logs", "builder", "table"]
+highlight = ["builder"]
+labels = { builder = "every hour" }
+caption = "Every hour, a batch job counts the searches of the last days, ranks the completions of every prefix, and writes a new table. Readers switch to it at once."
+
+[[diagram.steps]]
+flow = ["builder", "table"]
+labels = { table = "up to ~1 h behind" }
+caption = "A new trend shows up only after the next rebuild and after edge copies expire. Freshness is traded for cheap, fast reads."

@@ -44,7 +44,8 @@ complexity = "O(n)"              # the reference's growth; check-content verifie
 kind = "function"                # or "class" (entry is a class driven by operation lists)
 entry = "solve"                  # function or class name
 output = "return"                # or "arg0": the first argument after the call (in-place problems)
-forbid = ["sorted", "sort"]      # names, attributes or modules the solution may not use
+forbid = ["sorted", "sort"]      # names, attributes or modules the solution may not use; also "dict", "set"
+                                 # and "list literal" (any literal or comprehension), and "slice"
 sizes = [50, 100, 200, 400]      # n values for profiling (default shown)
 check_sizes = [0, 1, 2, 3, 5, 8, 13, 40]   # n values for the correctness suite (default shown)
 seeds = 2                        # cases per size
@@ -122,7 +123,8 @@ def check(case, got, expected):
   (a list for linked lists, level order for trees).
 - Outputs are compared after normalising: tuples become lists, sets sort, floats round to 6 places.
 - Profiling counts executed lines in the solution file plus the real cost of hidden work: linear
-  list operations (`in`, `index`, `insert(0, ..)`, `pop(0)`, slices, `+`, `*`) on every list, `sorted`
+  list operations (`in`, `index`, `insert(0, ..)`, `pop(0)`, slices, `+`, `*`) on every list; slices,
+  comparisons, `in`, `startswith`, `find` and `+` on input strings and strings sliced from them; `sorted`
   and `list.sort` at n log n, single-iterable `min`/`max`/`sum` at n, and `heapq`/`bisect` calls at
   log n. Still list builtins in `forbid` when the exercise is about implementing them.
 - Each correctness case has a budget of 3,000,000 steps (`case_step_limit` in the harness). Keep

@@ -1,0 +1,7 @@
+id = "rate-limiter"
+title = "Case study: rate limiter"
+zone = "The Turnstiles"
+summary = "A rate limiter caps how many requests each client can make, across a whole fleet of servers. Place it in the path, size the shared counter store, keep the counts correct under concurrent updates, and tell rejected clients when to come back."
+prereqs = ["resilience", "partitioning"]
+order = 14
+challenges = ["limiter-walkthrough", "limiter-store", "limiter-races", "limiter-placement"]

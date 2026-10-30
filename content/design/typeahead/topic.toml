@@ -1,0 +1,7 @@
+id = "typeahead"
+title = "Case study: typeahead search"
+zone = "The Prompter's Booth"
+summary = "Typeahead suggests completions while the user types, so every keystroke can become a request. Count that traffic, precompute the top suggestions for every prefix, serve short prefixes from the edge, and decide how fresh the suggestions must be."
+prereqs = ["caching"]
+order = 16
+challenges = ["typeahead-walkthrough", "keystroke-traffic", "prefix-table", "freshness"]

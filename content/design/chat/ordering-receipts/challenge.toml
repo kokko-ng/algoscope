@@ -50,6 +50,11 @@ caption = "Order is needed only inside a conversation, so each conversation gets
 prompt = "A client has every message up to sequence 1,040. The next push it receives is sequence 1,044. How many messages must it fetch to fill the gap?"
 answer = 3
 tolerance = 0.1
+reject = [
+  4,  # subtracted the sequence numbers
+  5,  # counted both ends
+]
+accept = [3]  # exact
 unit = "messages"
 explanation = "The missing numbers are 1,041, 1,042 and 1,043: three messages. The client fetches them from the store, by asking for everything after 1,040, and shows 1,044 after them. Sequence numbers make gaps visible, so a lost push is repaired instead of silently skipped."
 
@@ -63,6 +68,12 @@ caption = "A jump in the sequence means messages are missing. The client fetches
 prompt = "How many events per second does the chat service handle, counting messages and both receipts?"
 answer = 69444
 tolerance = 0.25
+reject = [
+  23148,    # forgot the receipts
+  46296,    # counted only the two receipts
+  1666667,  # divided by 3,600
+]
+accept = [60000, 69000]  # the 100,000-second shortcut; rounded
 unit = "events per second"
 hint = "Each message makes three events: the message, a delivered receipt and a read receipt."
 explanation = "2,000,000,000 / 86,400 = about 23,100 messages per second. Each makes 3 events, so 23,148 x 3 = about 69,400 events per second. Receipts add two events per message, so they triple the traffic of the messages themselves, which is why many services batch them, for example by sending one read receipt for the newest message read."

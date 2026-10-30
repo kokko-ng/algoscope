@@ -33,6 +33,12 @@ flow = ["clients", "lb", "gwn"]
 prompt = "How many gateway servers hold all the connections, with each server at its full limit?"
 answer = 200
 tolerance = 0.1
+reject = [
+  2000,  # dropped a zero from 100,000
+  20,    # added a zero to 100,000
+  250,   # applied the 80% headroom early
+]
+accept = [200]  # exact
 unit = "servers"
 explanation = "20,000,000 / 100,000 = 200 gateway servers. A server at its limit has no room to take connections from another server that fails, so this is a lower bound."
 
@@ -47,6 +53,11 @@ caption = "Connections divided by connections per server gives the server count.
 prompt = "The team keeps each gateway at 80% of its limit, so it has room to absorb clients when a gateway restarts. How many servers are needed?"
 answer = 250
 tolerance = 0.1
+reject = [
+  200,  # forgot the 80% limit
+  160,  # multiplied by 0.8 instead of dividing
+]
+accept = [250]  # exact
 unit = "servers"
 explanation = "80% of 100,000 is 80,000 connections per server. 20,000,000 / 80,000 = 250 servers. When one gateway restarts, its clients reconnect and spread over the spare room of the others."
 
@@ -60,6 +71,12 @@ caption = "Headroom lets the remaining servers take the clients of a failed one.
 prompt = "With polling every 5 seconds, how many requests per second reach the servers?"
 answer = 4000000
 tolerance = 0.1
+reject = [
+  100000000,  # multiplied by 5 instead of dividing
+  166667,     # used the 2-minute message interval
+  240000000,  # gave polls per minute
+]
+accept = [4000000]  # exact
 unit = "requests per second"
 explanation = "20,000,000 / 5 = 4,000,000 requests per second, all the time, whether or not there are messages. With WebSockets, the open connections cost memory, but traffic flows only when there is something to send."
 
@@ -74,6 +91,12 @@ caption = "Polling sends a request every interval from every client."
 prompt = "What percent of those polls return no new message?"
 answer = 95.8
 tolerance = 0.01
+reject = [
+  4.2,   # gave the share of polls that find a message
+  91.7,  # treated 2 minutes as 60 seconds
+  99.2,  # used a 1-second poll interval
+]
+accept = [96, 95.9]  # rounded; Poisson model, exp(-5/120)
 unit = "percent"
 hint = "How many messages does a user receive, on average, in one 5-second interval?"
 explanation = "A user receives one message per 120 seconds, so one 5-second poll finds 5 / 120 = 0.042 messages on average. About 4% of polls find something, and about 96% come back empty. Shorter intervals give faster delivery but even more empty polls. A pushed message needs no request at all."
@@ -88,6 +111,12 @@ caption = "Most polls are wasted. Push sends data only when there is data."
 prompt = "How many presence heartbeats per second arrive?"
 answer = 666667
 tolerance = 0.1
+reject = [
+  40000000,  # gave heartbeats per minute
+  166667,    # used the 2-minute message interval
+  4000000,   # used the 5-second poll interval
+]
+accept = [667000, 700000]  # rounded; 1 significant figure
 unit = "heartbeats per second"
 explanation = "20,000,000 / 30 = about 667,000 heartbeats per second. Presence alone is busier than most services. Common ways to reduce it: send heartbeats over the open WebSocket instead of as new requests, use longer intervals, and tell only the contacts who have the chat open when a status changes."
 

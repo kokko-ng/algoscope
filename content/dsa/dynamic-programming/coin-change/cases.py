@@ -20,5 +20,6 @@ def cases(n, rng):
 
 
 def bench(n, rng):
-    coins = rng.sample(range(2, 2 * n), max(2, n // 5))
+    # small coprime coins make every total reachable, so top-down and bottom-up visit the same states
+    coins = [2, 3, *rng.sample(range(4, 2 * n), max(2, n // 5) - 2)]
     return [(coins, 3 * n)]

@@ -152,10 +152,19 @@ def _bound_names(tree: ast.AST) -> set[str]:
     return bound
 
 
-LITERALS: dict[type[ast.AST], str] = {ast.Dict: "dict", ast.DictComp: "dict", ast.Set: "set", ast.SetComp: "set"}
+# syntax that builds a value, keyed by node type: (the word used in `forbid`, the text shown when it is used)
+LITERALS: dict[type[ast.AST], tuple[str, str]] = {
+    ast.Dict: ("dict", "dict literal"),
+    ast.DictComp: ("dict", "dict literal"),
+    ast.Set: ("set", "set literal"),
+    ast.SetComp: ("set", "set literal"),
+    ast.ListComp: ("list literal", "list literal"),
+    # slicing copies part of a list; exercises that must work in place can forbid it
+    ast.Slice: ("slice", "slice"),
+}
 
 
-def _forbidden_use(node: ast.AST, forbid: list[str], bound: set[str]) -> str | None:
+def _forbidden_name(node: ast.AST, forbid: list[str], bound: set[str]) -> str | None:
     if isinstance(node, ast.Name):
         return node.id if node.id in forbid and node.id not in bound else None
     if isinstance(node, ast.Attribute):
@@ -164,10 +173,21 @@ def _forbidden_use(node: ast.AST, forbid: list[str], bound: set[str]) -> str | N
         return node.attr if node.attr in forbid and not own else None
     if isinstance(node, ast.Import):
         return next((a.name for a in node.names if a.name.split(".")[0] in forbid), None)
-    if isinstance(node, ast.ImportFrom):
-        return node.module if node.module and node.module.split(".")[0] in forbid else None
-    literal = LITERALS.get(type(node))
-    return f"{literal} literal" if literal in forbid else None
+    if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] in forbid:
+        return node.module
+    return None
+
+
+def _forbidden_literal(node: ast.AST, forbid: list[str]) -> str | None:
+    if isinstance(node, ast.List):
+        # a list on the left of an assignment unpacks; only a list that builds a value counts
+        return "list literal" if isinstance(node.ctx, ast.Load) and "list literal" in forbid else None
+    key, shown = LITERALS.get(type(node), ("", ""))
+    return shown if key and key in forbid else None
+
+
+def _forbidden_use(node: ast.AST, forbid: list[str], bound: set[str]) -> str | None:
+    return _forbidden_name(node, forbid, bound) or _forbidden_literal(node, forbid)
 
 
 def check_forbidden(path: Path, forbid: list[str] | None) -> dict[str, Any] | None:

@@ -27,6 +27,9 @@ ignore = [
 "content/dsa/stacks-queues/brackets-walkthrough/reference.py" = ["SIM102"]
 # The harness passes arbitrary learner values around; `Any` is the honest type for them.
 "harness/*.py" = ["ANN401"]
+# Alternatives are deliberately naive or wrong solutions: style rules would rewrite the very
+# mistakes and loops they exist to represent. Correctness rules (pyflakes, bugbear) still apply.
+"content/**/alternatives/*.py" = ["SIM", "C4", "C90", "PERF", "PLR", "RET", "RUF005", "FURB", "A002", "E501", "B905"]
 "harness/tests/**" = ["S101", "S603", "PLR2004", "D103", "ANN001", "ANN201", "PLC0415"]
 
 [tool.ruff.lint.pydocstyle]

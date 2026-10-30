@@ -1,0 +1,55 @@
+id = "limiter-walkthrough"
+title = "Checking a request against its limit"
+stage = "watch"
+xp = 40
+statement = """
+A rate limiter sits in front of the API and caps the requests of each client, for example 100 requests per minute for each API key.
+
+The API runs on many servers, so no single server sees all of a client's traffic. The counts live in a shared in-memory store that every gateway server updates. Watch one request pass the check, and another one get turned away.
+"""
+
+[diagram]
+nodes = [
+  { id = "rules", label = "Limit rules", at = [0, 0] },
+  { id = "store", label = "Counter store", at = [1, 0] },
+  { id = "client", label = "Clients", at = [0, 1] },
+  { id = "gateway", label = "API gateway", at = [1, 1] },
+  { id = "api", label = "API servers", at = [2, 1] },
+]
+links = [["client", "gateway"], ["gateway", "store"], ["gateway", "api"], ["rules", "gateway"]]
+
+[[diagram.steps]]
+flow = ["client", "gateway"]
+labels = { client = "key: k-12" }
+caption = "Every request carries an API key. The gateway checks the limit before the request reaches any service, so rejected requests cost the services nothing."
+
+[[diagram.steps]]
+flow = ["rules", "gateway"]
+highlight = ["rules"]
+labels = { rules = "free: 100/min" }
+caption = "The limit for each plan comes from a rules file. Gateways keep a copy in memory and reload it when it changes, so reading the rules adds no network call."
+
+[[diagram.steps]]
+flow = ["gateway", "store"]
+highlight = ["store"]
+labels = { store = "k-12: 37 -> 38" }
+caption = "The gateway asks the shared store to add one to this key's count and return the result, in one atomic operation. The store is partitioned by a hash of the API key."
+
+[[diagram.steps]]
+flow = ["gateway", "api"]
+packets = 3
+labels = { gateway = "38 <= 100: allow" }
+caption = "The count is under the limit, so the request goes on to the API. The check added one in-memory round trip, well under a millisecond inside the data center."
+
+[[diagram.steps]]
+flow = ["gateway", "client"]
+highlight = ["gateway"]
+labels = { client = "429, Retry-After 12" }
+caption = "A request over the limit gets 429 Too Many Requests and a Retry-After header: the seconds until the client has capacity again. A good client waits that long instead of retrying at once."
+
+[[diagram.steps]]
+flow = ["gateway", "api"]
+packets = 4
+down = ["store"]
+labels = { gateway = "store down: allow" }
+caption = "If the counter store fails, the gateway must fail open (allow and lose protection for a while) or fail closed (reject everything). Most limiters fail open, so a limiter outage does not become an API outage."

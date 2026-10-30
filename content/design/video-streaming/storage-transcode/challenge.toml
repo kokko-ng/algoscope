@@ -1,0 +1,120 @@
+id = "storage-transcode"
+title = "Store and transcode"
+stage = "quiz"
+xp = 130
+statement = """
+Every upload is transcoded into renditions:
+
+- Creators upload 30,000 hours of video a day.
+- Each video gets 5 renditions, at 0.5, 1, 2.5, 5 and 8 Mbps.
+- Transcoding 1 hour of video into all 5 renditions takes 2 hours of one worker's time.
+- Transcode jobs wait in a queue. The team keeps workers 80% busy on average.
+
+There are 8 bits in a byte. Use 1 GB = 10^9 bytes and 1 TB = 10^12 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "upload", label = "Upload service", at = [0, 0] },
+  { id = "queue", label = "Transcode queue", at = [1, 0] },
+  { id = "workers", label = "Transcoders", at = [2, 0] },
+  { id = "storage", label = "Object storage", at = [2, 1] },
+]
+links = [["upload", "queue"], ["queue", "workers"], ["workers", "storage"]]
+
+[[diagram.steps]]
+flow = ["upload", "queue", "workers", "storage"]
+packets = 4
+
+[[questions]]
+prompt = "How much storage does one hour of video take, with all 5 renditions? Give the answer in GB."
+answer = 7.65
+tolerance = 0.25
+unit = "GB"
+reject = [
+  61.2,  # forgot to divide bits by 8
+  1.53,  # used the average bitrate of one rendition instead of the sum of all 5
+]
+accept = [7.65, 8]
+hint = "Add the bitrates, multiply by 3,600 seconds, then turn bits into bytes."
+explanation = "0.5 + 1 + 2.5 + 5 + 8 = 17 Mbps for all renditions together. 17 Mbps x 3,600 s = 61,200 Mb. Divided by 8: 7,650 MB = 7.65 GB. The top two renditions are 76% of that, so they decide the storage bill."
+
+[[questions.steps]]
+flow = ["workers", "storage"]
+packets = 5
+labels = { storage = "17 Mbps x 3,600 s" }
+caption = "The sum of the bitrates sets the bytes per hour of video."
+
+[[questions]]
+prompt = "How much new storage do a day's uploads need, before copies? Give the answer in TB."
+answer = 229.5
+tolerance = 0.25
+unit = "TB"
+reject = [
+  1836,  # forgot to divide bits by 8
+  45.9,  # used the average bitrate of one rendition instead of the sum
+]
+accept = [230]
+explanation = "30,000 hours x 7.65 GB = 229,500 GB = 229.5 TB a day, about 84 PB a year before copies. Rarely watched videos can drop their top renditions or move to colder storage to cut that."
+
+[[questions.steps]]
+flow = ["workers", "storage"]
+highlight = ["storage"]
+labels = { storage = "+230 TB/day" }
+caption = "Hours uploaded times bytes per hour gives the daily growth."
+
+[[questions]]
+prompt = "How many transcode workers does the service need at the 80% target?"
+answer = 3125
+tolerance = 0.1
+unit = "workers"
+reject = [
+  2500,  # ran the workers 100% busy
+  1563,  # forgot that each hour of video takes 2 worker-hours
+]
+accept = [3125, 3100]
+explanation = "30,000 / 24 = 1,250 hours of video arrive each hour. Each needs 2 worker-hours: 2,500 worker-hours of work per hour, so 2,500 busy workers. At 80% busy: 2,500 / 0.8 = 3,125 workers. The spare 20% lets the queue drain after a burst."
+
+[[questions.steps]]
+flow = ["queue", "workers"]
+packets = 6
+highlight = ["workers"]
+labels = { workers = "2,500 / 0.8" }
+caption = "Work arriving per hour, divided by the busy share, gives the fleet."
+
+[[questions]]
+prompt = "For 3 evening hours, uploads arrive at 2 times the average rate, and all 3,125 workers stay busy. How many hours of video wait in the queue at the end of those 3 hours?"
+answer = 2812.5
+tolerance = 0.1
+unit = "hours of video"
+reject = [
+  5625,  # that is the backlog in worker-hours, not hours of video
+  7500,  # counted all arrivals and ignored the work done
+]
+accept = [2800]
+hint = "Compare the video that arrives per hour with the video the fleet finishes per hour."
+explanation = "Arrivals: 2 x 1,250 = 2,500 hours of video per hour. The fleet finishes 3,125 / 2 = 1,562.5 hours of video per hour. The queue grows by 937.5 hours per hour, so after 3 hours it holds 2,812.5 hours of video. Off-peak, the fleet clears it with its spare capacity, or more workers are added while the queue is long."
+
+[[questions.steps]]
+flow = ["upload", "queue"]
+packets = 10
+highlight = ["queue"]
+labels = { queue = "+937.5 h per hour" }
+caption = "When arrivals beat the work rate, the queue absorbs the difference."
+
+[[questions]]
+prompt = "Why cut each video into segments and transcode the segments as separate jobs?"
+choices = [
+  "Many workers can work on one video at once, so a long video is ready in minutes instead of hours",
+  "Transcoding in segments uses fewer worker-hours in total",
+  "Segments make the renditions smaller",
+  "Segment jobs need no queue",
+]
+answer = 1
+explanation = "A 2-hour film takes 4 worker-hours. As one job, it is ready after 4 hours. As 1,800 jobs of 4 seconds each, a few hundred workers finish it in minutes. The total work stays the same or grows a little, the output size depends on the bitrate, and the jobs still go through the queue."
+
+[[questions.steps]]
+flow = ["queue", "workers"]
+packets = 12
+labels = { queue = "1,800 segment jobs" }
+caption = "Splitting the work shortens the time to ready, not the total work."

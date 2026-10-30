@@ -38,6 +38,12 @@ flow = ["feedsvc", "poststore"]
 prompt = "How much memory do all the feeds need? Give the answer in TB."
 answer = 2.4
 tolerance = 0.25
+reject = [
+  1.2,   # forgot the author ID: 8 bytes
+  150,   # stored full posts
+  2400,  # gave GB, not TB
+]
+accept = [2.4]  # exact
 unit = "TB"
 hint = "Users x entries per feed x bytes per entry."
 explanation = "300,000,000 x 500 x 16 bytes = 2,400,000,000,000 bytes = 2.4 TB."
@@ -52,6 +58,12 @@ caption = "Users times entries times entry size gives the cache size."
 prompt = "How many cache nodes hold that, before replication?"
 answer = 38
 tolerance = 0.25
+reject = [
+  76,      # counted a replica of each node
+  0.0375,  # divided TB by GB without converting
+  19,      # used 8-byte entries
+]
+accept = [37.5, 40]  # unrounded; 1 significant figure
 unit = "nodes"
 explanation = "2.4 TB / 64 GB = 2,400 GB / 64 GB = 37.5, so 38 nodes. Each user's feed lives on one node, chosen by a hash of the user ID. With a replica of each node, the cluster has 76."
 
@@ -66,6 +78,12 @@ caption = "Total size divided by memory per node gives the node count."
 prompt = "How much memory would the feeds need if each entry held the full 1 KB post instead of IDs? Give the answer in TB."
 answer = 150
 tolerance = 0.25
+reject = [
+  2.4,     # kept the 16-byte entries
+  150000,  # gave GB, not TB
+  0.15,    # gave PB, not TB
+]
+accept = [150]  # exact
 unit = "TB"
 explanation = "300,000,000 x 500 x 1,000 bytes = 150,000,000,000,000 bytes = 150 TB. That is 62.5 times more: 1,000 bytes per entry instead of 16. Fan-out copies each post into hundreds of feeds, so storing full posts multiplies every post's size by the fan-out."
 

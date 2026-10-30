@@ -69,6 +69,12 @@ caption = "Without the shard key, a query goes to every shard."
 prompt = "A scatter-gather query asks all 8 shards in parallel. Seven answer in 10 ms and one answers in 80 ms. What is the latency of the query?"
 answer = 80
 tolerance = 0.1
+reject = [
+  10,     # took the fastest shard
+  150,    # added the shard times
+  18.75,  # averaged the shard times
+]
+accept = [80]  # exact
 unit = "ms"
 explanation = "The router must wait for every shard, so parallel work costs as much as its slowest part: 80 ms. The more shards a query touches, the more likely one of them is slow. Choose shard keys so that common queries touch one shard."
 
@@ -82,6 +88,12 @@ caption = "The slowest shard sets the latency of the whole query."
 prompt = "How many reads per second does Shard 2 get?"
 answer = 40000
 tolerance = 0.1
+reject = [
+  30000,   # forgot the normal share
+  110000,  # counted all traffic
+  13750,   # spread the celebrity over all shards
+]
+accept = [40000]  # exact
 unit = "reads per second"
 hint = "Add the shard's even share of normal traffic to the celebrity's reads."
 explanation = "Normal share: 80,000 / 8 = 10,000 reads per second. Add the celebrity's 30,000: 40,000 reads per second, which is 2.7 times the shard's limit of 15,000. Better hashing does not help, because all those reads are for one key."
@@ -97,6 +109,11 @@ caption = "Even key spread cannot fix one key that gets far more traffic than th
 prompt = "Copy the celebrity's data to k keys (user#0 to user#k-1) on k different shards, and send each read to a random copy. Each of those shards also serves its normal 10,000 reads per second. What is the smallest k that keeps every shard at or below 15,000 reads per second?"
 answer = 6
 tolerance = 0.1
+reject = [
+  2,  # forgot the normal 10,000 reads
+  3,  # divided 40,000 by 15,000 and rounded up
+]
+accept = [6]  # exact
 unit = "copies"
 hint = "Find the spare capacity of one shard, then divide the celebrity's reads by it."
 explanation = "Each shard has 15,000 - 10,000 = 5,000 reads per second to spare. 30,000 / 5,000 = 6 copies, each taking 5,000 reads per second. A write to the celebrity's data must now update all 6 copies, so this suits keys that are read far more often than written."

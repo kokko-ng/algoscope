@@ -32,6 +32,12 @@ down = ["db"]
 prompt = "The database is down. One user action fails at every layer. How many calls reach the database?"
 answer = 27
 tolerance = 0.1
+reject = [
+  9,   # added the attempts (3 + 3 + 3) or skipped a layer
+  81,  # counted the database as a retrying layer
+  8,   # used 2 attempts per layer
+]
+accept = [27]  # exact
 unit = "calls"
 hint = "Each attempt from one layer causes a full set of attempts in the layer below."
 explanation = "The app makes 3 attempts to the web tier. Each causes 3 attempts to the API tier: 9. Each of those causes 3 attempts to the database: 27. Retries multiply across layers: 3 x 3 x 3 = 27."
@@ -47,6 +53,12 @@ caption = "3 attempts at each of 3 layers multiply to 27 calls at the bottom."
 prompt = "If every retry fires at once, how many calls per second hit the failing database during the outage?"
 answer = 54000
 tolerance = 0.1
+reject = [
+  2000,   # forgot the retries
+  18000,  # multiplied by 9, not 27
+  6000,   # multiplied by 3, not 27
+]
+accept = [54000]  # exact
 unit = "calls per second"
 explanation = "2,000 actions per second x 27 calls each = 54,000 calls per second, 27 times the normal load. A database that is trying to recover gets hit far harder than usual. Retries that were meant to hide a blip turn it into an outage."
 
@@ -61,6 +73,12 @@ caption = "Retry amplification turns a short failure into a flood."
 prompt = "One client retries up to 4 times, with the backoff in the statement and no jitter. What is the total time it spends waiting between attempts, in ms?"
 answer = 1500
 tolerance = 0.1
+reject = [
+  700,   # counted only 3 waits
+  3100,  # counted 5 waits
+  800,   # gave only the last wait
+]
+accept = [1500]  # exact
 unit = "ms"
 hint = "Add the waits before retries 1, 2, 3 and 4."
 explanation = "The waits are 100, 200, 400 and 800 ms. Total: 1,500 ms. Each wait doubles, so the client backs off quickly and gives the server time to recover."

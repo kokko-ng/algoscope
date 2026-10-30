@@ -256,3 +256,39 @@ def test_class_methods_may_return_values_the_reference_does_not(tmp_path):
         tmp_path, wrong_size, "score", cases=cls_cases, reference=reference, kind="class", entry="Box", sizes=[8, 16]
     )
     assert out["passed"] < out["total"]
+
+
+def test_forbid_slices_and_list_literals(tmp_path):
+    sliced = "def solve(nums):\n    copy = nums[::-1]\n    return max(copy) if copy else None\n"
+    out = run(tmp_path, sliced, "score", forbid=["slice"])
+    assert "`slice` is off limits" in out["error"]["text"]
+    built = "def solve(nums):\n    copy = [x for x in nums]\n    return max(copy) if copy else None\n"
+    out = run(tmp_path, built, "score", forbid=["list literal"])
+    assert "`list literal` is off limits" in out["error"]["text"]
+    plain = (
+        "def solve(nums):\n    best = None\n    for x in nums:\n"
+        "        best = x if best is None or x > best else best\n    return best\n"
+    )
+    out = run(tmp_path, plain, "score", forbid=["slice", "list literal"])
+    assert "error" not in out
+
+
+def test_string_work_is_charged_by_length(tmp_path):
+    cases = (
+        "def visual():\n    return (['ab', 'ac'],)\n\n"
+        "def cases(n, rng):\n    return [(['x' * n + 'a', 'x' * n + 'b'],)]\n"
+    )
+    reference = (
+        "def solve(words):\n    first, second = words\n    i = 0\n"
+        "    while i < len(first) and i < len(second) and first[i] == second[i]:\n"
+        "        i += 1\n    return i\n"
+    )
+    by_slices = (
+        "def solve(words):\n    first, second = words\n    k = 0\n"
+        "    while k < len(first) and first[: k + 1] == second[: k + 1]:\n        k += 1\n    return k\n"
+    )
+    out = run(tmp_path, by_slices, "score", cases=cases, reference=reference, sizes=[50, 100, 200, 400], watch=[])
+    assert out["passed"] == out["total"]
+    user = dict(map(tuple, out["steps"]["user"]))
+    ref = dict(map(tuple, out["steps"]["ref"]))
+    assert user[400] > 20 * ref[400], (user, ref)

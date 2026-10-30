@@ -38,6 +38,12 @@ packets = 2
 prompt = "The service runs on one app server only. How many hours a year is the chain down?"
 answer = 131.8
 tolerance = 0.1
+reject = [
+  87.6,  # counted only the app server
+  8628,  # gave the hours up
+  43.8,  # counted only the database
+]
+accept = [132, 130]  # added the failure rates; 2 significant figures
 unit = "hours per year"
 hint = "Multiply the three availabilities, subtract from 1, and multiply by 8,760."
 explanation = "Availability: 0.9999 x 0.99 x 0.995 = 0.98495. Down: 1 - 0.98495 = 0.01505. 0.01505 x 8,760 = about 131.8 hours a year. For small failure rates, adding them gives nearly the same answer: 0.0001 + 0.01 + 0.005 = 0.0151."
@@ -52,6 +58,12 @@ caption = "A chain is weaker than its weakest part. Every part's downtime adds u
 prompt = "Now two app servers run, and either one can serve. How many hours a year is the app tier itself down?"
 answer = 0.876
 tolerance = 0.1
+reject = [
+  175.2,  # added the failure rates
+  87.6,   # counted one server
+  43.8,   # halved one server's downtime
+]
+accept = [0.876, 0.9]  # exact; rounded
 unit = "hours per year"
 hint = "Both must be down at the same time: multiply the two failure probabilities."
 explanation = "Each server is down 1% of the time. Both are down together 0.01 x 0.01 = 0.0001 of the time. 0.0001 x 8,760 = 0.876 hours, about 53 minutes a year, down from 87.6 hours for one server. Two 99% servers make a 99.99% tier."
@@ -66,7 +78,13 @@ caption = "Parallel copies multiply failure probabilities, which shrinks them fa
 [[questions]]
 prompt = "With the two app servers, how many hours a year is the whole chain down?"
 answer = 45.5
-tolerance = 0.02
+tolerance = 0.018
+reject = [
+  131.8,  # used one app server
+  43.8,   # counted only the database
+  44.67,  # forgot the load balancer
+]
+accept = [45.5, 46]  # exact; rounded
 unit = "hours per year"
 explanation = "App tier: 1 - 0.01^2 = 0.9999. Chain: 0.9999 x 0.9999 x 0.995 = 0.99480. Down: 0.00520 x 8,760 = about 45.5 hours a year. Most of it, 43.8 hours, now comes from the database."
 

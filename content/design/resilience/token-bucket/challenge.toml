@@ -29,6 +29,12 @@ labels = { bucket = "B = 50, r = 10/s" }
 prompt = "The client has been idle for a minute, then sends 80 requests at the same instant. How many are accepted?"
 answer = 50
 tolerance = 0.1
+reject = [
+  80,   # accepted every request
+  30,   # gave the rejected count
+  650,  # let the bucket fill past B
+]
+accept = [50]  # exact
 unit = "requests"
 explanation = "After a minute idle the bucket is full, at its cap of 50 tokens; it does not keep filling past B. The first 50 requests take the 50 tokens. The other 30 find it empty and are rejected. B is the burst allowance."
 
@@ -43,6 +49,12 @@ caption = "A full bucket lets a burst through, up to its size."
 prompt = "Instead, starting with a full bucket, the client sends a steady 30 requests per second. After how many seconds is the bucket empty?"
 answer = 2.5
 tolerance = 0.1
+reject = [
+  1.67,  # forgot the refill
+  1.25,  # added the refill to the request rate
+  5,     # divided by the refill rate
+]
+accept = [2.5]  # exact
 unit = "seconds"
 hint = "The bucket loses tokens at the request rate minus the refill rate."
 explanation = "Each second, 30 tokens leave and 10 arrive, so the bucket drains at 20 tokens per second. 50 / 20 = 2.5 seconds."
@@ -58,6 +70,11 @@ caption = "Drain rate = request rate - refill rate."
 prompt = "Once the bucket is empty and the client keeps sending 30 requests per second, how many requests per second are rejected?"
 answer = 20
 tolerance = 0.1
+reject = [
+  10,  # gave the accepted rate
+  30,  # rejected every request
+]
+accept = [20]  # exact
 unit = "requests per second"
 explanation = "With an empty bucket, only the 10 new tokens each second can be spent. 30 - 10 = 20 requests per second are rejected. In the long run a client gets r per second, whatever it sends."
 
@@ -71,6 +88,12 @@ caption = "An empty bucket passes exactly the refill rate."
 prompt = "Starting full, the client sends as fast as it can. What is the most requests it can get accepted in the first 10 seconds?"
 answer = 150
 tolerance = 0.1
+reject = [
+  100,  # forgot the starting burst
+  50,   # forgot the refill
+  500,  # multiplied B by 10
+]
+accept = [150]  # exact
 unit = "requests"
 explanation = "The 50 tokens already in the bucket, plus 10 x 10 = 100 tokens added during the 10 seconds: 150 requests. The average over these 10 seconds is 15 per second, more than r, because the burst comes on top of the refill."
 

@@ -69,6 +69,12 @@ caption = "A growing queue of waiting work is the first sign of a full resource.
 prompt = "How many requests may fail in 30 days before the SLO is broken?"
 answer = 518400
 tolerance = 0.1
+reject = [
+  518400000,  # forgot the 0.1%
+  17280,      # used one day, not 30
+  5184000,    # used 1%
+]
+accept = [518400, 500000]  # exact; rounded
 unit = "requests"
 hint = "Requests per second x seconds in 30 days x 0.1%."
 explanation = "200 x 86,400 x 30 = 518,400,000 requests in 30 days. 0.1% of that is 518,400 failed requests. This is the error budget: it is spent by outages, bad deploys and slow dependencies."
@@ -83,6 +89,11 @@ caption = "The budget is a count of failures that the SLO allows over the window
 prompt = "In the last hour, 0.5% of requests failed. What is the burn rate?"
 answer = 5
 tolerance = 0.1
+reject = [
+  0.2,  # divided the allowed rate by the current rate
+  0.4,  # subtracted the rates
+]
+accept = [5]  # exact
 unit = "times the allowed rate"
 explanation = "The SLO allows 0.1% failures. 0.5% / 0.1% = 5. The service spends its budget 5 times faster than the SLO can afford."
 
@@ -96,6 +107,11 @@ caption = "Burn rate compares the current error rate with the allowed error rate
 prompt = "If the burn rate stays at that level, how many days until the whole 30-day budget is gone?"
 answer = 6
 tolerance = 0.1
+reject = [
+  150,  # multiplied by the burn rate
+  25,   # subtracted the burn rate
+]
+accept = [6]  # exact
 unit = "days"
 explanation = "At a burn rate of 1 the budget lasts 30 days. At a burn rate of 5 it lasts 30 / 5 = 6 days. An alert on burn rate pages someone for a problem that will break the SLO. It ignores a short spike that uses little budget, which a plain error-rate threshold would page for."
 

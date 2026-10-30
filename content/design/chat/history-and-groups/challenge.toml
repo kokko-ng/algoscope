@@ -35,6 +35,12 @@ packets = 5
 prompt = "How many messages per second does the store write, on average?"
 answer = 23148
 tolerance = 0.25
+reject = [
+  555556,  # divided by 3,600
+  134259,  # counted deliveries, not stored messages
+  2315,    # divided by 864,000
+]
+accept = [20000, 23000]  # the 100,000-second shortcut; rounded
 unit = "writes per second"
 explanation = "2,000,000,000 / 86,400 = about 23,100 writes per second. Each message is stored once, so group size does not change this number."
 
@@ -48,6 +54,12 @@ caption = "Daily messages divided by seconds in a day."
 prompt = "How much new message data arrives each day, before copies? Give the answer in GB."
 answer = 400
 tolerance = 0.25
+reject = [
+  1200,  # counted the 3 copies
+  2320,  # stored a copy per group member
+  3200,  # bits, not bytes
+]
+accept = [400]  # exact
 unit = "GB per day"
 explanation = "2,000,000,000 x 200 bytes = 400,000,000,000 bytes = 400 GB each day."
 
@@ -61,6 +73,12 @@ caption = "Messages times message size gives the daily growth."
 prompt = "How much storage do 5 years of history need, with 3 copies? Give the answer in PB."
 answer = 2.19
 tolerance = 0.25
+reject = [
+  0.73,  # forgot the 3 copies
+  2190,  # gave TB, not PB
+  12.7,  # stored a copy per group member
+]
+accept = [2.2, 2]  # rounded; 1 significant figure
 unit = "PB"
 hint = "Daily growth x days in 5 years x copies."
 explanation = "400 GB x 365 x 5 = 730,000 GB = 730 TB. With 3 copies: 2,190 TB, about 2.2 PB. Most of it is old history that is rarely read, so it can move to cheaper storage after some months."
@@ -75,6 +93,12 @@ caption = "Retention and replication multiply the daily growth."
 prompt = "How many deliveries to devices per second does the service make, on average? Count one delivery per receiving user."
 answer = 134259
 tolerance = 0.1
+reject = [
+  23148,    # forgot the group fan-out
+  113426,   # counted only the group deliveries
+  1134259,  # fanned out every message to 49 members
+]
+accept = [134000, 130000]  # rounded; 2 significant figures
 unit = "deliveries per second"
 hint = "One-to-one messages make 1 delivery each. Group messages make 49 each."
 explanation = "One-to-one: 1,800,000,000 x 1 = 1.8 billion deliveries a day. Groups: 200,000,000 x 49 = 9.8 billion. Total: 11.6 billion a day. 11,600,000,000 / 86,400 = about 134,000 deliveries per second. Groups are 10% of messages but 84% of deliveries, which is why a group message is stored once and fanned out only as deliveries."

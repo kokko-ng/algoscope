@@ -1,0 +1,56 @@
+id = "cache-cluster-walkthrough"
+title = "A read through the cache cluster"
+stage = "watch"
+xp = 40
+statement = """
+A distributed cache keeps hot data in the memory of many nodes, in front of a slower database. A read from cache memory takes about 0.5 ms over the network. A database read takes several milliseconds and costs far more capacity.
+
+No central router sits on the read path. Each app server has a client library that knows the hash ring and sends each key straight to the node that owns it.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [0, 1] },
+  { id = "nodea", label = "Cache node A", at = [1, 0] },
+  { id = "nodeb", label = "Cache node B", at = [1, 1] },
+  { id = "nodec", label = "Cache node C", at = [1, 2] },
+  { id = "db", label = "Database", at = [2, 1] },
+]
+links = [["app", "nodea"], ["app", "nodeb"], ["app", "nodec"], ["app", "db"]]
+
+[[diagram.steps]]
+flow = ["app", "nodeb"]
+highlight = ["nodeb"]
+labels = { app = "hash(user:42)", nodeb = "hit: 0.5 ms" }
+caption = "The client library hashes the key onto a ring. Each node owns many small arcs of the ring (virtual nodes), so keys spread evenly. The key lives on node B, and B has it: a hit."
+
+[[diagram.steps]]
+flow = ["app", "db"]
+labels = { nodeb = "miss", db = "read the row" }
+caption = "On a miss, the app reads the database. This is cache-aside: the app, not the cache, talks to the database."
+
+[[diagram.steps]]
+flow = ["app", "nodeb"]
+labels = { nodeb = "set, TTL 10 min" }
+caption = "The app stores the value on node B with a time to live. When memory is full, the node evicts the least recently used keys to make room."
+
+[[diagram.steps]]
+flow = ["app", "nodea"]
+packets = 3
+down = ["nodec"]
+labels = { nodea = "takes C's arcs" }
+caption = "Node C fails. With consistent hashing, only C's keys move: each arc of C now belongs to the next node on the ring. The other keys stay where they were, so most reads still hit."
+
+[[diagram.steps]]
+flow = ["app", "db"]
+packets = 4
+down = ["nodec"]
+labels = { db = "C's keys reload" }
+caption = "C's keys now miss on their new nodes and go to the database once each, until they are cached again. With hash mod N placement, almost every key would move and miss at once."
+
+[[diagram.steps]]
+flow = ["app", "nodeb"]
+packets = 10
+highlight = ["nodeb"]
+labels = { nodeb = "hot key: 300,000/s" }
+caption = "One key that everyone reads lands on one node and can overload it. Keep a copy in each app server's memory for a second, or split the key into copies on several nodes."

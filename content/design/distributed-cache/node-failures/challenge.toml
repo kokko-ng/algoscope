@@ -1,0 +1,129 @@
+id = "node-failures"
+title = "Lose a node"
+stage = "quiz"
+xp = 130
+statement = """
+A cache cluster has 40 nodes and no replicas: when a node is lost, its keys are loaded again from the database.
+
+- The cluster holds 500 million keys, placed with consistent hashing and many virtual nodes per node.
+- At peak, 2 million reads per second arrive, spread evenly over the keys' nodes. 98% are hits.
+- The database can serve at most 150,000 reads per second.
+- One popular key is read 20,000 times per second. Loading it from the database takes 50 ms.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [0, 1] },
+  { id = "node1", label = "Cache node 1", at = [1, 0] },
+  { id = "node2", label = "Cache node 2", at = [1, 1] },
+  { id = "node40", label = "Cache node 40", at = [1, 2] },
+  { id = "db", label = "Database", at = [2, 1] },
+]
+links = [["app", "node1"], ["app", "node2"], ["app", "node40"], ["app", "db"]]
+
+[[diagram.steps]]
+flow = ["app", "node1"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["app", "node40"]
+packets = 3
+down = ["node2"]
+
+[[diagram.steps]]
+flow = ["app", "db"]
+packets = 2
+down = ["node2"]
+
+[[questions]]
+prompt = "One node fails. How many keys must be loaded again from the database? Give the answer in millions."
+answer = 12.5
+tolerance = 0.1
+unit = "million keys"
+reject = [
+  487.5,  # that is hash mod N placement, where 39 of every 40 keys move
+  500,    # assumed the whole cache is lost
+]
+accept = [12.5]
+explanation = "With consistent hashing, only the failed node's keys move: 1/40 of them. 500,000,000 / 40 = 12.5 million keys. The other 487.5 million stay on their nodes and keep hitting."
+
+[[questions.steps]]
+flow = ["app", "node40"]
+down = ["node2"]
+labels = { node40 = "takes 1/40 of keys" }
+caption = "Only the lost node's arcs of the ring change owner."
+
+[[questions]]
+prompt = "Right after the failure, how many reads per second reach the database? Assume every read of the lost node's keys misses until it is reloaded."
+answer = 89000
+tolerance = 0.1
+unit = "reads per second"
+reject = [
+  40000,  # the normal misses only; forgot the lost node's reads
+  50000,  # the lost node's reads only; forgot the normal misses
+]
+accept = [89000, 90000]
+hint = "The lost node had 1/40 of the reads. The rest still miss 2% of the time."
+explanation = "The lost node served 2,000,000 / 40 = 50,000 reads per second, and all of them now miss. The other 1,950,000 miss 2% of the time: 39,000. Total: 50,000 + 39,000 = 89,000 reads per second, about 2.2 times normal, but under the database's 150,000. The extra load fades as the keys are cached again."
+
+[[questions.steps]]
+flow = ["app", "db"]
+packets = 6
+down = ["node2"]
+labels = { db = "50,000 + 39,000" }
+caption = "A lost node adds its whole read load to the database for a while."
+
+[[questions]]
+prompt = "With hash(key) mod N placement instead, N changes from 40 to 39 after the failure. What happens to the database?"
+choices = [
+  "Nothing changes: only the lost node's keys miss, as with consistent hashing",
+  "About 39 of every 40 keys move to a different node, so almost all of the 2 million reads per second miss, over 13 times what the database can serve",
+  "The load doubles, to about 80,000 reads per second",
+  "Reads move to the replicas, so the database sees no change",
+]
+answer = 2
+explanation = "With mod N, a key keeps its node only if hash mod 40 equals hash mod 39, which is true for about 1 key in 40. So 97.5% of keys move, and nearly every read misses: close to 2,000,000 reads per second against a limit of 150,000. The database falls over. That is why caches place keys with consistent hashing. This cluster has no replicas."
+
+[[questions.steps]]
+flow = ["app", "db"]
+packets = 12
+down = ["node2"]
+labels = { db = "~2M reads/s" }
+caption = "Modulo placement turns one lost node into a cold cache."
+
+[[questions]]
+prompt = "The popular key expires. With no protection, how many requests miss and go to the database before the first load finishes?"
+answer = 1000
+tolerance = 0.1
+unit = "requests"
+reject = [
+  1,        # that is with a single loader per key
+  1000000,  # used 50 seconds instead of 0.05 seconds
+]
+accept = [1000]
+explanation = "The load takes 50 ms = 0.05 s. During that time, 20,000 x 0.05 = 1,000 requests arrive, miss, and each starts its own database read of the same row. This is a cache stampede. With request coalescing, the first miss loads the key and the other 999 wait for its result, so the database sees 1 read."
+
+[[questions.steps]]
+flow = ["app", "db"]
+packets = 10
+highlight = ["db"]
+labels = { db = "20,000 x 0.05 s" }
+caption = "Every request in the load window misses, unless one loader takes them all."
+
+[[questions]]
+prompt = "A software update must restart all 40 nodes, and each restarts with an empty memory. How should the team roll it out?"
+choices = [
+  "Restart nodes one or a few at a time, and wait for each to fill before the next",
+  "Restart all 40 at once, so the outage is short",
+  "Give every key the same TTL before the restart",
+  "Turn off the database's connection limit during the restart",
+]
+answer = 1
+explanation = "One cold node at a time adds about 50,000 misses per second, which the database can take. All 40 at once make every read miss: about 2,000,000 per second, a thundering herd far over the 150,000 limit. Equal TTLs make keys expire together, which adds a second herd. Removing the connection limit lets the overload reach the database instead of queueing in front of it."
+
+[[questions.steps]]
+flow = ["app", "node1"]
+packets = 3
+down = ["node2"]
+labels = { node2 = "restarting", node1 = "warm" }
+caption = "A rolling restart keeps most of the cache warm."

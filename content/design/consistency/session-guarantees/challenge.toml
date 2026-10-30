@@ -80,6 +80,12 @@ caption = "Recent writers read from the leader. All other reads still go to the 
 prompt = "The service handles 10,000 reads per second. 5% of reads come from users who wrote in the last 10 seconds, and the app sends those reads to the leader. How many reads per second reach the leader?"
 answer = 500
 tolerance = 0.1
+reject = [
+  9500,  # gave the follower reads
+  3333,  # spread reads over all 3 nodes
+  50,    # used 0.5%
+]
+accept = [500]  # exact
 unit = "reads per second"
 explanation = "10,000 x 0.05 = 500 reads per second. The leader carries a small slice of the reads, and the followers still serve the other 9,500. Read-your-writes costs a little leader capacity, not all of it."
 

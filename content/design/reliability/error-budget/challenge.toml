@@ -30,6 +30,12 @@ labels = { monitor = "SLI 99.95%" }
 prompt = "How many hours of downtime a year does 99.9% availability allow?"
 answer = 8.76
 tolerance = 0.1
+reject = [
+  87.6,   # used 99%
+  0.876,  # used 99.99%
+  525.6,  # gave minutes, not hours
+]
+accept = [8.76, 9]  # exact; rounded
 unit = "hours"
 explanation = "Downtime fraction: 1 - 0.999 = 0.001. 0.001 x 8,760 hours = 8.76 hours a year."
 
@@ -42,6 +48,12 @@ caption = "Three nines leave 0.1% of the year: under 9 hours."
 prompt = "How many minutes of downtime a year does 99.99% availability allow?"
 answer = 52.56
 tolerance = 0.1
+reject = [
+  525.6,  # used 99.9%
+  0.876,  # gave hours, not minutes
+  5.256,  # used 99.999%
+]
+accept = [52.6, 50]  # rounded; 1 significant figure
 unit = "minutes"
 explanation = "1 - 0.9999 = 0.0001. 0.0001 x 8,760 hours = 0.876 hours = 52.56 minutes, about 52.6 minutes. One more nine cuts the downtime by ten, and one bad release can use the whole year's allowance."
 
@@ -54,6 +66,11 @@ caption = "Four nines leave less than an hour a year."
 prompt = "The SLO is 99.9% over a 30-day month. How many minutes of error budget does the team have each month?"
 answer = 43.2
 tolerance = 0.1
+reject = [
+  432,   # used 99%
+  4.32,  # used 99.99%
+]
+accept = [43.2, 43]  # exact; rounded
 unit = "minutes"
 explanation = "0.001 x 43,200 minutes = 43.2 minutes a month. The budget turns the SLO into a resource: the team can spend it on releases and experiments."
 
@@ -67,6 +84,12 @@ caption = "Error budget = (1 - SLO) x period."
 prompt = "This month, a bad release caused a 25-minute full outage. How many minutes of the 99.9% budget are left?"
 answer = 18.2
 tolerance = 0.1
+reject = [
+  25,    # gave the budget used
+  43.2,  # forgot the outage
+  68.2,  # added the outage
+]
+accept = [18.2, 18]  # exact; rounded
 unit = "minutes"
 explanation = "43.2 - 25 = 18.2 minutes. Over half the budget is gone. A common policy: while the budget is low, slow down risky releases and spend effort on reliability until the window resets."
 

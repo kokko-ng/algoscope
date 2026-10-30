@@ -32,6 +32,12 @@ flow = ["app", "f2"]
 prompt = "About how many halving steps does a binary search need to find one email among 100 million sorted emails?"
 answer = 27
 tolerance = 0.25
+reject = [
+  8,         # used log base 10
+  4,         # used the B-tree base of 100
+  50000000,  # scanned half the rows
+]
+accept = [26.6, 30]  # unrounded log2; 1 significant figure
 unit = "steps"
 hint = "Count how many times you can halve 100 million before 1 is left: log2 of 100,000,000."
 explanation = "log2(100,000,000) is about 26.6, so 27 steps. As a check: 2^10 is about 1,000, so 2^27 is about 134 million, just above 100 million. A full scan reads up to 100 million rows. The index reads 27 entries."
@@ -46,6 +52,12 @@ caption = "O(log n): each step halves what is left."
 prompt = "A B-tree node holds 100 keys, so each level divides the range by 100. How many levels does the index need for 100 million rows?"
 answer = 4
 tolerance = 0.1
+reject = [
+  27,       # used base 2
+  8,        # used base 10
+  1000000,  # divided by 100 only once
+]
+accept = [4]  # exact
 unit = "levels"
 explanation = "100^4 = 100,000,000, so 4 levels. A lookup reads 4 tree nodes. The top levels are read so often that they stay in memory, so a lookup usually costs one or two disk reads."
 
@@ -93,6 +105,12 @@ caption = "The writer reads from the leader. Everyone else can wait for the foll
 prompt = "The leader confirms 2,000 writes per second. The most up-to-date follower lags by 0.5 seconds. The leader crashes, and that follower is promoted. About how many confirmed writes are lost?"
 answer = 1000
 tolerance = 0.25
+reject = [
+  4000,  # divided by the lag instead of multiplying
+  2000,  # used a full second of writes
+  0,     # assumed promotion loses nothing
+]
+accept = [1000]  # exact
 unit = "writes"
 hint = "The new leader is missing the writes from the last 0.5 seconds."
 explanation = "The follower is missing the last 0.5 seconds of writes: 2,000 x 0.5 = 1,000 writes that users were told had succeeded. Synchronous replication to at least one follower avoids this loss, but then each write waits for that follower."

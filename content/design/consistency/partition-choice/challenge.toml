@@ -68,6 +68,12 @@ caption = "An AP system keeps taking writes on each side and reconciles them whe
 prompt = "There is no partition. A write must be confirmed by all 3 replicas before it succeeds. How long does the write wait, in ms?"
 answer = 80
 tolerance = 0.1
+reject = [
+  2,    # took the fastest replica
+  122,  # added the round trips
+  40,   # waited for a majority
+]
+accept = [80]  # exact
 unit = "ms"
 hint = "The requests go out in parallel. The write finishes when the last confirmation arrives."
 explanation = "The three requests run in parallel, so the write waits for the slowest replica: max(2, 40, 80) = 80 ms. Waiting for every replica gives the strongest guarantee, at the price of the slowest round trip."
@@ -81,7 +87,13 @@ caption = "Waiting for all replicas means waiting for the farthest one: 80 ms."
 [[questions]]
 prompt = "The write now needs only W = 2 confirmations, and the local replica is one of them. How long does the write wait, in ms?"
 answer = 40
-tolerance = 0.1
+tolerance = 0.04
+reject = [
+  80,  # waited for all 3 replicas
+  2,   # counted only the local replica
+  42,  # added the parallel round trips
+]
+accept = [40]  # exact
 unit = "ms"
 explanation = "The confirmations arrive at 2 ms and 40 ms. The second one completes the quorum, so the write takes 40 ms instead of 80 ms. This is the Else half of PACELC: fewer confirmations mean lower latency, but a read must be designed so it still sees the write."
 

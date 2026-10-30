@@ -1,0 +1,122 @@
+id = "hot-keys-writes"
+title = "Hot keys, writes and expiry"
+stage = "quiz"
+xp = 140
+statement = """
+The cache serves 500 app servers.
+
+- One key, a popular product page, is read 300,000 times per second. A cache node handles 100,000 operations per second, and no node should spend more than 30,000 per second on one key.
+- A product catalog is written 500 times per second. Each item is 2 KB (2,000 bytes) in the cache, with a TTL of 1 day.
+- Only 5% of written items are read again within a day.
+
+Use 86,400 seconds in a day and 1 GB = 10^9 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [0, 1] },
+  { id = "local", label = "Local memory", at = [0, 0] },
+  { id = "node1", label = "Cache node 1", at = [1, 0] },
+  { id = "node2", label = "Cache node 2", at = [1, 1] },
+  { id = "node3", label = "Cache node 3", at = [1, 2] },
+  { id = "db", label = "Database", at = [2, 1] },
+]
+links = [["app", "local"], ["app", "node1"], ["app", "node2"], ["app", "node3"], ["app", "db"]]
+
+[[diagram.steps]]
+flow = ["app", "node2"]
+packets = 10
+highlight = ["node2"]
+
+[[diagram.steps]]
+flow = ["app", "local"]
+packets = 3
+
+[[questions]]
+prompt = "Each app server keeps the hot key in its own memory for 1 second, then fetches it again from the cluster. How many reads per second of that key reach the cluster?"
+answer = 500
+tolerance = 0.1
+unit = "reads per second"
+reject = [
+  600,     # the reads each app server gets per second, not the fetches it makes
+  300000,  # forgot the local copy
+]
+accept = [500]
+explanation = "Each of the 500 servers fetches the key once per second: 500 reads per second, down from 300,000. Each server still answers its own 300,000 / 500 = 600 reads per second from memory. The cost is staleness: a change can take up to 1 second to show."
+
+[[questions.steps]]
+flow = ["app", "local"]
+packets = 6
+highlight = ["local"]
+labels = { local = "600/s per server" }
+caption = "A short local copy absorbs almost all reads of a hot key."
+
+[[questions]]
+prompt = "Instead, the key is split into copies (product:7#0, product:7#1, ...) on different nodes, and each read picks a copy at random. How many copies keep every node at or under 30,000 reads per second for this key?"
+answer = 10
+tolerance = 0.1
+unit = "copies"
+reject = [
+  3,   # divided by the node's full 100,000 operations per second
+  40,  # one copy on every node; it works, but it is not the fewest
+]
+accept = [10]
+explanation = "300,000 / 30,000 = 10 copies, each on a different node. A copy at the full 100,000 per second would leave that node no room for its other keys. Every write must now update or delete all 10 copies."
+
+[[questions.steps]]
+flow = ["app", "node1"]
+packets = 4
+highlight = ["node1", "node2", "node3"]
+labels = { node1 = "#0: 30,000/s", node3 = "#9: 30,000/s" }
+caption = "Copies spread one key's reads over many nodes."
+
+[[questions]]
+prompt = "With write-through, every catalog write also puts the item into the cache. How much cache memory do one day of written items take? Give the answer in GB."
+answer = 86.4
+tolerance = 0.25
+unit = "GB"
+reject = [
+  0.001,  # forgot the 86,400 seconds: one second of writes is 1 MB
+  691,    # multiplied by 8, as if converting bytes to bits
+]
+accept = [86, 100]
+explanation = "500 x 86,400 = 43,200,000 items a day. 43,200,000 x 2,000 bytes = 86,400,000,000 bytes = 86.4 GB. With the 100,000-second shortcut, 100 GB. Only 5% of these items are read, so about 82 GB of cache holds data that nobody asks for, and it pushes out keys that are read."
+
+[[questions.steps]]
+flow = ["app", "node2"]
+packets = 5
+labels = { node2 = "+86 GB/day" }
+caption = "Write-through fills the cache with every write, read or not."
+
+[[questions]]
+prompt = "Which write policy suits the catalog?"
+choices = [
+  "Write-around: write the database, delete the cache key, and let the next read load it",
+  "Write-through: write the cache and the database on every write",
+  "Write-back: write only the cache, and copy to the database later",
+  "No cache for the catalog at all",
+]
+answer = 1
+explanation = "With write-around, only items that someone reads come into the cache, so memory goes to the 5% that matter. Deleting the key on write keeps reads from seeing the old value. Write-through spends 95% of what it writes on items nobody reads. Write-back can lose writes when a cache node fails. The catalog is read, so dropping the cache gives up the hits on the 5%."
+
+[[questions.steps]]
+flow = ["app", "db"]
+labels = { db = "write", node2 = "delete key" }
+caption = "Write the source of truth, then remove the stale copy."
+
+[[questions]]
+prompt = "A batch job loads 1 million keys at 09:00, all with a TTL of exactly 60 minutes. At 10:00 they all expire and the database is flooded. Which change spreads the reloads and keeps every key at most about 70 minutes old?"
+choices = [
+  "Give each key a TTL of 60 minutes plus a random 0 to 10 minutes",
+  "Give every key a TTL of 2 hours",
+  "Remove the TTLs and rely on eviction when memory is full",
+  "Switch eviction from LRU to LFU",
+]
+answer = 1
+explanation = "Random jitter spreads the expiries over 10 minutes instead of one instant, and no key lives past 70 minutes. A 2-hour TTL moves the same flood to 11:00 and breaks the 70-minute bound. Without TTLs, keys that are never evicted stay stale for ever. The eviction policy decides which keys go when memory is full, not when keys expire."
+
+[[questions.steps]]
+flow = ["app", "db"]
+packets = 4
+labels = { db = "spread over 10 min" }
+caption = "Jitter turns one spike of expiries into a steady trickle."

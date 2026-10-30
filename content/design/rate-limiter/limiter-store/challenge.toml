@@ -1,0 +1,127 @@
+id = "limiter-store"
+title = "Size the counter store"
+stage = "quiz"
+xp = 120
+statement = """
+The limiter keeps its state in a shared in-memory store:
+
+- 10 million API keys are active each day.
+- With a token bucket, each key needs one entry: the token count and the time of the last refill. With the key and the store's overhead, an entry takes 100 bytes.
+- The store keeps 2 copies of every entry.
+- At peak, the gateways check 500,000 requests per second. Each check is one atomic operation on the store.
+- One store node handles 100,000 operations per second. The team runs nodes at 50% of that, to leave headroom.
+
+Use 1 GB = 10^9 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "gateway", label = "Gateways", at = [0, 1] },
+  { id = "node1", label = "Store node 1", at = [1, 0] },
+  { id = "nodemid", label = "More nodes", at = [1, 1] },
+  { id = "noden", label = "Store node N", at = [1, 2] },
+  { id = "replica", label = "Replicas", at = [2, 1] },
+]
+links = [["gateway", "node1"], ["gateway", "nodemid"], ["gateway", "noden"], ["node1", "replica"], ["nodemid", "replica"], ["noden", "replica"]]
+
+[[diagram.steps]]
+flow = ["gateway", "node1", "replica"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["gateway", "noden", "replica"]
+packets = 3
+
+[[questions]]
+prompt = "How much memory do the token buckets of all active keys need, counting both copies? Give the answer in GB."
+answer = 2
+tolerance = 0.25
+unit = "GB"
+reject = [
+  1,   # forgot the second copy
+  16,  # multiplied by 8, as if converting bytes to bits
+]
+accept = [2]
+hint = "Keys x bytes per entry x copies."
+explanation = "10,000,000 x 100 bytes = 1,000,000,000 bytes = 1 GB. With 2 copies: 2 GB. A token bucket needs only two numbers per key, so memory is never the hard part of this limiter."
+
+[[questions.steps]]
+flow = ["gateway", "nodemid", "replica"]
+packets = 3
+highlight = ["nodemid", "replica"]
+labels = { nodemid = "10M x 100 B", replica = "x 2 copies" }
+caption = "Keys times entry size times copies gives the memory."
+
+[[questions]]
+prompt = "A sliding window log stores the time of every request instead. Each key may make 1,000 requests per hour, and a stored time is 8 bytes. In the worst case, with every key at its limit, how much memory do the logs need before copies? Give the answer in GB."
+answer = 80
+tolerance = 0.25
+unit = "GB"
+reject = [
+  0.08,   # forgot the 1,000 timestamps per key
+  80000,  # divided by 10^6, which gives MB, not GB
+]
+accept = [80]
+explanation = "1,000 x 8 bytes = 8,000 bytes per key. 10,000,000 x 8,000 bytes = 80,000,000,000 bytes = 80 GB, 80 times the token buckets. The log is exact, but it costs memory in proportion to the limit, and every check must also drop the old times."
+
+[[questions.steps]]
+flow = ["gateway", "node1"]
+packets = 6
+highlight = ["node1"]
+labels = { node1 = "1,000 x 8 B per key" }
+caption = "A log grows with the limit. A bucket or a counter stays at a few numbers."
+
+[[questions]]
+prompt = "A sliding window counter keeps a count for the previous minute and one for the current minute. It estimates the last 60 seconds as: current count + previous count x (the fraction of the previous minute still inside the window). The previous minute had 80 requests, and the current minute has 30 so far. 15 seconds of the current minute have passed. What is the estimated count?"
+answer = 90
+tolerance = 0.1
+unit = "requests"
+reject = [
+  110,  # added the whole previous minute
+  50,   # weighted the previous minute by the 25% that has passed, not the 75% still in the window
+]
+accept = [90]
+hint = "The window covers the last 60 seconds: 15 from this minute and 45 from the previous one."
+explanation = "15 of 60 seconds have passed, so 45 seconds, or 75%, of the previous minute is still in the window. 30 + 80 x 0.75 = 30 + 60 = 90. Under a limit of 100, the request is allowed. The estimate assumes the previous minute's requests were spread evenly, and it needs only two counters per key."
+
+[[questions.steps]]
+flow = ["gateway", "nodemid"]
+packets = 3
+labels = { nodemid = "30 + 80 x 0.75 = 90" }
+caption = "Two counters and a weight approximate a sliding window."
+
+[[questions]]
+prompt = "How many store nodes serve the peak checks, at the 50% target? Ignore the replicas, which only copy writes."
+answer = 10
+tolerance = 0.1
+unit = "nodes"
+reject = [
+  5,    # ran the nodes at 100%, with no headroom
+  2.5,  # multiplied by 50% instead of dividing by it
+]
+accept = [10]
+explanation = "At 50%, a node takes 100,000 x 0.5 = 50,000 operations per second. 500,000 / 50,000 = 10 nodes. The limiter adds one store operation to every request, so its store must scale with the whole API's traffic, not with the number of keys."
+
+[[questions.steps]]
+flow = ["gateway", "nodemid"]
+packets = 8
+highlight = ["node1", "nodemid", "noden"]
+labels = { gateway = "500,000 checks/s", nodemid = "50,000/s each" }
+caption = "Peak checks divided by the safe load per node gives the node count."
+
+[[questions]]
+prompt = "How should the store be partitioned across its nodes?"
+choices = [
+  "By a hash of the API key",
+  "By the current minute, so each window lives on one node",
+  "By the gateway server that sends the check",
+  "At random, a new node for each check",
+]
+answer = 1
+explanation = "With a hash of the API key, all of a key's state sits on one node, so each check is a single operation there, and keys spread evenly. By minute, every check in the current minute hits one node. By gateway server or at random, one key's count is split across nodes, and no single node sees the true total."
+
+[[questions.steps]]
+flow = ["gateway", "noden"]
+packets = 3
+labels = { gateway = "hash(k-12)" }
+caption = "One key, one node: each check reads and writes one place."

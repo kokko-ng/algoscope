@@ -1,0 +1,56 @@
+id = "payments-walkthrough"
+title = "One payment, balanced entries"
+stage = "watch"
+xp = 40
+statement = """
+A ledger records money with double entry. Each transaction moves money between accounts as a set of entries, and the amounts of the entries add up to 0: what leaves one account arrives in another. Entries are never updated or deleted. A mistake is fixed with a new transaction that reverses it.
+
+Money calls are retried when networks fail, so every step must be safe to repeat. Watch a 50.00 card payment go through, get retried, and get checked.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Checkout", at = [0, 0] },
+  { id = "api", label = "Payment API", at = [1, 0] },
+  { id = "processor", label = "Card processor", at = [2, 0] },
+  { id = "ledger", label = "Ledger DB", at = [1, 1] },
+  { id = "recon", label = "Reconciliation", at = [2, 1] },
+  { id = "relay", label = "Outbox relay", at = [1, 2] },
+  { id = "queue", label = "Event queue", at = [2, 2] },
+]
+links = [["client", "api"], ["api", "processor"], ["api", "ledger"], ["ledger", "relay"], ["relay", "queue"], ["ledger", "recon"], ["processor", "recon"]]
+
+[[diagram.steps]]
+flow = ["client", "api", "ledger"]
+labels = { client = "key: ord-981", ledger = "ord-981: started" }
+caption = "The checkout makes one idempotency key per payment and sends it with every attempt. The API inserts the key into a table with a unique constraint, so only one attempt can start the payment."
+
+[[diagram.steps]]
+flow = ["api", "processor"]
+highlight = ["processor"]
+labels = { processor = "charge 50.00" }
+caption = "The API asks the card processor to charge the card, and passes the same key on, so the processor also ignores a repeat."
+
+[[diagram.steps]]
+flow = ["api", "ledger"]
+highlight = ["ledger"]
+labels = { ledger = "+50 -50 = 0" }
+caption = "One database transaction writes two entries, +50.00 to the funds held at the processor and -50.00 to what is owed to the merchant, plus the stored response for the key and an event row in an outbox table. All of it commits, or none of it."
+
+[[diagram.steps]]
+flow = ["ledger", "relay", "queue"]
+packets = 2
+labels = { queue = "payment.captured" }
+caption = "A relay reads new outbox rows and publishes them. If it crashes after publishing but before marking a row sent, it publishes again, so consumers skip event IDs they have seen."
+
+[[diagram.steps]]
+flow = ["client", "api", "ledger"]
+highlight = ["api"]
+labels = { api = "ord-981: replay" }
+caption = "The checkout timed out and retries with the same key. The API finds the key and returns the stored response. The card is charged once."
+
+[[diagram.steps]]
+flow = ["processor", "recon", "ledger"]
+packets = 3
+labels = { recon = "match by payment ID" }
+caption = "Each night, reconciliation matches the processor's settlement file against the ledger, payment by payment. Anything missing or different on either side goes to review."

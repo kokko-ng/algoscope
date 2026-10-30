@@ -1,0 +1,7 @@
+id = "video-streaming"
+title = "Case study: video streaming"
+zone = "The Lantern Theatre"
+summary = "A video service turns each upload into many renditions and streams them in short segments from caches near the viewers. Size the egress and the origin behind the CDN, store and transcode the renditions through a queue, and balance startup time against quality."
+prereqs = ["caching", "messaging"]
+order = 17
+challenges = ["video-walkthrough", "egress", "storage-transcode", "adaptive-playback"]

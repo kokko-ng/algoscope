@@ -4,7 +4,7 @@ stage = "build"
 xp = 150
 complexity = "O(n)"
 output = "arg0"
-forbid = ["sorted", "sort"]
+forbid = ["sorted", "sort", "slice", "list literal"]
 statement = """
 Rearrange nums in place so that every value smaller than pivot comes before every value that is pivot or larger. Order inside each group does not matter, and whatever you return is ignored: the suite checks nums itself.
 

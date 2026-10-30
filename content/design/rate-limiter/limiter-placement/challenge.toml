@@ -1,0 +1,121 @@
+id = "limiter-placement"
+title = "Place the limiter, pick the key"
+stage = "quiz"
+xp = 130
+statement = """
+The API sits behind 20 gateway servers. A load balancer sends requests to them in turn, so each client's requests spread evenly over all 20.
+
+- The limit for a logged-in user is 100 requests per minute.
+- Before login, requests are limited by IP address, at 600 requests per minute for each IP.
+- At peak, 400,000 requests per second reach the gateways, and the limiter rejects 30% of them.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Clients", at = [0, 1] },
+  { id = "lb", label = "Load balancer", at = [1, 1] },
+  { id = "gw1", label = "Gateway 1", at = [2, 0] },
+  { id = "gw20", label = "Gateway 20", at = [2, 2] },
+  { id = "store", label = "Counter store", at = [2, 1] },
+]
+links = [["users", "lb"], ["lb", "gw1"], ["lb", "gw20"], ["gw1", "store"], ["gw20", "store"]]
+
+[[diagram.steps]]
+flow = ["users", "lb", "gw1", "store"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["users", "lb", "gw20", "store"]
+packets = 2
+
+[[questions]]
+prompt = "A first version keeps each count in the memory of each gateway server, with the full limit of 100 per minute on every server. How many requests per minute can one user get through?"
+answer = 2000
+tolerance = 0.1
+unit = "requests per minute"
+reject = [
+  100,  # assumed each server's count is the user's total
+  5,    # split the limit across servers, which is a different design
+]
+accept = [2000]
+explanation = "Each server sees 1/20 of the user's requests and allows 100 of them. 20 x 100 = 2,000 requests per minute, 20 times the intended limit. Splitting the limit as 100 / 20 = 5 per server is no better: it rejects users whose requests happen to land on one server. A shared store gives every server the same count."
+
+[[questions.steps]]
+flow = ["users", "lb", "gw1"]
+packets = 6
+highlight = ["gw1", "gw20"]
+labels = { gw1 = "100 here", gw20 = "100 here too" }
+caption = "Local counts multiply the limit by the number of servers."
+
+[[questions]]
+prompt = "A campus network puts 3,000 students behind one public IP address. Before login, each student sends 2 requests per minute. What percent of their requests are rejected?"
+answer = 90
+tolerance = 0.1
+unit = "percent"
+reject = [
+  10,  # that is the percent accepted
+  0,   # applied the limit to each student, but the limiter sees only the IP
+]
+accept = [90]
+explanation = "3,000 x 2 = 6,000 requests per minute arrive from one IP. The limit allows 600, so 5,400 are rejected: 5,400 / 6,000 = 90%. A limit by IP punishes everyone who shares an address. Once a user logs in, limit by user or API key instead."
+
+[[questions.steps]]
+flow = ["users", "lb", "gw20"]
+packets = 10
+highlight = ["users"]
+labels = { users = "3,000 on one IP" }
+caption = "Many users can share one IP address, so its limit is shared too."
+
+[[questions]]
+prompt = "Which requests should be limited by IP address rather than by user?"
+choices = [
+  "Login and sign-up requests, which arrive before the user is known",
+  "Requests from paying users",
+  "Every request, because IP addresses cannot be faked",
+  "Requests that carry a valid API key",
+]
+answer = 1
+explanation = "Before login there is no user or key to count against, so the IP address is the best key available; it also slows down password guessing from one machine. Paying users and requests with a key have an identity, which is a fairer key. An attacker can use many IP addresses, so an IP limit is not enough on its own."
+
+[[questions.steps]]
+flow = ["users", "lb", "gw1"]
+labels = { gw1 = "no user yet: IP" }
+caption = "The key for the limit is the most specific identity the request carries."
+
+[[questions]]
+prompt = "What does the API gain by checking limits in the gateways, before requests reach the services?"
+choices = [
+  "Rejected requests use no service capacity",
+  "The limits become exact without a shared store",
+  "The services no longer need timeouts",
+  "Clients never see a 429",
+]
+answer = 1
+explanation = "A request rejected at the gateway never reaches a service, so a flood from one client costs the services nothing. The gateways still need the shared store to agree on counts, the services still need timeouts for their own calls, and rejected clients still see 429."
+
+[[questions.steps]]
+flow = ["users", "lb", "gw20"]
+packets = 5
+highlight = ["gw20"]
+labels = { gw20 = "429 at the edge" }
+caption = "The earlier a request is rejected, the less it costs."
+
+[[questions]]
+prompt = "The counter store fails, and the gateways fail open: they allow every request. By what percent does the load on the API servers rise?"
+answer = 42.9
+tolerance = 0.1
+unit = "percent"
+reject = [
+  30,   # the rejected share of all arrivals, not of the load the API normally gets
+  143,  # the new load as a percent of the old load, not the rise
+]
+accept = [43, 40]
+hint = "Compare the requests that now get through with those that got through before."
+explanation = "Normally 70% get through: 400,000 x 0.7 = 280,000 per second. Failing open lets all 400,000 through, 120,000 more. 120,000 / 280,000 = 42.9%. The API servers need that much headroom to survive a limiter outage, or the gateways need a simple local limit to fall back on."
+
+[[questions.steps]]
+flow = ["lb", "gw1"]
+packets = 10
+down = ["store"]
+labels = { gw1 = "allow all", lb = "400,000/s" }
+caption = "Failing open removes the protection the limiter gave."

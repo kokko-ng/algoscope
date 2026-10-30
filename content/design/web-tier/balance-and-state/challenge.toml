@@ -80,6 +80,12 @@ caption = "Stateless servers are interchangeable: add, remove or replace them at
 prompt = "Server C crashes just after it passes a health check. At most how many seconds pass before the load balancer removes it?"
 answer = 15
 tolerance = 0.1
+reject = [
+  5,   # counted one check
+  10,  # counted 2 failures
+  20,  # counted 4 intervals
+]
+accept = [15]  # exact
 unit = "seconds"
 hint = "Count the checks until 3 in a row have failed."
 explanation = "The checks fail at 5, 10 and 15 seconds after the crash. The third failure removes C, so C stays in the pool for up to 15 seconds. Shorter intervals or fewer failures detect a crash faster, but they can also remove a healthy server after one slow response."
@@ -95,6 +101,12 @@ caption = "Three failed checks, 5 seconds apart, before C leaves the pool."
 prompt = "The 3,000 requests per second are split evenly over A, B and C. About how many requests go to C during those 15 seconds?"
 answer = 15000
 tolerance = 0.1
+reject = [
+  45000,  # counted all servers' traffic
+  1000,   # gave the rate per second
+  5000,   # used one 5-second interval
+]
+accept = [15000]  # exact
 unit = "requests"
 hint = "Find C's share per second, then multiply by the time."
 explanation = "C gets 3,000 / 3 = 1,000 requests per second. 1,000 x 15 = 15,000 requests fail or time out. That is why clients or the load balancer retry a failed request on another server."

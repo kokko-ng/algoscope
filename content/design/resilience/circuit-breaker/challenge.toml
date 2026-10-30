@@ -29,6 +29,12 @@ packets = 3
 prompt = "How many threads do fraud check calls hold on average when the fraud check is healthy?"
 answer = 5
 tolerance = 0.1
+reject = [
+  5000,  # used 50 ms as 50 s
+  200,   # used the 2 s timeout
+  0.5,   # used 50 ms as 0.005 s
+]
+accept = [5]  # exact
 unit = "threads"
 hint = "Call rate x time each call takes."
 explanation = "100 calls per second x 0.05 s = 5 threads. The 40-thread pool has plenty of room on a normal day."
@@ -43,6 +49,12 @@ caption = "Fast calls hold few threads."
 prompt = "The fraud check hangs, so every call waits for the full 2 s timeout. Without the bulkhead, how many threads would fraud calls hold?"
 answer = 200
 tolerance = 0.1
+reject = [
+  40,      # gave the bulkhead size
+  50,      # divided by the timeout
+  200000,  # used 2 s as 2,000
+]
+accept = [200]  # exact
 unit = "threads"
 explanation = "100 calls per second x 2 s = 200 threads, every thread checkout has. One slow dependency would stop all of checkout, including orders that never need a fraud check. A slow dependency is often worse than a dead one, because each call holds a thread for the full timeout."
 

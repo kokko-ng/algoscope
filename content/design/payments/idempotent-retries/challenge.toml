@@ -1,0 +1,123 @@
+id = "idempotent-retries"
+title = "Retry without paying twice"
+stage = "quiz"
+xp = 140
+statement = """
+Payment calls are retried, so every step must be safe to repeat.
+
+- The checkout sends an idempotency key with each payment. It waits up to 10 seconds per attempt and makes up to 4 attempts, with waits of 1, 2 and 4 seconds between them.
+- The service handles 50 million payments a day. For each key, it keeps a record of 500 bytes (the key, a hash of the request and the stored response) for 7 days, because batch jobs may resend a day's failures later.
+- Events leave through an outbox table and a relay. At peak, 2,000 outbox rows are written per second. The relay can publish 2,500 rows per second.
+
+Use 1 GB = 10^9 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Checkout", at = [0, 0] },
+  { id = "api", label = "Payment API", at = [1, 0] },
+  { id = "ledger", label = "Ledger DB", at = [2, 0] },
+  { id = "relay", label = "Outbox relay", at = [2, 1] },
+  { id = "queue", label = "Event queue", at = [1, 1] },
+  { id = "consumer", label = "Consumers", at = [0, 1] },
+]
+links = [["client", "api"], ["api", "ledger"], ["ledger", "relay"], ["relay", "queue"], ["queue", "consumer"]]
+
+[[diagram.steps]]
+flow = ["client", "api", "ledger"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["ledger", "relay", "queue", "consumer"]
+packets = 2
+
+[[questions]]
+prompt = "How much storage do the idempotency records need? Give the answer in GB."
+answer = 175
+tolerance = 0.25
+unit = "GB"
+reject = [
+  25,    # kept one day of records instead of 7
+  1400,  # multiplied by 8, as if converting bytes to bits
+]
+accept = [175, 180]
+explanation = "50,000,000 x 500 bytes = 25 GB a day. Kept for 7 days: 175 GB. Records older than 7 days are deleted; a retry after that is treated as a new payment, so the window must be longer than any retry a client can make."
+
+[[questions.steps]]
+flow = ["api", "ledger"]
+highlight = ["ledger"]
+labels = { ledger = "25 GB x 7 days" }
+caption = "Keys a day times record size times days kept."
+
+[[questions]]
+prompt = "In the worst case, every attempt times out. How many seconds pass before the checkout gives up?"
+answer = 47
+tolerance = 0.1
+unit = "seconds"
+reject = [
+  40,  # forgot the waits between attempts
+  17,  # counted one timeout plus the waits
+]
+accept = [47]
+explanation = "4 attempts x 10 seconds = 40 seconds of waiting for answers. The waits between them add 1 + 2 + 4 = 7 seconds. Total: 47 seconds. All 4 attempts carry the same key, so even if each one reached the processor, the card is charged once."
+
+[[questions.steps]]
+flow = ["client", "api"]
+packets = 4
+labels = { client = "4 x 10 s + 1 + 2 + 4" }
+caption = "Timeouts and backoff together bound how long a payment can hang."
+
+[[questions]]
+prompt = "Two attempts with the same key reach two API servers at the same moment. How do you make sure only one charges the card?"
+choices = [
+  "Each server inserts the key into a table with a unique constraint before calling the processor. Only the insert that succeeds goes on. The other attempt gets a \"still in progress\" answer and retries later.",
+  "Each server checks whether the key exists, and calls the processor if it does not",
+  "Each server keeps the keys it has seen in its own memory",
+  "Each server compares the amount with recent payments and skips equal ones",
+]
+answer = 1
+explanation = "The unique constraint makes the database pick exactly one winner, even when both inserts arrive together. Check-then-act lets both servers see \"no key\" and both charge. Memory in one server cannot see the other server. Equal amounts are common, so comparing amounts would block real payments."
+
+[[questions.steps]]
+flow = ["client", "api", "ledger"]
+packets = 2
+highlight = ["ledger"]
+labels = { ledger = "unique key: 1 wins" }
+caption = "The database's unique constraint decides the race."
+
+[[questions]]
+prompt = "The relay is down for 10 minutes at peak, while rows keep arriving. Once it is back, how many minutes does it take to catch up?"
+answer = 40
+tolerance = 0.1
+unit = "minutes"
+reject = [
+  8,   # used the full publish rate and forgot that new rows keep arriving
+  10,  # divided the backlog by the arrival rate instead of the spare rate
+]
+accept = [40]
+hint = "The backlog shrinks only by the publish rate minus the arrival rate."
+explanation = "In 10 minutes, 2,000 x 600 = 1,200,000 rows pile up. The relay publishes 2,500 per second, but 2,000 new rows arrive each second, so the backlog shrinks by only 500 per second. 1,200,000 / 500 = 2,400 seconds = 40 minutes. Little headroom means slow recovery: the delay lasts four times as long as the outage itself."
+
+[[questions.steps]]
+flow = ["ledger", "relay", "queue"]
+packets = 8
+highlight = ["relay"]
+labels = { relay = "2,500 - 2,000 = 500/s" }
+caption = "Spare capacity, not total capacity, drains a backlog."
+
+[[questions]]
+prompt = "Why write events to an outbox table instead of committing the ledger transaction and then publishing to the queue?"
+choices = [
+  "The event row commits in the same transaction as the entries, so an event exists exactly when the payment does. The relay may publish it more than once, and consumers skip event IDs they have seen.",
+  "The outbox delivers each event exactly once, so consumers need no checks",
+  "Publishing to the queue first, then writing the ledger, is just as safe",
+  "The queue can join the database transaction, so the outbox is only for speed",
+]
+answer = 1
+explanation = "With commit-then-publish, a crash between the two steps loses the event: the payment exists but nobody hears about it. Publishing first can announce a payment that then fails to commit. The outbox ties the event to the commit, and the relay retries until it succeeds. That gives at-least-once delivery, so exactly-once effects still need consumers that skip repeats."
+
+[[questions.steps]]
+flow = ["ledger", "relay", "queue", "consumer"]
+packets = 2
+labels = { consumer = "seen evt-77: skip" }
+caption = "Outbox plus idempotent consumers gives exactly-once effects."

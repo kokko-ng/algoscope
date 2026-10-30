@@ -11,4 +11,6 @@ def cases(n, rng):
 
 
 def bench(n, rng):
-    return [(rng.sample(range(10 * n), n),)]
+    values = rng.sample(range(10 * n), n)
+    # sorted input catches a pivot chosen from either end
+    return [(values,), (sorted(values),)]

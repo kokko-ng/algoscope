@@ -32,6 +32,12 @@ flow = ["users", "edge", "origin"]
 prompt = "Without a CDN, how much static data must the origin send per second at the peak? Give the answer in GB per second."
 answer = 2
 tolerance = 0.1
+reject = [
+  16,    # gigabits, not gigabytes
+  2000,  # gave MB, not GB
+  0.1,   # applied the CDN hit ratio
+]
+accept = [2]  # exact
 unit = "GB per second"
 explanation = "2,000 page loads x 1 MB = 2,000 MB = 2 GB per second. That is 16 gigabits per second of traffic leaving one region."
 
@@ -46,6 +52,12 @@ caption = "Without the CDN, every file comes from the origin: 2 GB per second."
 prompt = "With the CDN, only misses reach the origin. How much data does the origin send per second now? Give the answer in MB per second."
 answer = 100
 tolerance = 0.1
+reject = [
+  1900,  # counted the hits, not the misses
+  2000,  # forgot the hit ratio
+  0.1,   # gave GB, not MB
+]
+accept = [100]  # exact
 unit = "MB per second"
 explanation = "5% of 2,000 MB per second = 100 MB per second. The edges serve the other 1,900 MB per second, so the origin's traffic falls by 20 times."
 
@@ -58,6 +70,12 @@ caption = "Only the 5% of misses travel back to the origin."
 prompt = "What is the average round trip for a far user's file request through the CDN? A miss costs the edge round trip plus the origin round trip."
 answer = 27.5
 tolerance = 0.02
+reject = [
+  26.5,  # a miss costs only the origin round trip
+  19,    # forgot the misses
+  95,    # unweighted average of hit and miss
+]
+accept = [27.5, 28]  # exact; rounded
 unit = "ms"
 hint = "A miss costs 20 + 150 ms. Weight the hit and the miss by how often each happens."
 explanation = "Hit: 20 ms. Miss: 20 + 150 = 170 ms. Average: 0.95 x 20 + 0.05 x 170 = 19 + 8.5 = 27.5 ms, against 150 ms without a CDN. The edge wins because it is closer, and no faster server can beat distance."

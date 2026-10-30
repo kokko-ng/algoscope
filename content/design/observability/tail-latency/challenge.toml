@@ -34,6 +34,12 @@ labels = { leafc = "slow 1%" }
 prompt = "What is the average latency of the 1,000 test requests?"
 answer = 79.4
 tolerance = 0.1
+reject = [
+  1010,  # unweighted average of 20 and 2,000
+  20,    # gave the typical request
+  60,    # forgot the fast requests
+]
+accept = [79.4, 80]  # exact; rounded
 unit = "ms"
 hint = "Add the time of every request, then divide by 1,000."
 explanation = "970 x 20 ms = 19,400 ms. 30 x 2,000 ms = 60,000 ms. Total: 79,400 ms. 79,400 / 1,000 = 79.4 ms. No request took 79.4 ms: the average describes nobody."
@@ -61,6 +67,12 @@ caption = "The p99 shows the slow requests that the average hides."
 prompt = "One query fans out to 100 leaves. What percent of queries wait for at least one slow leaf?"
 answer = 63.4
 tolerance = 0.1
+reject = [
+  100,   # added the probabilities
+  36.6,  # gave the share with no slow leaf
+  1,     # gave the per-leaf rate
+]
+accept = [63, 60]  # rounded; 1 significant figure
 unit = "percent"
 hint = "A query is fast only if all 100 calls are fast: 0.99^100."
 explanation = "The chance that all 100 calls are fast is 0.99^100 = 0.366. So 1 - 0.366 = 0.634: about 63% of queries are slow. A 1-in-100 event at each leaf becomes the normal case for the whole query."
@@ -75,6 +87,12 @@ caption = "The query waits for its slowest call, so the slowest leaf sets its la
 prompt = "The front end now fans out to only 10 leaves. What percent of queries are slow?"
 answer = 9.56
 tolerance = 0.03
+reject = [
+  10,    # added the probabilities
+  90.4,  # gave the share with no slow leaf
+  1,     # gave the per-leaf rate
+]
+accept = [9.6, 9.5]  # rounded; rounded down
 unit = "percent"
 explanation = "0.99^10 = 0.904, so 1 - 0.904 = 0.096: about 9.6% of queries are slow. Fewer calls per request means fewer chances to hit the tail. Fan-out width is a latency cost, not only a throughput cost."
 

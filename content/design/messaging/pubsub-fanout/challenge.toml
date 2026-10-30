@@ -67,6 +67,12 @@ caption = "Fan-out between services, competing consumers inside each service."
 prompt = "How many messages per second does the topic deliver in total, across the three subscriptions?"
 answer = 900
 tolerance = 0.1
+reject = [
+  300,   # forgot the fan-out
+  3600,  # counted every instance
+  1200,  # multiplied by 4 instances
+]
+accept = [900]  # exact
 unit = "messages per second"
 explanation = "300 events per second x 3 subscriptions = 900 deliveries per second. Each new subscriber adds a full copy of the stream, so fan-out multiplies the load on the messaging system."
 
@@ -80,6 +86,12 @@ caption = "Delivered volume = publish rate x number of subscriptions."
 prompt = "Analytics is down for 15 minutes while events keep arriving at 300 per second. When it returns, it processes 500 events per second. How many minutes does it need to catch up?"
 answer = 22.5
 tolerance = 0.1
+reject = [
+  9,     # forgot the new arrivals
+  1350,  # gave seconds, not minutes
+  15,    # gave the downtime
+]
+accept = [22.5, 23]  # exact; rounded
 unit = "minutes"
 hint = "Backlog = rate x downtime. Time to drain = backlog / (consume rate - produce rate)."
 explanation = "Backlog: 300 x 900 s = 270,000 events. Net drain rate: 500 - 300 = 200 per second. Time: 270,000 / 200 = 1,350 s = 22.5 minutes. The lag that consumers report is the number to watch: it shows how far behind a subscriber is."

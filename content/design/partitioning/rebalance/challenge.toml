@@ -35,6 +35,12 @@ flow = ["app", "router", "n5"]
 prompt = "With modulo hashing, N changes from 4 to 5. How many keys move to a different node?"
 answer = 80000000
 tolerance = 0.05
+reject = [
+  20000000,   # used the consistent hashing share
+  100000000,  # assumed every key moves
+  75000000,   # assumed 1 key in 4 stays
+]
+accept = [80000000]  # exact
 unit = "keys"
 hint = "A key stays only when hash % 4 equals hash % 5. List hash % 20 from 0 to 19 and count the matches."
 explanation = "hash % 20 is spread evenly over 0 to 19. hash % 4 equals hash % 5 only for 0, 1, 2 and 3: 4 values in 20, so 1 key in 5 stays. The other 4 in 5 move: 80 million keys. For a cache that is close to a full flush, and the database takes all those misses."
@@ -50,6 +56,12 @@ caption = "A new modulus reshuffles almost every key."
 prompt = "With consistent hashing, how many keys move? Assume the new node ends up with its fair share of the keys."
 answer = 20000000
 tolerance = 0.1
+reject = [
+  25000000,  # used 1/4, not 1/5
+  80000000,  # used modulo hashing
+  5000000,   # counted one old node's loss
+]
+accept = [20000000]  # exact
 unit = "keys"
 explanation = "The new node takes its fair share, 1/5 of the keys: 20 million. Every other key keeps its node, so only the moved keys miss in the cache."
 
@@ -97,6 +109,12 @@ caption = "Every old node gives a little to the new one."
 prompt = "Later, with 5 nodes and virtual nodes, Node 2 fails. Its 20 million keys go to the other nodes. About how many extra keys does each of the 4 remaining nodes take?"
 answer = 5000000
 tolerance = 0.1
+reject = [
+  20000000,  # sent every key to one neighbour
+  4000000,   # divided by 5
+  6666667,   # divided by 3
+]
+accept = [5000000]  # exact
 unit = "keys"
 explanation = "Node 2's points are spread around the ring, so its keys go to many different neighbours: 20 million / 4 = 5 million each. With one point per node, all 20 million would go to the single next node, which would double its load."
 

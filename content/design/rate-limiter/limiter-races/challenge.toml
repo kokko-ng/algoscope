@@ -1,0 +1,98 @@
+id = "limiter-races"
+title = "Count without races"
+stage = "quiz"
+xp = 130
+statement = """
+Many gateway servers update the same counters at the same time.
+
+- The limit is 100 requests per minute for each API key.
+- A first version of the gateway reads a key's count from the store, compares it with the limit in its own code, then writes the count plus one.
+- A token bucket version refills 0.5 tokens per second. Most requests cost 1 token. A bulk export request costs 5 tokens.
+- A rejected request gets HTTP 429 and a Retry-After header.
+"""
+
+[diagram]
+nodes = [
+  { id = "gwa", label = "Gateway A", at = [0, 0] },
+  { id = "store", label = "Counter store", at = [1, 1] },
+  { id = "gwb", label = "Gateway B", at = [0, 2] },
+  { id = "client", label = "Client", at = [2, 1] },
+]
+links = [["gwa", "store"], ["gwb", "store"], ["client", "gwa"], ["client", "gwb"]]
+
+[[diagram.steps]]
+flow = ["gwa", "store"]
+
+[[diagram.steps]]
+flow = ["gwb", "store"]
+
+[[questions]]
+prompt = "Gateways A and B both read the count 99 for the same key at the same moment. Both allow their request and write 100. Which fix keeps the count correct?"
+choices = [
+  "Make the store do the update and return the new count in one atomic operation, then compare that count with the limit",
+  "Add a lock inside each gateway process around the read and the write",
+  "Read the count twice and write only if both reads agree",
+  "Read the count from a replica, which is less busy",
+]
+answer = 1
+explanation = "The bug is a read-then-write race: two servers act on the same old value. An atomic increment that returns the new value (or a small script the store runs as one step) makes every update see the one before it, so A gets 100 and B gets 101 and is rejected. A lock inside one process does not stop a different server. Two reads can both see 99. A replica lags, which makes the race worse."
+
+[[questions.steps]]
+flow = ["gwa", "store"]
+packets = 2
+highlight = ["store"]
+labels = { store = "INCR -> 100, 101" }
+caption = "The store orders the two increments, so each gateway sees a different result."
+
+[[questions]]
+prompt = "With the read-then-write version, 8 gateway servers read the count 95 for one key at the same moment. Each allows its request and writes 96. How many of the 8 requests are missing from the stored count?"
+answer = 7
+tolerance = 0.1
+unit = "requests"
+reject = [
+  8,  # all 8 were allowed, but the stored 96 does count one of them
+  3,  # that is how far over the limit the true total is, not how many updates were lost
+]
+accept = [7]
+explanation = "8 requests got through, so the true count is 95 + 8 = 103, already 3 over the limit. The store says 96: it recorded only 1 of the 8, so 7 updates were lost. Under load, lost updates let a client run far past its limit, and the error grows with the number of gateways."
+
+[[questions.steps]]
+flow = ["gwb", "store"]
+packets = 8
+labels = { store = "says 96, true 103" }
+caption = "Each server overwrites the others, so only one of the 8 updates survives."
+
+[[questions]]
+prompt = "With the token bucket, a client's bucket is empty when it sends a bulk export request. How many seconds should Retry-After say?"
+answer = 10
+tolerance = 0.1
+unit = "seconds"
+reject = [
+  2,    # waited for 1 token, but the export costs 5
+  2.5,  # multiplied the 5 tokens by the rate instead of dividing
+]
+accept = [10]
+hint = "Tokens needed divided by the refill rate."
+explanation = "The export needs 5 tokens, and the bucket gains 0.5 per second. 5 / 0.5 = 10 seconds. If Retry-After said 2 seconds, the client would come back too early, get another 429, and retry again, which wastes work on both sides."
+
+[[questions.steps]]
+flow = ["client", "gwa"]
+highlight = ["gwa"]
+labels = { gwa = "5 / 0.5 = 10 s" }
+caption = "Retry-After is the time until the request can succeed."
+
+[[questions]]
+prompt = "What should a well-behaved client do when it gets a 429 with Retry-After: 10?"
+choices = [
+  "Retry at once in a loop until a request succeeds",
+  "Wait at least 10 seconds, plus a small random delay, then retry",
+  "Retry through a different gateway server, which has its own count",
+  "Wait 10 milliseconds, then retry",
+]
+answer = 2
+explanation = "The server has said when capacity returns. Waiting that long, plus a random delay (jitter), means the retry succeeds and many clients do not all come back at the same instant. Retrying in a loop only produces more 429s and load. Every gateway shares the same store, so another server gives the same answer. Retry-After is in seconds, not milliseconds."
+
+[[questions.steps]]
+flow = ["client", "gwb"]
+labels = { client = "wait 10 s + jitter" }
+caption = "A spread-out retry after the advertised time succeeds on the first try."

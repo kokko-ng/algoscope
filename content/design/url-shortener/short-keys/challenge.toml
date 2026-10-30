@@ -33,6 +33,12 @@ flow = ["web", "hash", "store"]
 prompt = "How many different 7-character base-62 keys exist? Give the answer in trillions."
 answer = 3.52
 tolerance = 0.1
+reject = [
+  0.0568,  # used 6 characters: 62^6
+  0.0784,  # used base 36
+  3521.6,  # gave billions, not trillions
+]
+accept = [3.5, 3.52]  # rounded; exact
 unit = "trillion keys"
 hint = "62 choices for each of 7 positions: 62^7."
 explanation = "62^7 = 3,521,614,606,208, about 3.5 trillion. At 40 new links per second, that lasts about 2,800 years."
@@ -63,6 +69,12 @@ caption = "Hashing needs a check against the store before each new key is used."
 prompt = "With hashing and 12 billion keys in use, what percent of new keys collide with an existing key?"
 answer = 0.341
 tolerance = 0.1
+reject = [
+  0.00341,  # a fraction, not a percentage
+  21.1,     # used the 62^6 key space
+  293,      # inverted the ratio
+]
+accept = [0.34, 0.33]  # rounded; 1 in 300
 unit = "percent"
 hint = "Keys in use divided by all possible keys."
 explanation = "A good hash spreads keys evenly, so a new key lands on a used one with probability 12,000,000,000 / 3,521,614,606,208 = 0.0034, which is 0.34%. That is about 1 write in 300 needing a retry, and the rate grows as the store fills."
@@ -77,6 +89,12 @@ caption = "The fuller the key space, the more often a new key is already taken."
 prompt = "With counter ranges, how many blocks of 1 million does the ID service hand out per day?"
 answer = 3.46
 tolerance = 0.1
+reject = [
+  0.144,    # multiplied by 3,600
+  3456000,  # gave links, not blocks
+  34.56,    # used blocks of 100,000
+]
+accept = [3.5, 3.46]  # rounded; exact
 unit = "blocks per day"
 explanation = "40 x 86,400 = 3,456,000 links per day. 3,456,000 / 1,000,000 = about 3.5 blocks per day. The ID service is called a few times a day, so it is never a bottleneck. If a server crashes, the unused numbers in its block are skipped, which costs nothing."
 

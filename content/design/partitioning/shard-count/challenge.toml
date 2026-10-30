@@ -35,6 +35,12 @@ flow = ["app", "router", "sn"]
 prompt = "How many shards does the data need in 3 years?"
 answer = 30
 tolerance = 0.1
+reject = [
+  15,  # used today's data only
+  20,  # counted one year of growth
+  90,  # counted the followers
+]
+accept = [30]  # exact
 unit = "shards"
 hint = "Find the total data in 3 years, then divide by the limit per shard."
 explanation = "60 TB + 3 x 20 TB = 120 TB. 120 TB / 4 TB = 30 shards."
@@ -48,6 +54,11 @@ caption = "Storage alone needs 30 shards."
 prompt = "How many shards do the peak writes need?"
 answer = 20
 tolerance = 0.1
+reject = [
+  60,  # counted the followers
+  30,  # used the storage count
+]
+accept = [20]  # exact
 unit = "shards"
 explanation = "400,000 / 20,000 = 20 shards. Each shard owns different keys, so the writes divide between the shards. Followers alone cannot do this, because each follower applies every write."
 
@@ -77,6 +88,11 @@ caption = "30 shards meet both the storage limit and the write limit."
 prompt = "How many database machines does the cluster need?"
 answer = 90
 tolerance = 0.1
+reject = [
+  30,  # forgot the followers
+  60,  # used the 20 write shards
+]
+accept = [90]  # exact
 unit = "machines"
 explanation = "30 shards x 3 machines (1 leader + 2 followers) = 90 machines. Partitioning and replication work together: partitioning splits the data, and replication keeps each part available when a machine fails."
 
@@ -89,6 +105,11 @@ caption = "Every shard is its own small leader-follower group."
 prompt = "Later the cluster grows from 30 to 31 shards. About what percentage of the keys move to the new shard? Give a percentage."
 answer = 3.2
 tolerance = 0.25
+reject = [
+  96.8,   # used modulo hashing
+  0.032,  # a fraction, not a percentage
+]
+accept = [3.2, 3]  # exact; 1 significant figure
 unit = "%"
 hint = "With consistent hashing, the new shard takes about its fair share of the keys."
 explanation = "The new shard ends up with about 1/31 of the keys, which is 3.2%, and only those keys move. With hash % N, a key stays only if hash % 30 equals hash % 31. That is true for just 1 key in 31, so about 97% of the keys would move."

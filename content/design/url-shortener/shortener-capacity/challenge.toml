@@ -32,6 +32,12 @@ packets = 7
 prompt = "How many new links are created per second, on average?"
 answer = 38.6
 tolerance = 0.25
+reject = [
+  1157,   # divided by one day, not 30
+  925.9,  # used 3,600 seconds a day
+  3858,   # counted the reads
+]
+accept = [33.3, 40]  # the 100,000-second shortcut; rounded
 unit = "writes per second"
 hint = "Divide the monthly links by the seconds in 30 days."
 explanation = "30 x 86,400 = 2,592,000 seconds in a month. 100,000,000 / 2,592,000 = about 38.6 writes per second. That is a small write load: one database can take it."
@@ -45,6 +51,12 @@ caption = "Monthly volume divided by seconds in a month gives the write rate."
 prompt = "How many redirects per second does the service serve, on average?"
 answer = 3858
 tolerance = 0.25
+reject = [
+  38.6,    # forgot the 100x reads
+  7716,    # used the peak
+  115741,  # divided by one day, not 30
+]
+accept = [3333, 4000]  # the 100,000-second shortcut; rounded
 unit = "reads per second"
 explanation = "Reads are 100 times the writes: 38.6 x 100 = about 3,860 redirects per second. At two times the average at peak, plan for about 7,700. The read path, not the write path, sets the size of the system."
 
@@ -59,6 +71,12 @@ caption = "The read-to-write ratio turns a small write rate into a large read ra
 prompt = "How many links exist after 10 years? Give the answer in billions."
 answer = 12
 tolerance = 0.1
+reject = [
+  1,      # forgot the 12 months
+  1.2,    # forgot the 10 years
+  12000,  # gave millions, not billions
+]
+accept = [12]  # exact
 unit = "billion links"
 explanation = "100 million x 12 months x 10 years = 12,000 million = 12 billion links."
 
@@ -72,6 +90,12 @@ caption = "Writes add up: every link stays for the full retention period."
 prompt = "How much storage do 10 years of links need, before replication? Give the answer in TB."
 answer = 6
 tolerance = 0.25
+reject = [
+  18,    # counted 3 copies
+  6000,  # gave GB, not TB
+  48,    # bits, not bytes
+]
+accept = [6]  # exact
 unit = "TB"
 explanation = "12,000,000,000 x 500 bytes = 6,000,000,000,000 bytes = 6 TB. With 3 copies that is 18 TB. It fits on a few machines but not in the memory of one, so a cache holds only the popular links."
 

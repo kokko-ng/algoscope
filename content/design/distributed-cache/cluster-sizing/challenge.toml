@@ -1,0 +1,125 @@
+id = "cluster-sizing"
+title = "Size the cluster"
+stage = "quiz"
+xp = 120
+statement = """
+A cache cluster must hold this data and traffic:
+
+- 500 million keys. An entry, with its key, value and the cache's own overhead, is 1,000 bytes.
+- Each key has 2 copies, a primary and a replica, on different nodes.
+- A node has 64 GB of memory. Only 75% of it holds data; the rest is left for fragmentation and the system.
+- At peak, the cluster serves 2 million reads per second, spread over all nodes. A node handles 100,000 operations per second, and the team keeps nodes at 50% of that.
+- 98% of reads are hits.
+
+Use 1 GB = 10^9 bytes and 1 TB = 10^12 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [0, 1] },
+  { id = "node1", label = "Cache node 1", at = [1, 0] },
+  { id = "nodemid", label = "More nodes", at = [1, 1] },
+  { id = "noden", label = "Cache node N", at = [1, 2] },
+  { id = "db", label = "Database", at = [2, 1] },
+]
+links = [["app", "node1"], ["app", "nodemid"], ["app", "noden"], ["app", "db"]]
+
+[[diagram.steps]]
+flow = ["app", "node1"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["app", "noden"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["app", "db"]
+
+[[questions]]
+prompt = "How much memory does the data need, counting both copies? Give the answer in TB."
+answer = 1
+tolerance = 0.25
+unit = "TB"
+reject = [
+  0.5,  # forgot the replica
+  8,    # multiplied by 8, as if converting bytes to bits
+]
+accept = [1]
+explanation = "500,000,000 x 1,000 bytes = 500,000,000,000 bytes = 500 GB. With 2 copies: 1,000 GB = 1 TB."
+
+[[questions.steps]]
+flow = ["app", "nodemid"]
+packets = 3
+highlight = ["node1", "nodemid", "noden"]
+labels = { nodemid = "500M x 1 KB x 2" }
+caption = "Keys times entry size times copies gives the memory."
+
+[[questions]]
+prompt = "How many nodes does that memory need?"
+answer = 21
+tolerance = 0.1
+unit = "nodes"
+reject = [
+  16,  # used all 64 GB of each node
+  11,  # forgot the replica
+]
+accept = [21]
+hint = "Each node holds 75% of 64 GB."
+explanation = "Each node holds 64 GB x 0.75 = 48 GB of data. 1,000 GB / 48 GB = 20.8, so 21 nodes. Filling a node to 100% of its memory leaves no room for fragmentation, and the node can be killed for running out of memory."
+
+[[questions.steps]]
+flow = ["app", "noden"]
+labels = { noden = "48 GB usable" }
+caption = "Divide by the usable memory of a node, not its total."
+
+[[questions]]
+prompt = "How many nodes does the cluster need to meet both the memory and the read load?"
+answer = 40
+tolerance = 0.1
+unit = "nodes"
+reject = [
+  21,  # checked only the memory
+  20,  # ran nodes at 100% of their throughput
+]
+accept = [40]
+explanation = "For the read load: each node takes 100,000 x 0.5 = 50,000 operations per second. 2,000,000 / 50,000 = 40 nodes. Memory needs 21, throughput needs 40, so the cluster needs 40. Size for every limit and take the largest."
+
+[[questions.steps]]
+flow = ["app", "nodemid"]
+packets = 10
+labels = { app = "2M reads/s", nodemid = "50,000/s each" }
+caption = "Here the read load, not the memory, sets the node count."
+
+[[questions]]
+prompt = "How many reads per second reach the database at peak?"
+answer = 40000
+tolerance = 0.1
+unit = "reads per second"
+reject = [
+  1960000,  # used the hit ratio, 98%, instead of the miss ratio
+  400000,   # took the miss ratio as 20% instead of 2%
+]
+accept = [40000]
+explanation = "Misses are 100% - 98% = 2%. 2,000,000 x 0.02 = 40,000 reads per second. The database is sized for the misses. A drop of the hit ratio to 96% would double its load."
+
+[[questions.steps]]
+flow = ["app", "db"]
+packets = 2
+labels = { db = "2% of 2M = 40,000" }
+caption = "Only misses reach the database."
+
+[[questions]]
+prompt = "The team adds nodes over time. How should each app server find the node for a key?"
+choices = [
+  "Hash the key onto a ring with virtual nodes. The client library gets the ring from a config service when nodes join or leave.",
+  "Use hash(key) mod N, where N is the current number of nodes",
+  "Send each read to every node and keep the first answer",
+  "Pick a random node, which forwards the read if it does not own the key",
+]
+answer = 1
+explanation = "A ring sends each key to one node with no extra hop, and adding a node moves only the keys on its new arcs, about 1/N of them. With mod N, changing N moves almost every key, so the hit ratio falls to near zero. Asking every node multiplies the load by N. Forwarding adds a network hop to most reads."
+
+[[questions.steps]]
+flow = ["app", "node1"]
+labels = { app = "ring: key -> node" }
+caption = "The client computes the owner, so a read is one hop."
