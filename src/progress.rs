@@ -18,6 +18,34 @@ pub enum ThemeKind {
     Game,
 }
 
+/// Colour set: the theme's own colours, a colour-blind-safe set, or none at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Palette {
+    #[default]
+    Default,
+    Colorblind,
+    Mono,
+}
+
+impl Palette {
+    pub fn next(self) -> Palette {
+        match self {
+            Palette::Default => Palette::Colorblind,
+            Palette::Colorblind => Palette::Mono,
+            Palette::Mono => Palette::Default,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Palette::Default => "default colours",
+            Palette::Colorblind => "colour-blind safe",
+            Palette::Mono => "monochrome",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum KeymapKind {
@@ -33,11 +61,12 @@ pub struct Settings {
     pub keymap: KeymapKind,
     /// Playback speed index, see `trace::SPEEDS`.
     pub speed: usize,
+    pub palette: Palette,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { theme: ThemeKind::Stealth, keymap: KeymapKind::Standard, speed: 3 }
+        Settings { theme: ThemeKind::Stealth, keymap: KeymapKind::Standard, speed: 3, palette: Palette::Default }
     }
 }
 
@@ -222,12 +251,13 @@ mod tests {
         assert_eq!(back.get("t/a").grade, Some(Grade::Silver));
         assert_eq!(back.drafts["t/a"], "def solve():\n    pass\n");
 
-        let s = Settings { theme: ThemeKind::Game, keymap: KeymapKind::Vim, speed: 5 };
+        let s = Settings { theme: ThemeKind::Game, keymap: KeymapKind::Vim, speed: 5, palette: Palette::Colorblind };
         store.save_settings(&s).unwrap();
         let s2 = store.load_settings();
         assert_eq!(s2.theme, ThemeKind::Game);
         assert_eq!(s2.keymap, KeymapKind::Vim);
         assert_eq!(s2.speed, 5);
+        assert_eq!(s2.palette, Palette::Colorblind);
     }
 
     #[test]

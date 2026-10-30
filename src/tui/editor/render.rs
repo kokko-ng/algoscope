@@ -110,7 +110,7 @@ impl Widget for EditorView<'_> {
             let line_bg = if is_exec {
                 Some(t.exec_bg)
             } else if is_err {
-                Some(ratatui::style::Color::Indexed(52))
+                Some(if t.mono { ratatui::style::Color::Reset } else { ratatui::style::Color::Indexed(52) })
             } else {
                 None
             };
@@ -145,7 +145,10 @@ impl Widget for EditorView<'_> {
                 }
                 let p = Pos::new(row, col);
                 if sel.is_some_and(|(a, b)| p >= a && p < b) {
-                    style = style.bg(t.sel_bg);
+                    style = if t.mono { style.add_modifier(Modifier::REVERSED) } else { style.bg(t.sel_bg) };
+                }
+                if t.mono && is_exec {
+                    style = style.add_modifier(Modifier::UNDERLINED);
                 }
                 buf.set_string(text_x + x as u16, y, ch.to_string(), style);
                 x += w;

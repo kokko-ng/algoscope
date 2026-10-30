@@ -192,7 +192,7 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
     let total = app.lib.total_challenges(app.track);
     text.push(Line::from(""));
     for footer in [
-        "enter: start   arrows: move   t: theme   v: vim/standard keys   q: quit".to_string(),
+        "enter: start   arrows: move   t: theme   c: colours   v: vim/standard keys   q: quit".to_string(),
         format!("{done}/{total} done in {}   {hours:.1}h practised", app.track.short()),
     ] {
         text.push(Line::from(Span::styled(footer, t.dim())));
@@ -398,6 +398,7 @@ fn draw_help(f: &mut Frame, app: &App, area: Rect) {
         ("q / Ctrl+Q", "back to the tree (drafts autosave)"),
         ("F2 / t", "switch stealth / game theme"),
         ("v", "switch standard / vim keys (outside the editor)"),
+        ("c", "home: default / colour-blind safe / monochrome colours (NO_COLOR forces monochrome)"),
         ("vim", ":w save  :run  :submit  :q"),
         ("1 / 2", "home: data structures and algorithms / system design"),
         ("quiz", "up/down or a-d choose, type numbers like 12k or 1.5M, Enter answers"),

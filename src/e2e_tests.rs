@@ -411,3 +411,69 @@ fn fuzz_number_parser() {
         }
     }
 }
+
+// ---- accessibility --------------------------------------------------------------------------------
+
+fn app_with_palette(palette: crate::progress::Palette, theme: crate::progress::ThemeKind) -> (App, tempfile::TempDir) {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::new(dir.path().to_path_buf());
+    let mut settings = store.load_settings();
+    settings.palette = palette;
+    settings.theme = theme;
+    store.save_settings(&settings).unwrap();
+    (App::new(Library::load().unwrap(), store), dir)
+}
+
+fn screen_cells(app: &mut App, w: u16, h: u16) -> Vec<ratatui::buffer::Cell> {
+    let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();
+    term.draw(|f| ui::draw(f, app)).unwrap();
+    term.backend().buffer().content().to_vec()
+}
+
+/// Monochrome draws every screen without a single colour, in both themes.
+#[test]
+fn monochrome_uses_no_colour_anywhere() {
+    use crate::progress::{Palette, ThemeKind};
+    use ratatui::style::Color;
+    for theme in [ThemeKind::Stealth, ThemeKind::Game] {
+        let (mut app, _dir) = app_with_palette(Palette::Mono, theme);
+        let check = |app: &mut App, what: &str| {
+            for cell in screen_cells(app, 120, 34) {
+                assert_eq!(cell.fg, Color::Reset, "{what}: coloured text {:?}", cell.symbol());
+                assert_eq!(cell.bg, Color::Reset, "{what}: coloured background {:?}", cell.symbol());
+            }
+        };
+        check(&mut app, "home");
+        app.open("foundations/max-gain");
+        check(&mut app, "workspace");
+        app.open("estimation/latency-budget");
+        key(&mut app, KeyCode::Char('d'));
+        key(&mut app, KeyCode::Enter);
+        check(&mut app, "quiz");
+    }
+}
+
+/// The colour-blind palette never pairs pure red with pure green.
+#[test]
+fn colourblind_palette_avoids_red_and_green() {
+    use crate::progress::{Palette, ThemeKind};
+    use ratatui::style::Color;
+    let red_green = [Color::Indexed(46), Color::Indexed(196), Color::Indexed(108), Color::Indexed(167)];
+    for theme in [ThemeKind::Stealth, ThemeKind::Game] {
+        let t = crate::tui::theme::Theme::with_palette(theme, Palette::Colorblind);
+        for c in [t.good, t.bad, t.read, t.write] {
+            assert!(!red_green.contains(&c), "{theme:?}: {c:?}");
+        }
+        assert_ne!(t.good, t.bad);
+    }
+}
+
+#[test]
+fn palette_cycles_and_persists() {
+    use crate::progress::{Palette, ThemeKind};
+    let (mut app, dir) = app_with_palette(Palette::Default, ThemeKind::Stealth);
+    key(&mut app, KeyCode::Char('c'));
+    assert_eq!(app.settings.palette, Palette::Colorblind);
+    key(&mut app, KeyCode::Char('c'));
+    assert_eq!(Store::new(dir.path().to_path_buf()).load_settings().palette, Palette::Mono);
+}

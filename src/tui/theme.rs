@@ -2,7 +2,7 @@
 
 use ratatui::style::{Color, Modifier, Style};
 
-use crate::progress::ThemeKind;
+use crate::progress::{Palette, ThemeKind};
 
 pub struct Labels {
     pub app: &'static str,
@@ -60,6 +60,8 @@ const GAME: Labels = Labels {
 
 pub struct Theme {
     pub kind: ThemeKind,
+    /// No colours: highlights use bold, underline and reverse video instead.
+    pub mono: bool,
     pub labels: &'static Labels,
     pub celebrate: bool,
     pub fg: Color,
@@ -86,11 +88,64 @@ pub struct Theme {
     pub window: Color,
 }
 
+/// Whether the environment asks for no colour (<https://no-color.org>).
+pub fn no_color_env() -> bool {
+    std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty())
+}
+
 impl Theme {
+    pub fn with_palette(kind: ThemeKind, palette: Palette) -> Theme {
+        let mut t = Theme::new(kind);
+        match palette {
+            Palette::Default => {}
+            // Okabe-Ito style: blue for good, orange for bad, yellow for warnings; no red/green pairs
+            Palette::Colorblind => {
+                t.good = Color::Indexed(32);
+                t.bad = Color::Indexed(208);
+                t.warn = Color::Indexed(220);
+                t.read = Color::Indexed(75);
+                t.write = Color::Indexed(214);
+                t.string = Color::Indexed(75);
+                t.accent2 = Color::Indexed(117);
+            }
+            Palette::Mono => {
+                t.mono = true;
+                for c in [
+                    &mut t.fg,
+                    &mut t.dim,
+                    &mut t.border,
+                    &mut t.border_focus,
+                    &mut t.title,
+                    &mut t.accent,
+                    &mut t.accent2,
+                    &mut t.good,
+                    &mut t.bad,
+                    &mut t.warn,
+                    &mut t.sel_bg,
+                    &mut t.exec_bg,
+                    &mut t.kw,
+                    &mut t.builtin,
+                    &mut t.string,
+                    &mut t.number,
+                    &mut t.comment,
+                    &mut t.func,
+                    &mut t.read,
+                    &mut t.write,
+                    &mut t.pointer,
+                    &mut t.window,
+                ] {
+                    *c = Color::Reset;
+                }
+            }
+        }
+        t
+    }
+
     pub fn new(kind: ThemeKind) -> Theme {
         match kind {
             ThemeKind::Stealth => Theme {
                 kind,
+                mono: false,
                 labels: &STEALTH,
                 celebrate: false,
                 fg: Color::Reset,
@@ -118,6 +173,7 @@ impl Theme {
             },
             ThemeKind::Game => Theme {
                 kind,
+                mono: false,
                 labels: &GAME,
                 celebrate: true,
                 fg: Color::Reset,
@@ -155,7 +211,8 @@ impl Theme {
     }
 
     pub fn dim(&self) -> Style {
-        Style::default().fg(self.dim)
+        let s = Style::default().fg(self.dim);
+        if self.mono { s.add_modifier(Modifier::DIM) } else { s }
     }
 
     pub fn accent(&self) -> Style {

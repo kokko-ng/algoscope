@@ -8,12 +8,12 @@ use ratatui::text::{Line, Span};
 
 use crate::app_quiz::QuizWs;
 use crate::content::{Challenge, Library, Stage, Track};
-use crate::progress::{KeymapKind, Progress, Settings, Store, ThemeKind, TopicState};
+use crate::progress::{KeymapKind, Palette, Progress, Settings, Store, ThemeKind, TopicState};
 use crate::runner::trace::{ScoreResult, Timeline, VisualResult};
 use crate::runner::{Done, Mode, Outcome, Worker};
 use crate::scoring::{self, Grade, Report};
 use crate::tui::editor::{Action, Editor};
-use crate::tui::theme::Theme;
+use crate::tui::theme::{Theme, no_color_env};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
@@ -76,7 +76,8 @@ impl App {
     pub fn new(lib: Library, store: Store) -> App {
         let progress = store.load_progress();
         let settings = store.load_settings();
-        let theme = Theme::new(settings.theme);
+        let palette = if no_color_env() { Palette::Mono } else { settings.palette };
+        let theme = Theme::with_palette(settings.theme, palette);
         let mut app = App {
             lib,
             store,
@@ -152,10 +153,26 @@ impl App {
             ThemeKind::Stealth => ThemeKind::Game,
             ThemeKind::Game => ThemeKind::Stealth,
         };
-        self.theme = Theme::new(self.settings.theme);
+        self.theme = Theme::with_palette(self.settings.theme, self.palette());
         if self.settings.theme == ThemeKind::Stealth {
             self.celebration = None;
         }
+        self.save_settings();
+    }
+
+    /// The palette in use: `NO_COLOR` overrides the saved setting.
+    pub fn palette(&self) -> Palette {
+        if no_color_env() { Palette::Mono } else { self.settings.palette }
+    }
+
+    pub fn cycle_palette(&mut self) {
+        if no_color_env() {
+            self.toast("NO_COLOR is set: colours stay off");
+            return;
+        }
+        self.settings.palette = self.settings.palette.next();
+        self.theme = Theme::with_palette(self.settings.theme, self.settings.palette);
+        self.toast(self.settings.palette.name());
         self.save_settings();
     }
 
@@ -521,6 +538,7 @@ impl App {
             KeyCode::Char('?') => self.help = true,
             KeyCode::Char('t') => self.toggle_theme(),
             KeyCode::Char('v') => self.toggle_keymap(),
+            KeyCode::Char('c') => self.cycle_palette(),
             KeyCode::Char('1') => self.set_track(Track::Dsa),
             KeyCode::Char('2') => self.set_track(Track::Design),
             KeyCode::Up | KeyCode::Char('k') => {

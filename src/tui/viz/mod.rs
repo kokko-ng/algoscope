@@ -318,7 +318,7 @@ fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         let mut style = t.text();
         let mut border = t.dim();
         if in_win {
-            style = style.bg(t.window);
+            style = if t.mono { style.add_modifier(Modifier::UNDERLINED) } else { style.bg(t.window) };
             border = border.fg(t.accent2);
         }
         if reads.contains(&ii) {
