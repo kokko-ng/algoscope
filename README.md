@@ -42,11 +42,28 @@ level-up animations. Press F2 again to switch back.
 
 ## Install
 
-You need Rust (stable) and Python 3.10 or newer on `PATH`. Set `ALGOSCOPE_PYTHON` to use a
-different interpreter.
+algoscope runs your solutions with Python 3.10 or newer. Set `ALGOSCOPE_PYTHON` to choose the
+interpreter; the Homebrew formula sets it for you.
+
+**Homebrew** (macOS and Linux):
+
+```sh
+brew install kokko-ng/tap/algoscope
+```
+
+**Prebuilt binaries** for macOS (Apple silicon and Intel), Linux (x86-64 and ARM) and Windows are on the
+[releases page](https://github.com/kokko-ng/algoscope/releases). Unpack the archive and put
+`algoscope` on your `PATH`.
+
+**From source** (needs Rust):
 
 ```sh
 cargo install --path .
+```
+
+Then:
+
+```sh
 algoscope            # resumes where you left off
 algoscope design     # opens on the system design track
 algoscope dsa        # opens on the data structures and algorithms track
@@ -54,6 +71,20 @@ algoscope dsa        # opens on the data structures and algorithms track
 
 Nothing goes over the network. Progress, drafts and settings are stored in the platform data
 directory (`algoscope where` prints it). `algoscope reset` deletes them.
+
+### Colours
+
+Press `c` on the home screen to cycle between the theme's colours, a colour-blind-safe set (blue and
+orange in place of green and red), and monochrome. Setting `NO_COLOR` forces monochrome; highlights
+then use bold, underline and reverse video.
+
+### How solutions run
+
+Each run happens in a fresh temporary folder, in a separate Python process with a minimal environment
+(no tokens or credentials from your shell). A guard stops solution code from starting processes,
+opening network connections, loading native code, or changing files outside that folder, and limits
+CPU time and file size. This protects against accidents, not against deliberately hostile code: the
+content shipped with algoscope is trusted, and so is your own code.
 
 ## Keys
 

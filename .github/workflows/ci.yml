@@ -49,3 +49,20 @@ jobs:
       - run: cargo run --locked --quiet -- check-content
         env:
           ALGOSCOPE_PYTHON: python
+
+  platforms:
+    name: tests on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: cargo test --locked
+      - run: cargo run --locked --quiet -- check-content

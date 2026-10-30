@@ -1,0 +1,71 @@
+name: release
+
+# Builds algoscope for every supported platform when a version tag is pushed, then publishes a
+# GitHub Release with the archives and their SHA-256 sums. scripts/release.sh drives the whole flow.
+on:
+  push:
+    tags: ["v*"]
+  # a manual run builds every target without publishing, to check the builds before tagging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-24.04-arm }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          targets: ${{ matrix.target }}
+      - run: rustup target add ${{ matrix.target }}
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: package
+        shell: bash
+        run: |
+          name="algoscope-${GITHUB_REF_NAME//\//-}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          cp README.md LICENSE "dist/$name/"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp "target/${{ matrix.target }}/release/algoscope.exe" "dist/$name/"
+            (cd dist && 7z a -tzip "$name.zip" "$name" > /dev/null && sha256sum "$name.zip" > "$name.zip.sha256")
+          else
+            cp "target/${{ matrix.target }}/release/algoscope" "dist/$name/"
+            (cd dist && tar czf "$name.tar.gz" "$name" && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
+          fi
+          rm -rf "dist/$name"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: release notes from the changelog
+        run: |
+          awk -v tag="## ${GITHUB_REF_NAME}" 'index($0, tag) == 1 {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md || true
+          [ -s notes.md ] || echo "algoscope ${GITHUB_REF_NAME}" > notes.md
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --title "algoscope $GITHUB_REF_NAME" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
