@@ -15,6 +15,7 @@ MAX_OBJECTS = 300
 MAX_STR = 80
 MAX_DEPTH = 12
 MAX_ACCESSES = 16
+MAX_STACK = 40
 SHORT_STR = 12
 SAFE_INT = 2**53
 
@@ -216,7 +217,8 @@ class Recorder:
     @staticmethod
     def _stack(frames: list[types.FrameType]) -> list[dict[str, Json]]:
         stack = []
-        for f in reversed(frames):
+        # the innermost frames are the interesting ones; deep recursion must not make each frame O(depth)
+        for f in reversed(frames[:MAX_STACK]):
             code = f.f_code
             argnames = code.co_varnames[: code.co_argcount]
             args = ", ".join(f"{a}={short(f.f_locals.get(a))}" for a in argnames if a != "self")

@@ -49,6 +49,10 @@ PROFILE_STEP_LIMIT = 4_000_000
 DEFAULT_CHECK_SIZES = [0, 1, 2, 3, 5, 8, 13, 40]
 DEFAULT_SIZES = [50, 100, 200, 400]
 
+# Exceptions a solution can raise that must be reported, not obeyed: SystemExit and KeyboardInterrupt
+# are BaseExceptions, so `except Exception` would let `sys.exit()` in a solution end the harness.
+SOLUTION_ERRORS = (Exception, SystemExit, KeyboardInterrupt)
+
 Config = dict[str, Any]
 Out = dict[str, Any]
 Case = Any
@@ -285,6 +289,19 @@ class Runner:
         raise SolutionError(msg)
 
 
+def ignore_unused_returns(cfg: Config, got: Any, expected: Any) -> Any:
+    """For class challenges, drop return values where the reference returns nothing.
+
+    A `delete` that returns True is as correct as one that returns None when the exercise never
+    asks for a result.
+    """
+    if cfg.get("kind") != "class" or not isinstance(got, list) or not isinstance(expected, list):
+        return got
+    if len(got) != len(expected):
+        return got
+    return [None if e is None else g for g, e in zip(got, expected, strict=True)]
+
+
 def compare(cases_mod: types.ModuleType, case: Case, got: Any, expected: Any) -> bool:
     """Whether an answer matches the reference, using the challenge's own check when it has one."""
     if hasattr(cases_mod, "check"):
@@ -319,8 +336,7 @@ def _trace_solution(cfg: Config, sol_path: Path, case: Case, out: Out) -> tuple[
             got = sol.run(run_case)
         except tracer.TraceLimitError:
             pass
-        # any exception from the solution is reported, not raised
-        except Exception as exc:  # noqa: BLE001
+        except SOLUTION_ERRORS as exc:
             sys.settrace(None)
             out["error"] = user_traceback(exc, sol_path)
         finally:
@@ -347,6 +363,7 @@ def run_visual(cfg: Config, run_dir: Path, out: Out) -> None:
     out["input"] = args_text(case, VISUAL_TEXT_LIMIT)
     out["expected"] = short_json(expected, VISUAL_TEXT_LIMIT)
     if "error" not in out and not rec.truncated:
+        got = ignore_unused_returns(cfg, got, expected)
         out["got"] = short_json(got, VISUAL_TEXT_LIMIT)
         out["passed"] = compare(cases_mod, case, got, expected)
 
@@ -417,11 +434,11 @@ def check_suite(cfg: Config, run_dir: Path, ref: Runner, sol: Runner, out: Out) 
                 "input": args_text(case),
             }
             break
-        # any exception from the solution is reported, not raised
-        except Exception as exc:  # noqa: BLE001
+        except SOLUTION_ERRORS as exc:
             out["error"] = user_traceback(exc, sol_path)
             out["error"]["input"] = args_text(case)
             break
+        got = ignore_unused_returns(cfg, got, expected)
         if compare(cases_mod, case, got, expected):
             passed += 1
         elif len(failures) < MAX_FAILURES:
@@ -447,7 +464,13 @@ def profile(cfg: Config, run_dir: Path, ref: Runner, sol: Runner, out: Out) -> N
             for case in bench(n, random.Random(seed * 104729 + n)):  # noqa: S311
                 steps, _ = measure(ref, run_dir / "reference.py", copy.deepcopy(case), limit)
                 total_ref += steps
-                steps, hit = measure(sol, run_dir / "solution.py", copy.deepcopy(case), limit)
+                try:
+                    steps, hit = measure(sol, run_dir / "solution.py", copy.deepcopy(case), limit)
+                except SOLUTION_ERRORS as exc:
+                    out["error"] = user_traceback(exc, run_dir / "solution.py")
+                    out["error"]["input"] = args_text(case)
+                    out["error"]["text"] = f"while profiling at n={n}:\n" + out["error"]["text"]
+                    return
                 total_user += steps
                 over = over or hit
         ref_steps.append([n, total_ref])
@@ -500,6 +523,8 @@ def main() -> None:
         out["error"] = {"text": str(exc), "line": None}
     except RecursionError:
         out["error"] = {"text": "RecursionError: maximum recursion depth exceeded", "line": None}
+    except (SystemExit, KeyboardInterrupt) as exc:
+        out["error"] = user_traceback(exc, run_dir / "solution.py")
     # errors in the solution's module code land here and are reported
     except Exception as exc:  # noqa: BLE001
         out["error"] = user_traceback(exc, run_dir / "solution.py")

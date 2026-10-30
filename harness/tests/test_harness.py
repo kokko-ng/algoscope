@@ -237,3 +237,22 @@ def test_sorted_and_heapq_are_charged_n_log_n(tmp_path):
         out = run(tmp_path, code, "score", sizes=[64, 256, 1024])
         steps = [s for _, s in out["steps"]["user"]]
         assert steps[2] > 4.4 * steps[1], steps
+
+
+def test_class_methods_may_return_values_the_reference_does_not(tmp_path):
+    cls_cases = (
+        "def visual():\n    return [('add', 1), ('size',)]\n\n"
+        "def cases(n, rng):\n    return [[('add', i) for i in range(n)] + [('size',)]]\n"
+    )
+    reference = (
+        "class Box:\n    def __init__(self):\n        self.n = 0\n"
+        "    def add(self, x):\n        self.n += 1\n    def size(self):\n        return self.n\n"
+    )
+    chatty = reference.replace("        self.n += 1\n", "        self.n += 1\n        return True\n")
+    out = run(tmp_path, chatty, "score", cases=cls_cases, reference=reference, kind="class", entry="Box", sizes=[8, 16])
+    assert out["passed"] == out["total"]
+    wrong_size = chatty.replace("return self.n", "return self.n + 1")
+    out = run(
+        tmp_path, wrong_size, "score", cases=cls_cases, reference=reference, kind="class", entry="Box", sizes=[8, 16]
+    )
+    assert out["passed"] < out["total"]
