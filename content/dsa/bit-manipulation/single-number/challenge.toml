@@ -1,0 +1,27 @@
+id = "single-number"
+title = "The one without a partner"
+stage = "apply"
+xp = 90
+complexity = "O(n)"
+sizes = [200, 400, 800, 1600]
+statement = """
+nums holds non-negative integers. Every value appears exactly twice except one, which appears once. Return that value. nums always has at least one element.
+
+Counting each value by scanning the list is O(n^2). A dict of counts is O(n) but stores up to n/2 entries. One integer is enough: look at what XOR does to a value that is combined with itself.
+"""
+hints = [
+  "XOR is its own inverse: x ^ x is 0, and x ^ 0 is x. It is also order-free, so the pairs do not need to be next to each other.",
+  "Start from 0 and XOR in every value. Each pair cancels out, and the value left at the end is the one without a partner.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+
+[[view]]
+var = "value"
+as = "bits"
+
+[[view]]
+var = "acc"
+as = "bits"

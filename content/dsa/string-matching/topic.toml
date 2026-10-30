@@ -1,0 +1,7 @@
+id = "string-matching"
+title = "String matching"
+zone = "The Echo Archive"
+summary = "Finding a pattern in a text by sliding it one position at a time re-reads the same characters over and over. Knuth-Morris-Pratt precomputes how the pattern overlaps itself so the text is read once, and Rabin-Karp fingerprints each window with a rolling hash so moving the window costs O(1)."
+prereqs = ["hashing", "sliding-window"]
+order = 20
+challenges = ["kmp-walkthrough", "kmp-search", "multi-pattern", "repeating-block"]

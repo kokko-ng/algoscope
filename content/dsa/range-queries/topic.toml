@@ -1,0 +1,7 @@
+id = "range-queries"
+title = "Range queries"
+zone = "The Ledger Halls"
+summary = "Totals and minimums over a stretch of an array that keeps changing. A prefix-sum array answers fast but breaks on every update; a plain array updates fast but answers slowly. Fenwick trees and segment trees split the array into overlapping blocks so both operations cost O(log n)."
+prereqs = ["trees", "hashing"]
+order = 18
+challenges = ["fenwick-walkthrough", "fenwick-build", "range-min", "count-inversions"]

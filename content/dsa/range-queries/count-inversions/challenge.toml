@@ -1,0 +1,35 @@
+id = "count-inversions"
+title = "Count the inversions"
+stage = "apply"
+xp = 140
+complexity = "O(n log n)"
+sizes = [100, 200, 400, 800]
+statement = """
+An inversion in nums is a pair of positions i < j with nums[i] > nums[j]. Equal values do not form an inversion. Return the number of inversions as an integer; an empty list has 0.
+
+Comparing every pair is O(n^2). Walk the list from left to right instead and ask, for each value, how many values seen so far are larger. A Fenwick tree indexed by value answers that in O(log n) per step, for O(n log n) in total. `sorted` is allowed.
+
+The values can be large or negative, so first replace each value by its rank among the distinct values: 1 for the smallest, 2 for the next.
+"""
+hints = [
+  "Map each distinct value to its rank with a dict built from sorted(set(nums)). Keep a Fenwick tree that counts how many values of each rank you have seen.",
+  "For the value at position seen, a prefix query up to its own rank counts earlier values that are smaller or equal. The other `seen - that` earlier values are larger: add them, then add 1 at the value's rank.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["seen"]
+
+[[view]]
+var = "tree"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "ranks"
+as = "map"
+
+[[view]]
+var = "inversions"
+as = "value"

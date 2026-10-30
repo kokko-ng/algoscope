@@ -1,0 +1,37 @@
+id = "fenwick-build"
+title = "Build a Fenwick tree"
+stage = "build"
+xp = 180
+kind = "class"
+entry = "Fenwick"
+complexity = "O(n log n)"
+forbid = ["accumulate", "itertools"]
+sizes = [200, 400, 800, 1600]
+statement = """
+Implement Fenwick, which holds n integers, all 0 at the start. Indices run from 0 to n - 1.
+
+- Fenwick(n): create the structure.
+- update(i, delta): add delta (which may be negative) to the value at index i. Returns nothing.
+- prefix(i): return the sum of the first i values, indices 0 through i - 1. prefix(0) is 0 and prefix(n) is the total. 0 <= i <= n.
+- range_sum(l, r): return the sum of indices l through r, both included. 0 <= l <= r < n.
+
+The suite scores n mixed operations on n values. Keeping a plain list makes updates O(1) but every sum O(n), and a prefix-sum list makes sums O(1) but every update O(n): both cost O(n^2). The suite expects O(log n) per operation, O(n log n) in total.
+"""
+hints = [
+  "Use a list `tree` of n + 1 zeros and work with positions counted from 1, so index i lives at position i + 1. Slot p holds the sum of the (p & -p) values that end at position p.",
+  "update climbs: add delta to tree[p], then p += p & -p while p <= n. prefix descends: add tree[p], then p -= p & -p while p > 0. range_sum(l, r) is prefix(r + 1) - prefix(l).",
+]
+
+[[view]]
+var = "self.tree"
+label = "tree"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "i"
+as = "bits"
+
+[[view]]
+var = "total"
+as = "value"

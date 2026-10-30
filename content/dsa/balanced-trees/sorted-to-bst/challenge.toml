@@ -1,0 +1,27 @@
+id = "sorted-to-bst"
+title = "Balanced tree from a sorted list"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+sizes = [200, 400, 800, 1600]
+statement = """
+nums is a list of distinct integers in ascending order. Build a binary search tree that holds every value exactly once and is height-balanced: at every node, the left and right subtree heights differ by at most 1. Return its root as a `TreeNode` (imported from algoscope), or None when nums is empty. Do not modify nums.
+
+Several trees can be correct; any height-balanced search tree with exactly these values is accepted.
+
+Inserting the values one by one into a plain search tree builds a chain. Inserting them into a self-balancing tree works but costs O(n log n), and so does slicing nums into halves at every level. The suite expects O(n): create each node once and pass index bounds instead of copies.
+"""
+hints = [
+  "The middle value should be the root: half the values belong on each side. Then the same is true of each half.",
+  "Write `build(lo, hi)` over the index range nums[lo..hi]. Return None when lo > hi; otherwise make a node from nums[mid] with mid = (lo + hi) // 2 and build its children from (lo, mid - 1) and (mid + 1, hi).",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["lo", "mid", "hi"]
+window = ["lo", "hi"]
+
+[[view]]
+var = "node"
+as = "tree"

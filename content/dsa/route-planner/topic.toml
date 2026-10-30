@@ -1,0 +1,7 @@
+id = "route-planner"
+title = "Capstone: route planner"
+zone = "The Cartographer's Table"
+summary = "A map is a grid of terrain costs, and a route planner is a graph search in disguise: every cell is a node, every step to a neighbour is an edge. This capstone combines Dijkstra's algorithm, path reconstruction, dynamic programming over a grid that only moves forward, and plain breadth-first search for the case where every step costs the same."
+prereqs = ["graphs-advanced", "dynamic-programming"]
+order = 21
+challenges = ["grid-dijkstra-walkthrough", "cheapest-route", "route-path", "count-cheapest-routes", "flat-ground"]

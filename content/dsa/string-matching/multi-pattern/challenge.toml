@@ -1,0 +1,36 @@
+id = "multi-pattern"
+title = "Several patterns, one pass"
+stage = "apply"
+xp = 150
+complexity = "O(n + m)"
+forbid = ["join", "find", "re"]
+sizes = [200, 400, 800, 1600]
+statement = """
+text is a list of single-character strings, and patterns is a non-empty list of patterns, each a list of single-character strings. Every pattern has the same length m, at least 1, and patterns may repeat. Return a list, in ascending order, of every index i where at least one pattern occurs in text starting at i. Each index appears once. Return [] when nothing matches.
+
+Comparing every pattern at every position costs O(n·m) per pattern, and copying each window into a tuple to look it up in a set still copies m characters per position. The suite scores a few long patterns against a long text and expects O(n + m) for a fixed number of patterns.
+
+Rabin-Karp gives every window a numeric fingerprint, a polynomial hash modulo a large prime, and updates it in O(1) as the window slides: remove the character leaving on the left, shift, add the character entering on the right. Only a window whose fingerprint matches a pattern's is compared character by character.
+"""
+hints = [
+  "Treat a window as a number in base b: h = (h * b + ord(ch)) % mod for each character. Hash every pattern this way and keep the hashes in a set. Something like b = 131 and mod = 1_000_000_007 works.",
+  "Precompute high = pow(b, m - 1, mod). To slide, subtract ord(leaving) * high, multiply by b, add ord(entering), all modulo mod. When a full window's hash is in the set, confirm with a direct comparison, because different windows can share a hash.",
+]
+
+[[view]]
+var = "text"
+as = "array"
+pointers = ["i", "start"]
+window = ["start", "i"]
+
+[[view]]
+var = "window"
+as = "value"
+
+[[view]]
+var = "targets"
+as = "set"
+
+[[view]]
+var = "starts"
+as = "array"

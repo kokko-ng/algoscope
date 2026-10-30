@@ -1,0 +1,44 @@
+id = "kmp-walkthrough"
+title = "Watch a failure table being built"
+stage = "watch"
+xp = 40
+complexity = "O(n)"
+statement = """
+pattern is a list of single-character strings. For each position i, `lps[i]` is the length of the longest proper prefix of pattern[0..i] that is also a suffix of it (lps stands for "longest prefix that is also a suffix"). For "abacabab", lps[6] is 3 because "abacaba" starts and ends with "aba".
+
+KMP search uses this table to recover from a mismatch without re-reading the text. Building it is itself a small search: the pattern is matched against its own prefix. Watch `length` fall back through earlier entries on a mismatch. Why does the whole table take O(m) steps even though there is a loop inside a loop?
+"""
+
+[[view]]
+var = "pattern"
+as = "array"
+pointers = ["i", "length"]
+
+[[view]]
+var = "lps"
+as = "array"
+pointers = ["i"]
+
+[[captions]]
+line = 2
+text = "lps[0] is always 0: a single character has no proper prefix that is also a suffix."
+
+[[captions]]
+line = 5
+text = "`length` is the border carried over from i - 1. The border can grow only if the next character after it, pattern[length], matches pattern[i]."
+
+[[captions]]
+line = 6
+text = "Mismatch. The next shorter border is the border of the current border, already stored at lps[length - 1]. Try again from there without moving i."
+
+[[captions]]
+line = 8
+text = "The character after the border matches, so the border grows by one."
+
+[[captions]]
+line = 9
+text = "Record the border for position i."
+
+[[captions]]
+line = 10
+text = "`length` rises by at most 1 per position and every fallback lowers it, so the fallbacks add up to at most m. The table costs O(m)."

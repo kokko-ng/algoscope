@@ -1,0 +1,31 @@
+id = "flat-ground"
+title = "When every step costs the same"
+stage = "apply"
+xp = 100
+complexity = "O(n)"
+sizes = [400, 900, 1600, 3600]
+statement = """
+On flat ground every open cell costs the same. grid is a non-empty list of equal-length rows of 1 (open) and 0 (wall). start and target are (row, col) tuples of open cells. Moves go up, down, left or right.
+
+Return the fewest moves from start to target as an int: 0 when they are the same cell, -1 when the target cannot be reached.
+
+Dijkstra's algorithm still gives the right answer, but its heap is wasted work here: when every move costs 1, cells come off a plain first-in, first-out queue already in order of distance. The suite expects O(n) for a grid of n cells, with O(1) work per queue operation.
+"""
+hints = [
+  "Breadth-first search explores in waves: every cell one move away, then every cell two moves away. Use `collections.deque` with append and popleft.",
+  "Keep a grid `steps` filled with -1. Set the start to 0 and queue it. For each cell you pop, give every open, unvisited neighbour steps + 1 and queue it at once, so no cell is queued twice. Return the target's count when it comes off the queue.",
+]
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "steps"
+as = "grid"
+pointers = ["nr", "nc"]
+
+[[view]]
+var = "queue"
+as = "queue"

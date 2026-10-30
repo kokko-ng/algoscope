@@ -1,0 +1,36 @@
+id = "avl-build"
+title = "Build an AVL tree"
+stage = "build"
+xp = 190
+kind = "class"
+entry = "AVL"
+complexity = "O(n log n)"
+forbid = ["sorted", "sort", "bisect", "insort", "set"]
+sizes = [100, 200, 400, 800]
+statement = """
+Implement AVL, a search tree of distinct integers that keeps itself balanced. Build it from `TreeNode(val)` nodes (imported from algoscope) hanging off `self.root`, so the trace can draw it. You may add fields to a node, for example `node.height = 1`.
+
+- insert(value): add value. A value that is already present is ignored. Returns nothing.
+- contains(value): return True or False.
+- inorder(): return a list of every value in ascending order.
+- height(): return the number of levels in the tree: 0 when empty, 1 for a single node.
+
+After every insert, the two subtrees of every node must differ in height by at most 1. Restore this with rotations on the way back up from the new leaf, as in the walkthrough. The suite compares height() with a standard AVL tree after the same inserts.
+
+The suite scores runs of n sorted inserts. A plain search tree turns them into a chain n deep, and the inserts cost O(n^2). With rotations the depth stays O(log n), so n inserts and lookups cost O(n log n).
+"""
+hints = [
+  "Store a height on every node and write a helper that treats a missing child as height 0. A recursive insert that returns the new root of each subtree lets you rebalance every node on the path as the recursion unwinds.",
+  "At each node, update its height, then compute balance = height(left) - height(right). At +2, rotate right, but first rotate the left child left if its right side is taller. At -2, mirror that. A rotation moves three links and recomputes the two heights it changed, lower node first.",
+]
+
+[[view]]
+var = "self.root"
+label = "root"
+as = "tree"
+pointers = ["node", "pivot"]
+
+[[view]]
+var = "values"
+label = "inorder"
+as = "array"

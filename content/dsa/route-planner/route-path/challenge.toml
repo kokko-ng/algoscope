@@ -1,0 +1,31 @@
+id = "route-path"
+title = "Show me the way"
+stage = "apply"
+xp = 140
+complexity = "O(E log V)"
+sizes = [225, 400, 900, 1600]
+statement = """
+Same map rules as the cheapest-route build: `grid[r][c]` from 1 to 9 is the cost of entering a cell, 0 is a wall, moves go up, down, left or right, and a route's cost includes both ends. start and target are (row, col) tuples that are not walls.
+
+This time return the route itself: a list of (row, col) cells, start first and target last, each one a single move from the one before. Its total cost must be the cheapest possible. When several routes tie, any of them is accepted. When start equals target, return [start]. When no route exists, return [].
+
+A cost alone does not say how you got there. Remember, for every cell, which cell its best known cost came from, then follow those links back from the target. The suite expects O(E log V), the same as the search itself.
+"""
+hints = [
+  "Keep a second grid `came_from`. Whenever a neighbour's dist improves, set came_from[nr][nc] = (r, c). The last write is the best one.",
+  "Once the target is settled (or the heap is empty and the target's dist is still infinity, which means []), start a list at target and append came_from of its last cell until you reach start. Reverse it before returning.",
+]
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "dist"
+as = "grid"
+pointers = ["nr", "nc"]
+
+[[view]]
+var = "path"
+as = "array"

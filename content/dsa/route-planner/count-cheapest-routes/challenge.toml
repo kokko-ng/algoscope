@@ -1,0 +1,32 @@
+id = "count-cheapest-routes"
+title = "How many cheapest routes?"
+stage = "apply"
+xp = 150
+complexity = "O(n)"
+sizes = [400, 900, 1600, 3600]
+statement = """
+On this map you may only move right or down. grid is a non-empty list of equal-length rows: `grid[r][c]` from 1 to 9 is the cost of entering a cell, and 0 is a wall. A route runs from the top-left cell to the bottom-right cell, and its cost is the sum of every cell on it, both corners included.
+
+Return a tuple (cost, count): the cheapest route cost and how many different routes have exactly that cost. Count every one of them; the count can be large. If either corner is a wall or no route exists, return (-1, 0). A 1x1 grid that is not a wall has one route.
+
+Listing every route is exponential. Because moves only go right or down, the map is a directed acyclic graph and the cells can be handled in reading order: every cell's two predecessors are finished before it. The suite expects O(n) for n cells.
+"""
+hints = [
+  "Fill two grids in row order: cost[r][c], the cheapest cost to reach the cell, and ways[r][c], how many routes achieve it. A cell is reached only from above or from the left.",
+  "For each reachable predecessor, total = cost[pred] + grid[r][c]. A smaller total replaces both cost and ways; an equal total adds the predecessor's ways. That tie case is where the counting happens.",
+]
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "cost"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "ways"
+as = "grid"
+pointers = ["r", "c"]

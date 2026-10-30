@@ -1,0 +1,7 @@
+id = "bit-manipulation"
+title = "Bit manipulation"
+zone = "The Switchboard"
+summary = "An integer is a row of switches. AND, OR, XOR and shifts flip, test and combine all of them in one step, so a single int can act as a small set, a subset of a list, or a running fingerprint. A handful of identities, such as n & (n - 1) clearing the lowest set bit, turn many loops into one line."
+prereqs = ["foundations"]
+order = 19
+challenges = ["popcount-walkthrough", "bitset-build", "single-number", "subset-sums", "gray-code"]

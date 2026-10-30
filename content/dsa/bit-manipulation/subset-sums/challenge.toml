@@ -1,0 +1,30 @@
+id = "subset-sums"
+title = "Every subset's total"
+stage = "apply"
+xp = 130
+complexity = "O(2^n)"
+sizes = [8, 10, 12, 14]
+check_sizes = [0, 1, 2, 3, 4, 6, 8, 10]
+seeds = 1
+statement = """
+items is a list of n integers. A mask from 0 to 2^n - 1 picks a subset: item i is in it when bit i of the mask is 1. Return a list `sums` of length 2^n where sums[mask] is the total of the chosen items. sums[0] is 0, and an empty items list gives [0].
+
+There are 2^n subsets, so the answer alone has that many entries. Adding up each subset from scratch tests n bits per mask, O(n·2^n). The suite expects O(2^n): every subset's total should take O(1) work, built from a smaller subset whose total is already known.
+"""
+hints = [
+  "mask & -mask isolates the lowest set bit, and mask ^ low (or mask & (mask - 1)) is the same subset without that item. It is a smaller number, so its total is already in the list.",
+  "For low = mask & -mask, the item's index is low.bit_length() - 1. Then sums[mask] = sums[mask ^ low] + items[that index].",
+]
+
+[[view]]
+var = "sums"
+as = "array"
+pointers = ["mask"]
+
+[[view]]
+var = "mask"
+as = "bits"
+
+[[view]]
+var = "low"
+as = "bits"

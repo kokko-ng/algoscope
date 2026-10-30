@@ -1,0 +1,42 @@
+id = "popcount-walkthrough"
+title = "Watch set bits disappear"
+stage = "watch"
+xp = 40
+complexity = "O(log n)"
+statement = """
+How many 1 bits does 724 (0b1011010100) have? The obvious loop checks every position with `n & 1` and shifts right: one step per bit, set or not.
+
+Kernighan's trick needs one step per set bit. Watch `n` and `below` in binary. What happens to the bits of a number when you subtract 1, and what survives when you AND the two?
+"""
+
+[[view]]
+var = "n"
+as = "bits"
+
+[[view]]
+var = "below"
+as = "bits"
+
+[[view]]
+var = "count"
+as = "value"
+
+[[captions]]
+line = 3
+text = "Any bit still set means at least one more to count. Each pass removes exactly one."
+
+[[captions]]
+line = 4
+text = "Subtracting 1 borrows from the lowest set bit: that bit becomes 0 and every 0 below it becomes 1. Bits above it do not change."
+
+[[captions]]
+line = 5
+text = "AND keeps a bit only where both numbers have it. Above the lowest set bit they agree; from there down they disagree. So n & (n - 1) is n with its lowest set bit cleared."
+
+[[captions]]
+line = 6
+text = "One set bit gone, one counted."
+
+[[captions]]
+line = 7
+text = "Five set bits, five passes, however wide the number is. The same identity tests for a power of two: n > 0 and n & (n - 1) == 0."

@@ -1,0 +1,31 @@
+id = "cheapest-route"
+title = "Build the cheapest-route finder"
+stage = "build"
+xp = 200
+complexity = "O(E log V)"
+sizes = [225, 400, 900, 1600]
+statement = """
+grid is a non-empty list of equal-length rows of integers. `grid[r][c]` from 1 to 9 is the cost of entering that cell, and 0 marks a wall. start and target are (row, col) tuples, and neither is a wall. A route moves one cell up, down, left or right at a time, never off the grid or into a wall. Its cost is the sum of the costs of every cell on it, start and target included.
+
+Return the cost of the cheapest route from start to target as an int. When start equals target, that is the cost of the one cell. Return -1 when no route exists.
+
+The fewest moves is not the cheapest route: one 9 can cost more than a detour over 1s. Searching for the closest unsettled cell by scanning the whole grid is O(V^2) for V cells. The suite expects O(E log V), which on a grid with at most 4 edges per cell is O(V log V). `heapq` is allowed.
+"""
+hints = [
+  "This is Dijkstra's algorithm with cells as nodes. Keep a grid `dist` of best known costs, start it at infinity, and push (cost, row, col) tuples onto a heap, beginning with the start cell at its own cost.",
+  "Pop the cheapest entry; if it is the target, its cost is final and you can return it. Skip entries whose cost is worse than dist. Otherwise, for each in-bounds, non-wall neighbour, d + grid[nr][nc] is a candidate: if it beats dist[nr][nc], record it and push it.",
+]
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "dist"
+as = "grid"
+pointers = ["nr", "nc"]
+
+[[view]]
+var = "heap"
+as = "heap"

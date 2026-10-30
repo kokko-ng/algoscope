@@ -1,0 +1,46 @@
+id = "fenwick-walkthrough"
+title = "Watch a Fenwick tree"
+stage = "watch"
+xp = 40
+kind = "class"
+entry = "Fenwick"
+complexity = "O(log n)"
+statement = """
+A Fenwick tree (binary indexed tree) keeps running totals for an array of n values that starts at all zeros. Slot i of `tree` (counting from 1) holds the sum of a block of values that ends at position i, and the block's length is the lowest set bit of i: slot 6 = 0b110 covers 2 values, slot 8 = 0b1000 covers 8.
+
+Watch `update(i, delta)` climb through every slot whose block contains position i, and `prefix(i)` add up the first i values by hopping down through disjoint blocks. Follow `i` in binary. What does `i & -i` pick out, and why do both loops end after at most log2(n) + 1 steps?
+"""
+
+[[view]]
+var = "self.tree"
+label = "tree"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "i"
+as = "bits"
+
+[[view]]
+var = "total"
+as = "value"
+
+[[captions]]
+line = 7
+text = "Positions count from 0 outside and from 1 inside. Slot 0 stays unused so that every slot index has a lowest set bit."
+
+[[captions]]
+line = 9
+text = "This slot's block contains position i, so its total changes by delta."
+
+[[captions]]
+line = 10
+text = "i & -i isolates the lowest set bit. Adding it carries into a higher bit and lands on the next, larger block that also contains the position."
+
+[[captions]]
+line = 15
+text = "tree[i] holds the block that ends at i. Take it whole."
+
+[[captions]]
+line = 16
+text = "Clearing the lowest set bit jumps to the block that ends just before this one. Each hop removes a 1 bit, so a prefix needs at most log2(n) + 1 hops."

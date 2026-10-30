@@ -1,0 +1,29 @@
+id = "repeating-block"
+title = "The repeating block"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+sizes = [200, 400, 800, 1600]
+statement = """
+text is a non-empty list of single-character strings. Return the length of the shortest block that, repeated a whole number of times, builds text exactly. "abcabcabc" is "abc" three times, so the answer is 3. "abcab" is not a whole number of copies of anything shorter, so the answer is its full length, 5.
+
+Trying every block length that divides n and checking the whole text against it costs O(n) per candidate. The suite expects one O(n) pass. The failure table from the walkthrough already holds the answer: lps[n - 1] is the longest prefix of text that is also a suffix.
+"""
+hints = [
+  "If a prefix of length L is also a suffix, then text matches itself shifted by n - L. The longest such L gives the smallest shift p = n - lps[n - 1].",
+  "Text is made of whole copies of a block exactly when p divides n. Return p if n % p == 0, otherwise n.",
+]
+
+[[view]]
+var = "text"
+as = "array"
+pointers = ["i", "length"]
+
+[[view]]
+var = "lps"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "period"
+as = "value"

@@ -1,0 +1,29 @@
+id = "gray-code"
+title = "One switch at a time"
+stage = "apply"
+xp = 110
+complexity = "O(2^n)"
+sizes = [8, 10, 12, 14]
+check_sizes = [0, 1, 2, 3, 4, 5, 7, 9]
+seeds = 1
+statement = """
+A Gray code of width n lists all 2^n integers from 0 to 2^n - 1 so that each one differs from the one before it in exactly one bit. Return the reflected Gray code as a list of ints: it starts at 0, and each next code flips the lowest bit that gives a code not used yet. For n = 2 that is [0, 1, 3, 2]. For n = 0 return [0].
+
+Following that rule literally means trying bits and remembering every code you have used. The suite expects O(2^n) with O(1) work per code and no lookups. Compare the binary forms of i and the i-th code for small n: each code bit depends only on two neighbouring bits of i.
+"""
+hints = [
+  "Write i and code i in binary for n = 3. Bit k of the code is 1 exactly when bits k and k + 1 of i differ.",
+  "Comparing every bit with its left neighbour at once is i ^ (i >> 1). Loop i over range(1 << n).",
+]
+
+[[view]]
+var = "codes"
+as = "array"
+
+[[view]]
+var = "i"
+as = "bits"
+
+[[view]]
+var = "code"
+as = "bits"

@@ -1,0 +1,37 @@
+id = "kmp-search"
+title = "Build KMP search"
+stage = "build"
+xp = 190
+complexity = "O(n + m)"
+forbid = ["join", "find", "re"]
+sizes = [200, 400, 800, 1600]
+statement = """
+text and pattern are lists of single-character strings; pattern has at least one character. Return a list of every index i where pattern occurs in text starting at i, in ascending order. Occurrences may overlap: "aa" occurs in "aaaa" at [0, 1, 2]. Return [] when there are none, including when text is empty or shorter than pattern.
+
+Checking every start position character by character is O(n·m), and the suite scores worst cases such as text "aaa...ab" with pattern "aa...ab", where every attempt runs almost to the end of the pattern before failing. The suite expects O(n + m): build the failure table from the walkthrough, then scan the text once without ever moving backwards in it.
+
+Joining the lists into a string to use `str.find` or `re` is off limits.
+"""
+hints = [
+  "Keep `matched`, the number of pattern characters matched so far, while the text index only moves forward. On a mismatch, you already know the last `matched` characters of the text: they equal pattern[:matched]. lps[matched - 1] tells you how much of that is still a usable prefix.",
+  "For each text character: while matched > 0 and it differs from pattern[matched], set matched = lps[matched - 1]. If it equals pattern[matched], increase matched. When matched == m, record i - m + 1 and set matched = lps[m - 1] so overlapping matches are still found.",
+]
+
+[[view]]
+var = "text"
+as = "array"
+pointers = ["pos"]
+
+[[view]]
+var = "pattern"
+as = "array"
+pointers = ["matched", "length"]
+
+[[view]]
+var = "lps"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "starts"
+as = "array"

@@ -43,8 +43,8 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
-        # ratatui is the TUI crate; the rest are deliberate words in examples and test data
-        args: ["--ignore-words-list=crate,ratatui,tne,abd"]
+        # ratatui is the TUI crate; nd is "new distance" in shortest-path code; the rest are deliberate example words
+        args: ["--ignore-words-list=crate,ratatui,tne,abd,nd"]
 
   - repo: https://github.com/jackdewinter/pymarkdown
     rev: v0.9.41

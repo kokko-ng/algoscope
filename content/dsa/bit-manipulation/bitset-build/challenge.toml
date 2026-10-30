@@ -1,0 +1,40 @@
+id = "bitset-build"
+title = "Build a bitset"
+stage = "build"
+xp = 160
+kind = "class"
+entry = "Bitset"
+complexity = "O(n)"
+forbid = ["set", "dict", "bit_count", "bin", "format", "count"]
+sizes = [200, 400, 800, 1600]
+statement = """
+Implement Bitset, a set of non-negative integers stored in one integer, `self.bits`: bit i is 1 exactly when i is a member. It starts empty.
+
+- add(i): make i a member. Returns nothing.
+- remove(i): make sure i is not a member; removing a non-member changes nothing. Returns nothing.
+- contains(i): return True or False.
+- union(mask): add every member of the set that the integer mask encodes. Returns nothing.
+- intersect(mask): keep only members that are also in mask. Returns nothing.
+- mask(): return the set as an integer, that is, `self.bits`.
+- count(): return the number of members.
+
+Python sets and dicts, `int.bit_count`, and string tricks such as `bin(x).count("1")` are off limits. Each operation except count() should be a single bitwise expression. count() can loop once per member instead of once per bit position. The suite scores n operations; keeping a list of members makes each one O(n), O(n^2) in total.
+"""
+hints = [
+  "`1 << i` is a mask with only bit i set. OR turns a bit on, AND with the inverted mask `~(1 << i)` turns it off, and `self.bits >> i & 1` reads it.",
+  "union is `|=`, intersect is `&=`. For count, copy the bits and repeat `rest &= rest - 1` until rest is 0, counting the passes: each pass clears the lowest set bit.",
+]
+
+[[view]]
+var = "self.bits"
+label = "bits"
+as = "bits"
+pointers = ["i"]
+
+[[view]]
+var = "rest"
+as = "bits"
+
+[[view]]
+var = "total"
+as = "value"

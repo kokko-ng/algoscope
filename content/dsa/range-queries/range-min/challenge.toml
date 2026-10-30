@@ -1,0 +1,33 @@
+id = "range-min"
+title = "Smallest in a range"
+stage = "apply"
+xp = 150
+kind = "class"
+entry = "MinTree"
+complexity = "O(n log n)"
+sizes = [200, 400, 800, 1600]
+statement = """
+Implement MinTree over a list of integers. The list has at least one value, and indices run from 0 to n - 1.
+
+- MinTree(values): build the structure. You may keep or copy values; the suite does not use it afterwards.
+- update(i, value): replace the value at index i with value. Returns nothing.
+- query(l, r): return the smallest value among indices l through r, both included. 0 <= l <= r < n.
+
+A Fenwick tree cannot do this: a minimum cannot be "subtracted" back out of a prefix. Scanning the range on each query is O(n), so n operations cost O(n^2). The suite expects O(n) to build and O(log n) per operation.
+
+A segment tree stores the minimum of every block of a binary split: the whole array, each half, each quarter, down to single values. Any range is covered by O(log n) of those blocks.
+"""
+hints = [
+  "Store the tree in a list of 2n slots: the values go in slots n .. 2n - 1, and slot i holds min(tree[2i], tree[2i + 1]). Fill slots n - 1 down to 1 so children are ready before their parent.",
+  "update writes the leaf, then walks i //= 2 up to slot 1, recomputing each parent. query works on the half-open range: set l += n and r += n + 1. While l < r: if l is odd, take tree[l] and move l right; if r is odd, move r left and take tree[r]; then halve both.",
+]
+
+[[view]]
+var = "self.tree"
+label = "tree"
+as = "array"
+pointers = ["l", "r", "i"]
+
+[[view]]
+var = "best"
+as = "value"

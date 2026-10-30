@@ -1,0 +1,7 @@
+id = "balanced-trees"
+title = "Balanced trees"
+zone = "The Tightrope Gardens"
+summary = "A search tree is only fast while it stays short. Feed it sorted values and it degrades into a chain with O(n) lookups. An AVL tree repairs itself with small rotations after every insert, so its height stays O(log n) whatever order the values arrive in."
+prereqs = ["trees"]
+order = 17
+challenges = ["avl-walkthrough", "avl-build", "is-balanced", "sorted-to-bst"]

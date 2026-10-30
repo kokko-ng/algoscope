@@ -1,0 +1,50 @@
+id = "grid-dijkstra-walkthrough"
+title = "Watch Dijkstra cross a map"
+stage = "watch"
+xp = 40
+complexity = "O(E log V)"
+statement = """
+`grid[r][c]` is the cost of entering a cell; 0 marks a wall. Moves go up, down, left or right. A route's cost is the sum of the costs of every cell on it, the start cell included.
+
+No graph is ever built. Each cell is a node and its four neighbours are its edges, worked out on the fly. Dijkstra's algorithm from the previous zone works unchanged: a min-heap hands back the cheapest unsettled cell, and `dist` holds the best cost found so far for every cell.
+
+Watch the cheap cells settle first while the 5s and the 9 wait. Two routes reach the bottom-right corner in six moves, one down the left side and one along the top. Which one wins, and at what moment does the corner's cost become final?
+"""
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "dist"
+as = "grid"
+pointers = ["nr", "nc"]
+
+[[view]]
+var = "heap"
+as = "heap"
+
+[[captions]]
+line = 8
+text = "The start cell's own cost counts. Every other cell starts at infinity: no route known yet."
+
+[[captions]]
+line = 11
+text = "Pop the cheapest candidate. Every cost is positive, so no route through a later cell can undercut it: this cell is settled."
+
+[[captions]]
+line = 13
+text = "A stale entry: a cheaper route to this cell was pushed and settled earlier. Skip it."
+
+[[captions]]
+line = 14
+text = "The four neighbours are the edges. Off-grid cells and walls are filtered out next."
+
+[[captions]]
+line = 17
+text = "Relax: entering the neighbour from here costs d plus its own cell cost. Keep it only if it beats the best known route."
+
+[[captions]]
+line = 18
+text = "Push the improved cost. A grid has at most 4 edges per cell, so E is O(V) and the search costs O(V log V)."

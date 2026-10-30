@@ -1,0 +1,29 @@
+id = "is-balanced"
+title = "Is it balanced?"
+stage = "apply"
+xp = 110
+complexity = "O(n)"
+sizes = [200, 400, 800, 1600]
+seeds = 4
+statement = """
+A binary tree is height-balanced when, at every node, the heights of the left and right subtrees differ by at most 1. The height of an empty subtree is 0. Return True if the tree is height-balanced and False otherwise. An empty tree (None) is balanced. Values are not ordered and do not matter.
+
+Checking only the root is not enough: a subtree deep down can be lopsided while the root looks fine. Computing the height of every subtree from scratch at every node repeats work and costs O(n log n) or worse. The suite expects O(n): visit each node once.
+"""
+hints = [
+  "A post-order walk sees both children's heights before it finishes a node. Return the height from the recursion and you have everything needed to judge the node.",
+  "Return a sentinel such as -1 for a subtree that is already unbalanced, and pass it straight up. Otherwise compare the two heights and return 1 + max(left, right).",
+]
+
+[[view]]
+var = "root"
+as = "tree"
+pointers = ["node"]
+
+[[view]]
+var = "left"
+as = "value"
+
+[[view]]
+var = "right"
+as = "value"

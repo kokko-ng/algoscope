@@ -1,0 +1,46 @@
+id = "avl-walkthrough"
+title = "Watch an AVL tree rebalance"
+stage = "watch"
+xp = 40
+kind = "class"
+entry = "AVL"
+complexity = "O(n log n)"
+statement = """
+Insert 10, 20, 30, 40 into a plain search tree and you get a chain: every value goes right, and a lookup walks the whole list. An AVL tree stores a height on every node and refuses to let a node's two subtrees differ in height by more than 1.
+
+Watch the values 10, 20, 30, 40, 50, 25 go in. After each insert, heights are fixed on the way back up, and any node that has become lopsided is repaired with a rotation. Why does a rotation keep the values in search-tree order, and why is one rotation per insert enough?
+"""
+
+[[view]]
+var = "self.root"
+label = "root"
+as = "tree"
+pointers = ["node", "pivot"]
+
+[[view]]
+var = "balance"
+as = "value"
+
+[[captions]]
+line = 27
+text = "The insert below has finished. Recompute this node's height from its children on the way back up."
+
+[[captions]]
+line = 28
+text = "Balance is left height minus right height. Anything outside -1..1 must be repaired here, before moving further up."
+
+[[captions]]
+line = 36
+text = "Right-heavy by two with the heavy grandchild on the outside: one left rotation lifts the right child into this node's place."
+
+[[captions]]
+line = 42
+text = "The old parent drops under the pivot as its left child. The pivot's old left subtree moved to node.right, and every value there still sits between the two, so the order holds."
+
+[[captions]]
+line = 35
+text = "The heavy grandchild sits on the inside (right child, then left). Rotate the child first so the three nodes form a straight line, then one more rotation finishes the job."
+
+[[captions]]
+line = 13
+text = "A rotation at the top hands back a new subtree root, so the tree's root is reassigned after every insert. The height stays O(log n), so each insert is O(log n)."

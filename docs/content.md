@@ -171,6 +171,7 @@ Alternatives are checked only by `check-content`. Learners never see them.
 cargo run -- check-content                 # everything embedded
 cargo run -- check-content --topic graphs  # topic ids containing "graphs"
 cargo run -- check-content --dir path/to/topics   # topics on disk, without rebuilding
+cargo run -- check-content -v --topic sorting      # also show each alternative's grade and exponent
 ```
 
 For every challenge, the check confirms that:
