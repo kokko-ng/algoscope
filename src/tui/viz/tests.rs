@@ -7,10 +7,12 @@ use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
 
 use crate::app::{App, Screen};
-use crate::content::Library;
+use crate::app_quiz::QuizPhase;
+use crate::content::{Library, Track};
 use crate::progress::{Store, ThemeKind};
 use crate::runner::{self, Mode, Outcome};
 use crate::tui::ui;
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub fn buffer_text(buf: &Buffer) -> String {
     let mut out = String::new();
@@ -35,6 +37,13 @@ pub fn render_challenge(key: &str, step: usize, theme: ThemeKind, w: u16, h: u16
     }
     app.open(key);
     let ch = app.lib.challenge(key).unwrap().clone();
+    if let Screen::Quiz(ws) = &mut app.screen {
+        let frames = ws.timeline.len;
+        ws.timeline.seek(step.min(frames.saturating_sub(1)));
+        let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        term.draw(|f| ui::draw(f, &mut app)).unwrap();
+        return buffer_text(term.backend().buffer());
+    }
     let Ok(Outcome::Visual(v)) = runner::run(&ch, Mode::Visual, &ch.reference) else { panic!("visual run failed") };
     if let Screen::Work(ws) = &mut app.screen {
         ws.pending = None;
@@ -267,7 +276,7 @@ fn every_challenge_renders() {
 #[test]
 fn home_screen_lists_every_topic() {
     let lib = Library::load().unwrap();
-    let titles: Vec<String> = lib.topics.iter().map(|t| t.meta.title.clone()).collect();
+    let titles: Vec<String> = lib.track_topics(Track::Dsa).map(|t| t.meta.title.clone()).collect();
     let dir = tempfile::tempdir().unwrap();
     let mut app = App::new(lib, Store::new(dir.path().to_path_buf()));
     let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
@@ -289,4 +298,47 @@ fn print_samples() {
         let step: usize = std::env::var("ALGOSCOPE_STEP").ok().and_then(|s| s.parse().ok()).unwrap_or(20);
         println!("== {key}\n{}", render_challenge(key, step, ThemeKind::Stealth, 120, 36));
     }
+}
+
+#[test]
+fn home_switches_to_the_design_track() {
+    let lib = Library::load().unwrap();
+    let titles: Vec<String> = lib.track_topics(Track::Design).map(|t| t.meta.title.clone()).collect();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = App::new(lib, Store::new(dir.path().to_path_buf()));
+    app.on_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
+    assert_eq!(app.track, Track::Design);
+    let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    term.draw(|f| ui::draw(f, &mut app)).unwrap();
+    let text = buffer_text(term.backend().buffer());
+    for t in titles.iter().take(8) {
+        let head: String = t.chars().take(12).collect();
+        assert!(text.contains(&head), "missing {t}");
+    }
+}
+
+/// Answering every question right on the first try completes the quiz with a gold grade.
+#[test]
+fn quiz_answered_correctly_grades_gold() {
+    let lib = Library::load().unwrap();
+    let ch = lib.challenge("estimation/latency-budget").unwrap().clone();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = App::new(lib, Store::new(dir.path().to_path_buf()));
+    app.open(&ch.key());
+    let press = |app: &mut App, code: KeyCode| app.on_key(KeyEvent::new(code, KeyModifiers::NONE));
+    for q in &ch.meta.questions {
+        if q.is_choice() {
+            press(&mut app, KeyCode::Char(char::from(b'0' + q.answer as u8)));
+        } else {
+            for c in q.answer.to_string().chars() {
+                press(&mut app, KeyCode::Char(c));
+            }
+        }
+        press(&mut app, KeyCode::Enter);
+        assert!(matches!(&app.screen, Screen::Quiz(ws) if ws.phase == QuizPhase::Correct), "{}", q.prompt);
+        press(&mut app, KeyCode::Enter);
+    }
+    assert!(matches!(&app.screen, Screen::Quiz(ws) if ws.phase == QuizPhase::Done));
+    assert_eq!(app.progress.get(&ch.key()).grade, Some(crate::scoring::Grade::Gold));
+    assert!(app.progress.xp >= u64::from(ch.meta.xp));
 }

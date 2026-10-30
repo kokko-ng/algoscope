@@ -15,6 +15,125 @@ pub enum Stage {
     Watch,
     Build,
     Apply,
+    /// System design: scenario questions with number or multiple-choice answers.
+    Quiz,
+}
+
+/// The two curricula. Each is a folder under `content/`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Track {
+    #[default]
+    Dsa,
+    Design,
+}
+
+impl Track {
+    pub const ALL: [Track; 2] = [Track::Dsa, Track::Design];
+
+    pub fn dir(self) -> &'static str {
+        match self {
+            Track::Dsa => "dsa",
+            Track::Design => "design",
+        }
+    }
+
+    pub fn title(self) -> &'static str {
+        match self {
+            Track::Dsa => "Data structures and algorithms",
+            Track::Design => "System design",
+        }
+    }
+
+    pub fn short(self) -> &'static str {
+        match self {
+            Track::Dsa => "DSA",
+            Track::Design => "System design",
+        }
+    }
+
+    fn from_dir(name: &str) -> Option<Track> {
+        Track::ALL.into_iter().find(|t| t.dir() == name)
+    }
+}
+
+/// A box in a system design diagram.
+#[derive(Debug, Clone, Deserialize)]
+pub struct DiagramNode {
+    pub id: String,
+    pub label: String,
+    /// Grid position: [column, row].
+    pub at: [u16; 2],
+}
+
+/// One step of a diagram animation: packets travel along `flow`, nodes are highlighted or marked down.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct DiagramStep {
+    #[serde(default)]
+    pub flow: Vec<String>,
+    #[serde(default)]
+    pub highlight: Vec<String>,
+    #[serde(default)]
+    pub down: Vec<String>,
+    /// Short notes drawn under nodes: node id -> text.
+    #[serde(default)]
+    pub labels: HashMap<String, String>,
+    #[serde(default)]
+    pub caption: String,
+    /// How many packets travel the flow, one after another.
+    #[serde(default = "one")]
+    pub packets: u8,
+}
+
+fn one() -> u8 {
+    1
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct Diagram {
+    #[serde(default)]
+    pub nodes: Vec<DiagramNode>,
+    #[serde(default)]
+    pub links: Vec<[String; 2]>,
+    /// The walkthrough steps (watch stage) or the scene shown before a question is answered.
+    #[serde(default)]
+    pub steps: Vec<DiagramStep>,
+}
+
+/// A quiz question: multiple choice when `choices` is set, otherwise a number.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Question {
+    pub prompt: String,
+    #[serde(default)]
+    pub choices: Vec<String>,
+    /// The 1-based index of the correct choice, or the expected number.
+    pub answer: f64,
+    /// Accepted relative error for number answers: 0.25 accepts 75% to 125% of the answer.
+    #[serde(default = "default_tolerance")]
+    pub tolerance: f64,
+    /// Unit shown next to the input for number answers.
+    #[serde(default)]
+    pub unit: String,
+    #[serde(default)]
+    pub hint: String,
+    pub explanation: String,
+    /// Animation that plays with the explanation.
+    #[serde(default)]
+    pub steps: Vec<DiagramStep>,
+}
+
+fn default_tolerance() -> f64 {
+    0.25
+}
+
+impl Question {
+    pub fn is_choice(&self) -> bool {
+        !self.choices.is_empty()
+    }
+
+    /// Whether the 0-based choice `i` is the correct one.
+    pub fn is_answer(&self, i: usize) -> bool {
+        self.is_choice() && (self.answer - (i + 1) as f64).abs() < 0.5
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
@@ -88,7 +207,8 @@ pub struct ChallengeMeta {
     pub entry: String,
     #[serde(default = "default_output")]
     pub output: String,
-    /// Declared complexity of the reference, e.g. "O(n log n)".
+    /// Declared complexity of the reference, e.g. "O(n log n)". Not used by system design.
+    #[serde(default)]
     pub complexity: String,
     pub statement: String,
     #[serde(default)]
@@ -105,6 +225,10 @@ pub struct ChallengeMeta {
     pub view: Vec<ViewSpec>,
     #[serde(default)]
     pub captions: Vec<Caption>,
+    #[serde(default)]
+    pub questions: Vec<Question>,
+    #[serde(default)]
+    pub diagram: Option<Diagram>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -118,6 +242,9 @@ pub struct TopicMeta {
     pub prereqs: Vec<String>,
     pub order: u32,
     pub challenges: Vec<String>,
+    /// Set from the folder the topic lives in.
+    #[serde(skip)]
+    pub track: Track,
 }
 
 #[derive(Debug, Clone)]
@@ -173,9 +300,10 @@ fn read_text(dir: &Dir, rel: &str) -> Option<String> {
 }
 
 /// Parse one topic directory. `read` returns a file's text by path relative to the topic directory.
-fn parse_topic(path: &str, read: impl Fn(&str) -> Option<String>) -> Result<Topic> {
+fn parse_topic(path: &str, track: Track, read: impl Fn(&str) -> Option<String>) -> Result<Topic> {
     let raw = read("topic.toml").ok_or_else(|| anyhow!("{path} has no topic.toml"))?;
-    let meta: TopicMeta = toml::from_str(&raw).with_context(|| format!("parsing {path}/topic.toml"))?;
+    let mut meta: TopicMeta = toml::from_str(&raw).with_context(|| format!("parsing {path}/topic.toml"))?;
+    meta.track = track;
     let mut challenges = Vec::new();
     for cid in &meta.challenges {
         let file = |name: &str| read(&format!("{cid}/{name}"));
@@ -184,6 +312,17 @@ fn parse_topic(path: &str, read: impl Fn(&str) -> Option<String>) -> Result<Topi
         let cm: ChallengeMeta = toml::from_str(&raw).with_context(|| format!("parsing {at}/challenge.toml"))?;
         if cm.id != *cid {
             bail!("{at}: id {} does not match its directory", cm.id);
+        }
+        if track == Track::Design {
+            // system design challenges are pure data: no Python files
+            challenges.push(Challenge {
+                meta: cm,
+                topic: meta.id.clone(),
+                starter: String::new(),
+                reference: String::new(),
+                cases: String::new(),
+            });
+            continue;
         }
         let reference = file("reference.py").ok_or_else(|| anyhow!("{at} has no reference.py"))?;
         let cases = file("cases.py").ok_or_else(|| anyhow!("{at} has no cases.py"))?;
@@ -203,9 +342,13 @@ impl Library {
 
     pub fn from_dir(root: &Dir) -> Result<Self> {
         let mut topics = Vec::new();
-        for topic_dir in root.dirs() {
-            let read = |rel: &str| read_text(topic_dir, rel);
-            topics.push(parse_topic(&topic_dir.path().display().to_string(), read)?);
+        for track_dir in root.dirs() {
+            let name = track_dir.path().file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let track = Track::from_dir(name).ok_or_else(|| anyhow!("unknown track folder content/{name}"))?;
+            for topic_dir in track_dir.dirs() {
+                let read = |rel: &str| read_text(topic_dir, rel);
+                topics.push(parse_topic(&topic_dir.path().display().to_string(), track, read)?);
+            }
         }
         let lib = Library::assemble(topics);
         lib.validate()?;
@@ -213,29 +356,44 @@ impl Library {
     }
 
     /// Load topics from a directory on disk (for authoring). Prerequisites outside it are not checked.
+    /// The directory holds track folders (`dsa/`, `design/`), or topic folders of the track it is named after.
     pub fn from_fs(root: &Path) -> Result<Self> {
         let mut topics = Vec::new();
-        for entry in std::fs::read_dir(root).with_context(|| format!("reading {}", root.display()))? {
-            let dir = entry?.path();
-            if !dir.join("topic.toml").exists() {
-                continue;
+        let tracks: Vec<(Track, std::path::PathBuf)> =
+            Track::ALL.iter().map(|t| (*t, root.join(t.dir()))).filter(|(_, p)| p.is_dir()).collect();
+        let tracks = if tracks.is_empty() {
+            let name = root.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            vec![(Track::from_dir(name).unwrap_or_default(), root.to_path_buf())]
+        } else {
+            tracks
+        };
+        for (track, dir) in tracks {
+            for entry in std::fs::read_dir(&dir).with_context(|| format!("reading {}", dir.display()))? {
+                let topic_dir = entry?.path();
+                if !topic_dir.join("topic.toml").exists() {
+                    continue;
+                }
+                let read = |rel: &str| std::fs::read_to_string(topic_dir.join(rel)).ok();
+                topics.push(parse_topic(&topic_dir.display().to_string(), track, read)?);
             }
-            let read = |rel: &str| std::fs::read_to_string(dir.join(rel)).ok();
-            topics.push(parse_topic(&dir.display().to_string(), read)?);
         }
         Ok(Library::assemble(topics))
     }
 
     fn assemble(mut topics: Vec<Topic>) -> Library {
-        topics.sort_by_key(|t| t.meta.order);
+        topics.sort_by_key(|t| (t.meta.track == Track::Design, t.meta.order));
         Library { topics }
     }
 
     fn validate(&self) -> Result<()> {
         for t in &self.topics {
             for p in &t.meta.prereqs {
-                if self.topic(p).is_none() {
-                    bail!("topic {} has unknown prerequisite {p}", t.meta.id);
+                match self.topic(p) {
+                    None => bail!("topic {} has unknown prerequisite {p}", t.meta.id),
+                    Some(pt) if pt.meta.track != t.meta.track => {
+                        bail!("topic {} has prerequisite {p} from another track", t.meta.id)
+                    }
+                    Some(_) => {}
                 }
             }
         }
@@ -251,8 +409,9 @@ impl Library {
         self.topic(topic)?.challenges.iter().find(|c| c.meta.id == id)
     }
 
-    /// Topic indices in display order, each with its tree prefix: topics hang under their deepest prerequisite.
-    pub fn tree_order(&self) -> Vec<(usize, String)> {
+    /// Topic indices of one track in display order, each with its tree prefix: topics hang under their deepest
+    /// prerequisite.
+    pub fn tree_order(&self, track: Track) -> Vec<(usize, String)> {
         fn go(
             i: usize,
             prefix: &str,
@@ -287,14 +446,18 @@ impl Library {
             .map(|i| self.topics[i].meta.prereqs.iter().filter_map(|p| idx(p)).max_by_key(|p| (depth[*p], *p)))
             .collect();
         let mut out = Vec::new();
-        for root in (0..n).filter(|i| parent[*i].is_none()) {
+        for root in (0..n).filter(|i| parent[*i].is_none() && self.topics[*i].meta.track == track) {
             go(root, "", true, true, &parent, &mut out);
         }
         out
     }
 
-    pub fn total_challenges(&self) -> usize {
-        self.topics.iter().map(|t| t.challenges.len()).sum()
+    pub fn total_challenges(&self, track: Track) -> usize {
+        self.track_topics(track).map(|t| t.challenges.len()).sum()
+    }
+
+    pub fn track_topics(&self, track: Track) -> impl Iterator<Item = &Topic> {
+        self.topics.iter().filter(move |t| t.meta.track == track)
     }
 }
 

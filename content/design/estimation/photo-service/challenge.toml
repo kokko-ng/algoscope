@@ -1,0 +1,81 @@
+id = "photo-service"
+title = "Size a photo service"
+stage = "quiz"
+xp = 100
+statement = """
+A photo service has 10 million daily active users.
+
+- Each user views 20 photos a day.
+- Each day, users upload 1 million new photos.
+- A stored photo is 2 MB on average.
+- The service keeps 3 copies of each photo, for 5 years.
+
+Use 86,400 seconds in a day. Round numbers are acceptable: each answer accepts a range around the exact value.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 0] },
+  { id = "app", label = "App servers", at = [1, 0] },
+  { id = "blobs", label = "Object storage", at = [2, 0] },
+]
+links = [["users", "app"], ["app", "blobs"]]
+
+[[diagram.steps]]
+flow = ["users", "app", "blobs"]
+packets = 3
+
+[[questions]]
+prompt = "What is the average number of photo views per second?"
+answer = 2315
+tolerance = 0.25
+unit = "views per second"
+hint = "Multiply users by views per user, then divide by the seconds in a day."
+explanation = "10,000,000 x 20 = 200,000,000 views a day. 200,000,000 / 86,400 = about 2,315 views per second. With 100,000 seconds as a shortcut you get 2,000, which is close enough for a first estimate."
+
+[[questions.steps]]
+flow = ["users", "app"]
+packets = 4
+labels = { app = "200M / 86,400 = ~2,300/s" }
+caption = "Daily volume divided by seconds in a day gives the average rate."
+
+[[questions]]
+prompt = "The busiest hour has two times the average traffic. How many views per second must the service handle at the peak?"
+answer = 4630
+tolerance = 0.25
+unit = "views per second"
+explanation = "2 x 2,315 = about 4,630 views per second. Capacity is planned for the peak. A service that handles only the average fails every day at the busiest hour."
+
+[[questions.steps]]
+flow = ["users", "app"]
+packets = 7
+highlight = ["app"]
+labels = { app = "peak ~4,600/s" }
+caption = "The peak sets the number of servers, the cache size and the database capacity."
+
+[[questions]]
+prompt = "How much new photo data arrives each day, before copies? Give the answer in TB."
+answer = 2
+tolerance = 0.25
+unit = "TB per day"
+explanation = "1,000,000 photos x 2 MB = 2,000,000 MB = 2,000 GB = 2 TB each day."
+
+[[questions.steps]]
+flow = ["app", "blobs"]
+packets = 2
+labels = { blobs = "+2 TB/day" }
+caption = "Write volume times object size gives the daily growth of storage."
+
+[[questions]]
+prompt = "How much storage do 5 years of photos need, with 3 copies of each photo? Give the answer in PB (1 PB = 1,000 TB)."
+answer = 10.95
+tolerance = 0.25
+unit = "PB"
+hint = "Daily growth x days in 5 years x number of copies."
+explanation = "2 TB x 365 x 5 = 3,650 TB. With 3 copies: 10,950 TB, which is about 11 PB. Numbers of this size show that the photos must go to object storage, not to the main database."
+
+[[questions.steps]]
+flow = ["app", "blobs"]
+highlight = ["blobs"]
+labels = { blobs = "2 TB x 1,825 days x 3 = ~11 PB" }
+caption = "Replication multiplies storage. Three copies protect the data if a disk or a data center fails."

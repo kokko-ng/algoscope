@@ -17,6 +17,7 @@ pub struct Labels {
     pub watch: &'static str,
     pub build: &'static str,
     pub apply: &'static str,
+    pub quiz: &'static str,
     pub locked: &'static str,
     pub hint: &'static str,
 }
@@ -34,6 +35,7 @@ const STEALTH: Labels = Labels {
     watch: "walkthrough",
     build: "implement",
     apply: "exercise",
+    quiz: "review",
     locked: "blocked",
     hint: "note",
 };
@@ -51,6 +53,7 @@ const GAME: Labels = Labels {
     watch: "Lore",
     build: "Forge",
     apply: "Trial",
+    quiz: "Riddle",
     locked: "sealed",
     hint: "Hint",
 };

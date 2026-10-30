@@ -7,12 +7,13 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 use crate::app::{App, Focus, Screen, Workspace, version_string};
-use crate::content::Stage;
+use crate::app_quiz::{QuizPhase, QuizWs};
+use crate::content::{Challenge, Stage, Track};
 use crate::progress::{KeymapKind, TopicState};
 use crate::scoring::{self, Grade};
 use crate::tui::editor::EditorView;
 use crate::tui::theme::Theme;
-use crate::tui::viz::{Ctx, VizView, wrap};
+use crate::tui::viz::{Ctx, VizView, diagram, wrap};
 
 pub fn draw(f: &mut Frame, app: &mut App) {
     let area = f.area();
@@ -20,6 +21,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     match &app.screen {
         Screen::Home => draw_home(f, app, main),
         Screen::Work(_) => draw_work(f, app, main),
+        Screen::Quiz(_) => draw_quiz(f, app, main),
     }
     draw_status(f, app, status);
     if app.help {
@@ -88,12 +90,26 @@ fn state_icon(t: &Theme, s: TopicState) -> Span<'static> {
     Span::styled(if t.is_game() { game } else { stealth }.to_string(), t.bold(color))
 }
 
+fn draw_track_tabs(f: &mut Frame, app: &App, area: Rect) {
+    let t = &app.theme;
+    let mut spans = vec![Span::raw(" ")];
+    for (n, track) in Track::ALL.iter().enumerate() {
+        let style = if *track == app.track { t.bold(t.accent).add_modifier(Modifier::REVERSED) } else { t.dim() };
+        spans.push(Span::styled(format!(" {} {} ", n + 1, track.short()), style));
+        spans.push(Span::raw(" "));
+    }
+    spans.push(Span::styled("  1/2 switch track", t.dim()));
+    f.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
 fn draw_home(f: &mut Frame, app: &App, area: Rect) {
     let t = &app.theme;
+    let [tabs, area] = Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(area);
+    draw_track_tabs(f, app, tabs);
     let [left, right] = Layout::horizontal([Constraint::Percentage(48), Constraint::Percentage(52)]).areas(area);
 
     let mut lines = Vec::new();
-    for (i, prefix) in app.lib.tree_order() {
+    for (i, prefix) in app.lib.tree_order(app.track) {
         let topic = &app.lib.topics[i];
         let state = app.topic_state(i);
         let selected = i == app.topic_idx;
@@ -114,7 +130,7 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
             Span::styled(if pct > 0 { format!("  {pct}%") } else { String::new() }, t.dim()),
         ]));
     }
-    let row = app.lib.tree_order().iter().position(|(i, _)| *i == app.topic_idx).unwrap_or(0) as u16;
+    let row = app.lib.tree_order(app.track).iter().position(|(i, _)| *i == app.topic_idx).unwrap_or(0) as u16;
     let scroll = row.saturating_sub(left.height.saturating_sub(4));
     f.render_widget(
         Paragraph::new(lines).scroll((scroll, 0)).block(block(t, t.labels.tree, !app.home_focus_challenges)),
@@ -145,6 +161,7 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
             Stage::Watch => t.labels.watch,
             Stage::Build => t.labels.build,
             Stage::Apply => t.labels.apply,
+            Stage::Quiz => t.labels.quiz,
         };
         let mark = if p.done { if t.is_game() { "●" } else { "x" } } else { " " };
         let grade = match p.grade {
@@ -169,20 +186,23 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
             Span::styled(format!("  {grade}"), gstyle),
         ]));
     }
-    text.push(Line::from(""));
-    text.push(Line::from(Span::styled(
-        "enter: start   arrows: move   t: theme   v: vim/standard keys   q: quit",
-        t.dim(),
-    )));
     let hours = app.progress.seconds_practised as f64 / 3600.0;
-    let done: usize =
-        app.lib.topics.iter().flat_map(|t| &t.challenges).filter(|c| app.progress.is_done(&c.key())).count();
-    text.push(Line::from(Span::styled(
-        format!("{done}/{} done   {hours:.1}h practised", app.lib.total_challenges()),
-        t.dim(),
-    )));
+    let done =
+        app.lib.track_topics(app.track).flat_map(|t| &t.challenges).filter(|c| app.progress.is_done(&c.key())).count();
+    let total = app.lib.total_challenges(app.track);
+    text.push(Line::from(""));
+    for footer in [
+        "enter: start   arrows: move   t: theme   v: vim/standard keys   q: quit".to_string(),
+        format!("{done}/{total} done in {}   {hours:.1}h practised", app.track.short()),
+    ] {
+        text.push(Line::from(Span::styled(footer, t.dim())));
+    }
     f.render_widget(
-        Paragraph::new(text).wrap(Wrap { trim: false }).block(block(t, t.labels.home, app.home_focus_challenges)),
+        Paragraph::new(text).wrap(Wrap { trim: false }).block(block(
+            t,
+            &format!("{}: {}", t.labels.home, app.track.title()),
+            app.home_focus_challenges,
+        )),
         right,
     );
 }
@@ -212,6 +232,7 @@ fn draw_work(f: &mut Frame, app: &mut App, area: Rect) {
         Stage::Watch => t.labels.watch,
         Stage::Build => t.labels.build,
         Stage::Apply => t.labels.apply,
+        Stage::Quiz => t.labels.quiz,
     };
     lines.push(Line::from(Span::styled(ch.meta.title.clone(), t.bold(t.title))));
     lines.push(Line::from(vec![
@@ -378,6 +399,8 @@ fn draw_help(f: &mut Frame, app: &App, area: Rect) {
         ("F2 / t", "switch stealth / game theme"),
         ("v", "switch standard / vim keys (outside the editor)"),
         ("vim", ":w save  :run  :submit  :q"),
+        ("1 / 2", "home: data structures and algorithms / system design"),
+        ("quiz", "up/down or a-d choose, type numbers like 12k or 1.5M, Enter answers"),
     ];
     let mut lines = vec![Line::from(Span::styled("keys", t.bold(t.title))), Line::from("")];
     for (k, d) in rows {
@@ -429,4 +452,140 @@ fn draw_celebration(f: &mut Frame, app: &App, area: Rect) {
 
 fn spaced(s: &str) -> String {
     s.chars().map(|c| c.to_string()).collect::<Vec<_>>().join(" ")
+}
+
+// ---- system design ------------------------------------------------------------
+
+fn draw_quiz(f: &mut Frame, app: &App, area: Rect) {
+    let Screen::Quiz(ws) = &app.screen else { return };
+    let t = &app.theme;
+    let Some(ch) = app.lib.challenge(&ws.key) else { return };
+    let left_w = (area.width * 34 / 100).clamp(26, 56);
+    let [left, right] = Layout::horizontal([Constraint::Length(left_w), Constraint::Min(30)]).areas(area);
+    let diagram_h = (right.height * 11 / 20).max(10);
+    let [scene, panel] = Layout::vertical([Constraint::Length(diagram_h), Constraint::Min(6)]).areas(right);
+
+    // scenario
+    let stage = if ch.meta.stage == Stage::Watch { t.labels.watch } else { t.labels.quiz };
+    let w = left.width.saturating_sub(2) as usize;
+    let mut lines = vec![
+        Line::from(Span::styled(ch.meta.title.clone(), t.bold(t.title))),
+        Line::from(vec![
+            Span::styled(format!("{stage}  "), t.accent()),
+            Span::styled(format!("{} {}", ch.meta.xp, t.labels.xp), t.dim()),
+        ]),
+        Line::from(""),
+    ];
+    for l in wrap(ch.meta.statement.trim(), w) {
+        lines.push(Line::from(Span::styled(l, t.text())));
+    }
+    f.render_widget(
+        Paragraph::new(lines).scroll((ws.problem_scroll, 0)).block(block(t, t.labels.problem, false)),
+        left,
+    );
+
+    // animated diagram
+    let tl = &ws.timeline;
+    let mut bottom = Vec::new();
+    if !ws.playing.is_empty() {
+        let play_state = if tl.playing { "playing" } else { "paused" };
+        let current = (tl.pos / diagram::FRAMES_PER_STEP) + 1;
+        bottom.push(Span::styled(
+            format!(" {play_state}  step {current}/{}  space  <- ->  [ ] ", ws.playing.len()),
+            t.dim(),
+        ));
+    }
+    let b = block(t, t.labels.trace, false).title_bottom(Line::from(bottom));
+    let inner = b.inner(scene);
+    f.render_widget(b, scene);
+    if let Some(d) = &ch.meta.diagram {
+        let step = ws.step();
+        diagram::render(d, step.map(|s| s.0), step.map_or(0, |s| s.1), t, inner, f.buffer_mut());
+    }
+
+    // question panel
+    let w = panel.width.saturating_sub(2) as usize;
+    let total = ch.meta.questions.len();
+    let title = if ws.phase == QuizPhase::Done || total == 0 {
+        t.labels.output.to_string()
+    } else {
+        format!("question {}/{total}", ws.q + 1)
+    };
+    let lines = quiz_panel_lines(app, ws, ch, w);
+    let choice = ch.meta.questions.get(ws.q).is_some_and(crate::content::Question::is_choice);
+    let keys = match ws.phase {
+        QuizPhase::Answering if choice => "up/down or a-d choose   enter answer   h hint   q back",
+        QuizPhase::Answering => "type a number (12k, 1.5M)   enter answer   h hint   q back",
+        QuizPhase::Wrong => "enter try again   q back",
+        QuizPhase::Correct | QuizPhase::Revealed => "enter next   space replay   q back",
+        QuizPhase::Done if total == 0 => "space play   g replay   n next   q back",
+        QuizPhase::Done => "n next   r retry   q back",
+    };
+    // keep the newest lines in view
+    let skip = lines.len().saturating_sub(panel.height.saturating_sub(2) as usize);
+    let b = block(t, &title, true).title_bottom(Line::from(Span::styled(format!(" {keys} "), t.dim())));
+    f.render_widget(Paragraph::new(lines).scroll((skip as u16, 0)).block(b), panel);
+}
+
+/// The question, choices or number input, hint and feedback for the quiz panel.
+fn quiz_panel_lines(app: &App, ws: &QuizWs, ch: &Challenge, w: usize) -> Vec<Line<'static>> {
+    let t = &app.theme;
+    let done = ws.phase == QuizPhase::Done;
+    let mut lines: Vec<Line> = Vec::new();
+    if let Some(q) = ch.meta.questions.get(ws.q).filter(|_| !done) {
+        for l in wrap(q.prompt.trim(), w) {
+            lines.push(Line::from(Span::styled(l, t.bold(t.fg))));
+        }
+        lines.push(Line::from(""));
+        let answered = matches!(ws.phase, QuizPhase::Correct | QuizPhase::Revealed);
+        if q.is_choice() {
+            for (i, c) in q.choices.iter().enumerate() {
+                let letter = (b'a' + i as u8) as char;
+                let style = if answered && q.is_answer(i) {
+                    t.bold(t.good)
+                } else if i == ws.selected && ws.phase == QuizPhase::Wrong {
+                    t.bold(t.bad)
+                } else if i == ws.selected {
+                    t.bold(t.accent)
+                } else {
+                    t.text()
+                };
+                let marker = if i == ws.selected { ">" } else { " " };
+                for (j, l) in wrap(&format!("{marker} {letter}) {c}"), w.saturating_sub(4)).into_iter().enumerate() {
+                    let l = if j == 0 { l } else { format!("     {l}") };
+                    lines.push(Line::from(Span::styled(l, style)));
+                }
+            }
+        } else {
+            let cursor = if ws.phase == QuizPhase::Answering && (app.ticks / 15).is_multiple_of(2) { "_" } else { " " };
+            lines.push(Line::from(vec![
+                Span::styled("answer  ", t.dim()),
+                Span::styled(format!("[ {}{cursor} ]", ws.input), t.bold(t.accent)),
+                Span::styled(format!("  {}", q.unit), t.dim()),
+            ]));
+        }
+        if ws.hint_shown.get(ws.q).copied().unwrap_or(false) && !q.hint.is_empty() {
+            lines.push(Line::from(""));
+            for l in wrap(&format!("{}: {}", t.labels.hint, q.hint), w) {
+                lines.push(Line::from(Span::styled(l, t.bold(t.warn))));
+            }
+        }
+        lines.push(Line::from(""));
+    }
+    for line in &ws.feedback {
+        if line.spans.len() > 1 {
+            lines.push(line.clone());
+            continue;
+        }
+        let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+        if text.chars().count() <= w {
+            lines.push(line.clone());
+            continue;
+        }
+        let style = line.spans.first().map(|s| s.style).unwrap_or_default();
+        for l in wrap(&text, w) {
+            lines.push(Line::from(Span::styled(l, style)));
+        }
+    }
+    lines
 }

@@ -1,5 +1,6 @@
 //! Renders trace frames: one block per declared view, plus op/return line, locals and call stack.
 
+pub mod diagram;
 mod graph;
 mod nodes;
 

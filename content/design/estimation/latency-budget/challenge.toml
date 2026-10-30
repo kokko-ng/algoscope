@@ -1,0 +1,73 @@
+id = "latency-budget"
+title = "Spend a latency budget"
+stage = "quiz"
+xp = 100
+statement = """
+Latency numbers to remember, as orders of magnitude:
+
+- Main memory reference: 100 ns
+- Round trip in the same data center: 0.5 ms
+- Disk seek: 10 ms
+- Round trip from California to Europe: 150 ms
+
+One request to an API server makes 5 database queries, one after the other. Each query takes 2 ms. Then it calls a pricing service 3 times. Each call has 0.5 ms of network time and 4 ms of work.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 0] },
+  { id = "api", label = "API server", at = [1, 0] },
+  { id = "db", label = "Database", at = [2, 0] },
+  { id = "pricing", label = "Pricing", at = [2, 1] },
+]
+links = [["client", "api"], ["api", "db"], ["api", "pricing"]]
+
+[[diagram.steps]]
+flow = ["client", "api", "db"]
+
+[[diagram.steps]]
+flow = ["api", "pricing"]
+
+[[questions]]
+prompt = "Which operation takes the longest?"
+choices = [
+  "A main memory reference",
+  "A round trip inside one data center",
+  "A disk seek",
+  "A packet round trip from California to Europe",
+]
+answer = 4
+explanation = "The round trip between continents is about 150 ms. That is 15 times a disk seek and 300 times a round trip in a data center. The speed of light sets this limit, so only moving data closer to users (a CDN or a nearby region) decreases it."
+
+[[questions]]
+prompt = "What is the latency of the request when every step runs one after the other?"
+answer = 23.5
+tolerance = 0.1
+unit = "ms"
+hint = "Add the 5 queries, then add 3 x (network + work) for the pricing calls."
+explanation = "Queries: 5 x 2 ms = 10 ms. Pricing calls: 3 x (0.5 + 4) ms = 13.5 ms. Total: 23.5 ms. Sequential steps add up."
+
+[[questions.steps]]
+flow = ["api", "db"]
+packets = 5
+labels = { db = "5 x 2 ms" }
+caption = "Each query waits for the previous one: 10 ms."
+
+[[questions.steps]]
+flow = ["api", "pricing"]
+packets = 3
+labels = { pricing = "3 x 4.5 ms" }
+caption = "Each pricing call waits for the previous one: 13.5 ms."
+
+[[questions]]
+prompt = "The 3 pricing calls do not depend on each other. If they run in parallel, what is the new latency?"
+choices = ["4.5 ms", "10 ms", "14.5 ms", "23.5 ms"]
+answer = 3
+explanation = "The queries still take 10 ms. The parallel calls take as long as the slowest call: 4.5 ms. Total: 14.5 ms. Parallel work costs the maximum of its parts, not the sum."
+
+[[questions.steps]]
+flow = ["api", "pricing"]
+packets = 1
+highlight = ["pricing"]
+labels = { pricing = "max = 4.5 ms" }
+caption = "Three calls in parallel finish when the slowest one finishes."

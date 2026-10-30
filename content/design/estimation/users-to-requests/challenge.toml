@@ -1,0 +1,49 @@
+id = "users-to-requests"
+title = "From users to requests per second"
+stage = "watch"
+xp = 40
+statement = """
+A design starts with numbers. Watch how daily users become requests per second, and how requests become storage.
+
+Remember two shortcuts. A day has 86,400 seconds, which is about 100,000. The busiest hour usually has about two times the average traffic.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 0] },
+  { id = "app", label = "App servers", at = [1, 0] },
+  { id = "db", label = "Database", at = [2, 0] },
+  { id = "blobs", label = "Object storage", at = [2, 1] },
+]
+links = [["users", "app"], ["app", "db"], ["app", "blobs"]]
+
+[[diagram.steps]]
+highlight = ["users"]
+labels = { users = "10M daily users" }
+caption = "Start with the users: 10 million people use the service each day."
+
+[[diagram.steps]]
+flow = ["users", "app"]
+packets = 3
+labels = { users = "x 20 reads each", app = "200M reads/day" }
+caption = "Each user reads 20 times a day, so the service gets 200 million reads each day."
+
+[[diagram.steps]]
+flow = ["users", "app"]
+packets = 3
+highlight = ["app"]
+labels = { app = "~2,300 per second" }
+caption = "Divide by the seconds in a day: 200,000,000 / 86,400 is about 2,300 requests per second."
+
+[[diagram.steps]]
+flow = ["users", "app"]
+packets = 5
+highlight = ["app"]
+labels = { app = "peak ~4,600/s" }
+caption = "Design for the peak, not the average. At two times the average, the peak is about 4,600 requests per second."
+
+[[diagram.steps]]
+flow = ["app", "blobs"]
+highlight = ["blobs"]
+labels = { blobs = "1M x 2 MB = 2 TB/day" }
+caption = "Storage grows with writes: 1 million uploads of 2 MB each add 2 TB each day."

@@ -24,7 +24,7 @@ ignore = [
 # Starters are scaffolding: imports the learner will need and placeholder variables they will fill in.
 "content/**/starter.py" = ["F401", "RET504"]
 # The nested if mirrors the walkthrough captions, which are pinned to line numbers.
-"content/stacks-queues/brackets-walkthrough/reference.py" = ["SIM102"]
+"content/dsa/stacks-queues/brackets-walkthrough/reference.py" = ["SIM102"]
 # The harness passes arbitrary learner values around; `Any` is the honest type for them.
 "harness/*.py" = ["ANN401"]
 "harness/tests/**" = ["S101", "S603", "PLR2004", "D103", "ANN001", "ANN201", "PLC0415"]

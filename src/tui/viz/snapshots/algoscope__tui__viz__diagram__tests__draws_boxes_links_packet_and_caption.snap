@@ -1,0 +1,18 @@
+---
+source: src/tui/viz/diagram.rs
+expression: text
+---
+      ┌────────┐        ┌───────────────┐          ┌─────┐
+      │ Client │────────│ Load balancer │─●────────│ App │
+      └────────┘        └───────────────┘          └─────┘
+                                                       │
+                                                       │
+                                                       │
+                                                 ┌──────────┐
+                                                 │ Database │
+                                                 └──────────┘
+                                                    1 write
+
+
+
+ The request goes through the load balancer to one app server.

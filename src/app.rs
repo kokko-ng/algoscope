@@ -6,7 +6,8 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
-use crate::content::{Challenge, Library, Stage};
+use crate::app_quiz::QuizWs;
+use crate::content::{Challenge, Library, Stage, Track};
 use crate::progress::{KeymapKind, Progress, Settings, Store, ThemeKind, TopicState};
 use crate::runner::trace::{ScoreResult, Timeline, VisualResult};
 use crate::runner::{Done, Mode, Outcome, Worker};
@@ -40,6 +41,7 @@ pub struct Workspace {
 pub enum Screen {
     Home,
     Work(Box<Workspace>),
+    Quiz(Box<QuizWs>),
 }
 
 pub struct Celebration {
@@ -56,6 +58,8 @@ pub struct App {
     pub theme: Theme,
     pub worker: Worker,
     pub screen: Screen,
+    /// The curriculum shown on the home screen.
+    pub track: Track,
     pub topic_idx: usize,
     pub chal_idx: usize,
     pub home_focus_challenges: bool,
@@ -81,6 +85,7 @@ impl App {
             theme,
             worker: Worker::spawn(),
             screen: Screen::Home,
+            track: Track::Dsa,
             topic_idx: 0,
             chal_idx: 0,
             home_focus_challenges: false,
@@ -98,8 +103,29 @@ impl App {
             && let Some(i) = app.lib.topics.iter().position(|t| t.meta.id == topic)
         {
             app.topic_idx = i;
+            app.track = app.lib.topics[i].meta.track;
         }
         app
+    }
+
+    /// Show a track on the home screen, selecting its first topic unless one of its topics is already selected.
+    pub fn set_track(&mut self, track: Track) {
+        let in_track = self.lib.topics.get(self.topic_idx).is_some_and(|t| t.meta.track == track);
+        self.track = track;
+        if !in_track {
+            self.topic_idx = self.lib.tree_order(track).first().map_or(0, |(i, _)| *i);
+        }
+        self.chal_idx = 0;
+        self.home_focus_challenges = false;
+    }
+
+    /// Key of the challenge on screen, if any.
+    pub fn current_key(&self) -> Option<&str> {
+        match &self.screen {
+            Screen::Work(ws) => Some(&ws.key),
+            Screen::Quiz(q) => Some(&q.key),
+            Screen::Home => None,
+        }
     }
 
     pub fn toast(&mut self, msg: impl Into<String>) {
@@ -154,10 +180,7 @@ impl App {
     }
 
     pub fn current_challenge(&self) -> Option<&Challenge> {
-        match &self.screen {
-            Screen::Work(ws) => self.lib.challenge(&ws.key),
-            Screen::Home => None,
-        }
+        self.current_key().and_then(|k| self.lib.challenge(k))
     }
 
     // ---- opening challenges -------------------------------------------
@@ -165,6 +188,10 @@ impl App {
     pub fn open(&mut self, key: &str) {
         let Some(ch) = self.lib.challenge(key).cloned() else { return };
         self.close_workspace();
+        if self.lib.topic(&ch.topic).is_some_and(|t| t.meta.track == Track::Design) {
+            self.open_quiz(&ch);
+            return;
+        }
         let watch = ch.meta.stage == Stage::Watch;
         let text = if watch {
             ch.reference.clone()
@@ -215,20 +242,18 @@ impl App {
     }
 
     pub fn go_home(&mut self) {
-        if let Screen::Work(ws) = &self.screen {
-            let key = ws.key.clone();
-            if let Some((topic, id)) = key.split_once('/')
-                && let Some(ti) = self.lib.topics.iter().position(|t| t.meta.id == topic)
-            {
-                self.topic_idx = ti;
-                self.chal_idx = self.lib.topics[ti].challenges.iter().position(|c| c.meta.id == id).unwrap_or(0);
-            }
+        if let Some(key) = self.current_key().map(str::to_owned)
+            && let Some((topic, id)) = key.split_once('/')
+            && let Some(ti) = self.lib.topics.iter().position(|t| t.meta.id == topic)
+        {
+            self.topic_idx = ti;
+            self.chal_idx = self.lib.topics[ti].challenges.iter().position(|c| c.meta.id == id).unwrap_or(0);
         }
         self.close_workspace();
         self.screen = Screen::Home;
     }
 
-    fn open_next(&mut self) {
+    pub(crate) fn open_next(&mut self) {
         let Some(ch) = self.current_challenge() else { return };
         let topic = self.lib.topic(&ch.topic).cloned();
         let id = ch.meta.id.clone();
@@ -335,7 +360,7 @@ impl App {
                     ws.report = Some(report.clone());
                     let key = ws.key.clone();
                     if base_ok {
-                        self.finish_challenge(&key, Some(&report), lines);
+                        self.finish_challenge(&key, Some(report.grade), Some(report.ratio), lines);
                         return;
                     }
                 }
@@ -348,14 +373,19 @@ impl App {
     }
 
     /// Record completion, award XP and celebrate.
-    fn finish_challenge(&mut self, key: &str, report: Option<&Report>, mut lines: Vec<Line<'static>>) {
+    pub(crate) fn finish_challenge(
+        &mut self,
+        key: &str,
+        grade: Option<Grade>,
+        ratio: Option<f64>,
+        mut lines: Vec<Line<'static>>,
+    ) {
         let Some(ch) = self.lib.challenge(key) else { return };
         let base = ch.meta.xp;
         let hints = self.progress.get(key).hints_used;
-        let grade = report.map(|r| r.grade);
         let earned = scoring::award(base, grade, hints);
         let level_before = scoring::level(self.progress.xp);
-        let delta = self.progress.complete(key, earned, grade, report.map(|r| r.ratio));
+        let delta = self.progress.complete(key, earned, grade, ratio);
         let level_after = scoring::level(self.progress.xp);
         let t = &self.theme;
         let xp = t.labels.xp;
@@ -368,7 +398,8 @@ impl App {
         if t.celebrate && delta > 0 {
             let mut body = vec![format!("+{delta} {xp}")];
             if let Some(g) = grade {
-                body.insert(0, format!("{} efficiency", g.medal()));
+                let what = if ch.meta.stage == Stage::Quiz { "accuracy" } else { "efficiency" };
+                body.insert(0, format!("{} {what}", g.medal()));
             }
             let title = if level_after > level_before {
                 body.push(format!("LEVEL {level_after} REACHED"));
@@ -378,14 +409,17 @@ impl App {
                     Stage::Watch => "LORE LEARNED".into(),
                     Stage::Build => "FORGED".into(),
                     Stage::Apply => "TRIAL CLEARED".into(),
+                    Stage::Quiz => "RIDDLE SOLVED".into(),
                 }
             };
             self.celebration = Some(Celebration { title, lines: body, started: Instant::now() });
         } else if level_after > level_before {
             self.toast(format!("version bump: {}", version_string(self.progress.xp)));
         }
-        if let Screen::Work(ws) = &mut self.screen {
-            ws.log.extend(lines);
+        match &mut self.screen {
+            Screen::Work(ws) => ws.log.extend(lines),
+            Screen::Quiz(q) => q.feedback.extend(lines),
+            Screen::Home => {}
         }
         self.save();
     }
@@ -422,8 +456,9 @@ impl App {
             }
         }
         if let Some(key) = finished_watch {
-            self.finish_challenge(&key, None, Vec::new());
+            self.finish_challenge(&key, None, None, Vec::new());
         }
+        self.quiz_tick(elapsed);
     }
 
     // ---- input ----------------------------------------------------------
@@ -464,6 +499,7 @@ impl App {
         match self.screen {
             Screen::Home => self.home_key(key),
             Screen::Work(_) => self.work_key(key),
+            Screen::Quiz(_) => self.quiz_key(key),
         }
     }
 
@@ -485,6 +521,8 @@ impl App {
             KeyCode::Char('?') => self.help = true,
             KeyCode::Char('t') => self.toggle_theme(),
             KeyCode::Char('v') => self.toggle_keymap(),
+            KeyCode::Char('1') => self.set_track(Track::Dsa),
+            KeyCode::Char('2') => self.set_track(Track::Design),
             KeyCode::Up | KeyCode::Char('k') => {
                 if self.home_focus_challenges {
                     self.chal_idx = self.chal_idx.saturating_sub(1);
@@ -511,7 +549,8 @@ impl App {
                         .filter_map(|p| self.lib.topic(p))
                         .map(|t| t.meta.title.clone())
                         .collect();
-                    self.toast(format!("{}: finish the build stage of {}", self.theme.labels.locked, needs.join(", ")));
+                    let gate = if topic.meta.track == Track::Design { "first quiz" } else { "build stage" };
+                    self.toast(format!("{}: finish the {gate} of {}", self.theme.labels.locked, needs.join(", ")));
                     return;
                 }
                 let topic = &self.lib.topics[self.topic_idx];
@@ -530,7 +569,7 @@ impl App {
 
     /// Move the topic selection up or down the tree as drawn.
     fn move_topic(&mut self, delta: i64) {
-        let order: Vec<usize> = self.lib.tree_order().into_iter().map(|(i, _)| i).collect();
+        let order: Vec<usize> = self.lib.tree_order(self.track).into_iter().map(|(i, _)| i).collect();
         let pos = order.iter().position(|i| *i == self.topic_idx).unwrap_or(0) as i64;
         let next = (pos + delta).clamp(0, order.len().saturating_sub(1) as i64) as usize;
         if let Some(i) = order.get(next) {

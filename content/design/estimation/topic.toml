@@ -1,0 +1,7 @@
+id = "estimation"
+title = "Back-of-the-envelope estimation"
+zone = "The Counting House"
+summary = "Turn users into requests per second, bytes into storage and steps into latency. Every later design choice depends on these numbers, so you calculate them first."
+prereqs = []
+order = 1
+challenges = ["users-to-requests", "photo-service", "latency-budget"]

@@ -5,7 +5,7 @@ use std::thread;
 
 use anyhow::{Result, bail};
 
-use crate::content::{Challenge, Library, Stage};
+use crate::content::{Challenge, DiagramStep, Library, Stage, Track};
 use crate::runner::{self, Mode, Outcome};
 use crate::scoring::{self, Grade};
 
@@ -24,6 +24,75 @@ pub fn expected_slope(decl: &str) -> Option<(f64, f64)> {
         "o(2^n)" | "o(n2^n)" | "o(n·2^n)" | "o(n*2^n)" | "o(n!)" | "o(n·n!)" => (2.5, 100.0),
         _ => return None,
     })
+}
+
+/// Static checks for a system design challenge: answers, tolerances, diagram references and explanations.
+pub fn check_design(ch: &Challenge) -> Vec<String> {
+    let mut problems = Vec::new();
+    let m = &ch.meta;
+    let nodes: Vec<&str> = m.diagram.iter().flat_map(|d| d.nodes.iter().map(|n| n.id.as_str())).collect();
+    let check_steps = |steps: &[DiagramStep], at: &str, problems: &mut Vec<String>| {
+        for (i, s) in steps.iter().enumerate() {
+            for id in s.flow.iter().chain(&s.highlight).chain(&s.down).chain(s.labels.keys()) {
+                if !nodes.contains(&id.as_str()) {
+                    problems.push(format!("{at} step {}: unknown node `{id}`", i + 1));
+                }
+            }
+            if s.flow.len() == 1 {
+                problems.push(format!("{at} step {}: a flow needs at least two nodes", i + 1));
+            }
+        }
+    };
+    if let Some(d) = &m.diagram {
+        for [a, b] in &d.links {
+            for id in [a, b] {
+                if !nodes.contains(&id.as_str()) {
+                    problems.push(format!("diagram link uses unknown node `{id}`"));
+                }
+            }
+        }
+        check_steps(&d.steps, "diagram", &mut problems);
+    } else {
+        problems.push("no [diagram]".into());
+    }
+    match m.stage {
+        Stage::Watch => {
+            if m.diagram.as_ref().is_none_or(|d| d.steps.len() < 3) {
+                problems.push("a walkthrough needs at least 3 diagram steps".into());
+            }
+            if m.diagram.as_ref().is_some_and(|d| d.steps.iter().any(|s| s.caption.trim().is_empty())) {
+                problems.push("every walkthrough step needs a caption".into());
+            }
+            if !m.questions.is_empty() {
+                problems.push("a walkthrough has no questions".into());
+            }
+        }
+        Stage::Quiz => {
+            if !(2..=6).contains(&m.questions.len()) {
+                problems.push(format!("expected 2-6 questions, found {}", m.questions.len()));
+            }
+            for (i, q) in m.questions.iter().enumerate() {
+                let at = format!("question {}", i + 1);
+                if q.is_choice() {
+                    let n = q.choices.len() as f64;
+                    if q.answer.fract() != 0.0 || q.answer < 1.0 || q.answer > n {
+                        problems.push(format!("{at}: answer {} is not a choice number from 1 to {n}", q.answer));
+                    }
+                    if q.choices.len() < 2 {
+                        problems.push(format!("{at}: needs at least two choices"));
+                    }
+                } else if !(q.tolerance > 0.0 && q.tolerance <= 1.0) {
+                    problems.push(format!("{at}: tolerance {} must be in (0, 1]", q.tolerance));
+                }
+                if q.explanation.trim().is_empty() {
+                    problems.push(format!("{at}: no explanation"));
+                }
+                check_steps(&q.steps, &at, &mut problems);
+            }
+        }
+        other => problems.push(format!("stage {other:?} is not used in system design")),
+    }
+    problems
 }
 
 fn check_one(ch: &Challenge) -> Vec<String> {
@@ -126,6 +195,14 @@ pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
     let mut order_problems = Vec::new();
     for t in &lib.topics {
         let stages: Vec<Stage> = t.challenges.iter().map(|c| c.meta.stage).collect();
+        if t.meta.track == Track::Design {
+            let quizzes = stages.iter().filter(|s| **s == Stage::Quiz).count();
+            if stages.first() != Some(&Stage::Watch) || quizzes != stages.len() - 1 || !(2..=4).contains(&quizzes) {
+                order_problems
+                    .push(format!("topic {}: expected one watch, then 2-4 quizzes; got {:?}", t.meta.id, stages));
+            }
+            continue;
+        }
         let watch = stages.iter().filter(|s| **s == Stage::Watch).count();
         let build = stages.iter().filter(|s| **s == Stage::Build).count();
         let apply = stages.iter().filter(|s| **s == Stage::Apply).count();
@@ -150,7 +227,8 @@ pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
                 loop {
                     let next = queue.lock().unwrap().pop();
                     let Some((i, ch)) = next else { break };
-                    let problems = check_one(ch);
+                    let design = lib.topic(&ch.topic).is_some_and(|t| t.meta.track == Track::Design);
+                    let problems = if design { check_design(ch) } else { check_one(ch) };
                     let status = if problems.is_empty() { "ok  " } else { "FAIL" };
                     println!("{status} {}", ch.key());
                     results.lock().unwrap()[i] = problems;

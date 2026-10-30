@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::content::{Library, Stage, Topic};
+use crate::content::{Challenge, Library, Stage, Topic};
 use crate::scoring::Grade;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -100,8 +100,18 @@ impl Progress {
         self.challenges.entry(key.to_string()).or_default().hints_used += 1;
     }
 
+    /// Whether a topic's gate is done: its build stages, or, for a topic without any (system design), its first
+    /// challenge after the walkthrough.
     fn builds_done(&self, topic: &Topic) -> bool {
-        topic.challenges.iter().filter(|c| c.meta.stage == Stage::Build).all(|c| self.is_done(&c.key()))
+        let builds: Vec<&Challenge> = topic.challenges.iter().filter(|c| c.meta.stage == Stage::Build).collect();
+        if builds.is_empty() {
+            return topic
+                .challenges
+                .iter()
+                .find(|c| c.meta.stage != Stage::Watch)
+                .is_none_or(|c| self.is_done(&c.key()));
+        }
+        builds.iter().all(|c| self.is_done(&c.key()))
     }
 
     pub fn topic_state(&self, lib: &Library, topic: &Topic) -> TopicState {
@@ -135,7 +145,7 @@ impl Progress {
             .iter()
             .find(|c| !self.is_done(&c.key()))
             .or_else(|| topic.challenges.first())
-            .map(super::content::Challenge::key)
+            .map(Challenge::key)
     }
 }
 
@@ -251,6 +261,16 @@ mod tests {
             p.complete(&c.key(), 20, (c.meta.stage != Stage::Watch).then_some(Grade::Silver), None);
         }
         assert_eq!(p.topic_state(&lib, foundations), TopicState::Mastered);
+        // a system design topic unlocks once the first quiz of its prerequisite is done
+        let estimation = lib.topic("estimation").unwrap();
+        let first_quiz = estimation.challenges.iter().find(|c| c.meta.stage == Stage::Quiz).unwrap();
+        if let Some(next) =
+            lib.track_topics(crate::content::Track::Design).find(|t| t.meta.prereqs.contains(&"estimation".to_string()))
+        {
+            assert_eq!(p.topic_state(&lib, next), TopicState::Locked);
+            p.complete(&first_quiz.key(), 10, Some(Grade::Bronze), None);
+            assert_eq!(p.topic_state(&lib, next), TopicState::Open);
+        }
         // a topic with two prerequisites needs both
         let trees = lib.topic("trees").unwrap();
         assert_eq!(p.topic_state(&lib, trees), TopicState::Locked);
