@@ -1,0 +1,23 @@
+id = "pair-sum"
+title = "Pair sum in a sorted array"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+statement = """
+nums is sorted in ascending order. Return [i, j] with i < j and nums[i] + nums[j] == target, or [-1, -1] when no pair exists.
+
+A nested loop works but checks every pair. Use the ordering instead.
+"""
+hints = [
+  "Start one index at each end. If the sum is too small, which index can only help by moving?",
+  "Every step discards one element for good, so the loop runs at most n - 1 times.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["left", "right", "i", "j"]
+
+[[view]]
+var = "total"
+as = "value"
