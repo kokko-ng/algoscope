@@ -149,13 +149,17 @@ pub fn check_design(ch: &Challenge) -> Vec<String> {
     problems
 }
 
+/// Time limit for one alternative's full suite.
+const ALTERNATIVE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(240);
+
 /// Print every alternative's measured outcome, not only the failures.
 static VERBOSE: AtomicBool = AtomicBool::new(false);
 
 /// Run an alternative solution and compare its outcome with the one it declares. Returns the problems and
 /// a one-line note of what it measured.
 fn check_alternative(ch: &Challenge, alt: &Alternative) -> (Vec<String>, String) {
-    let outcome = match runner::run(ch, Mode::Score, &alt.code) {
+    // slow alternatives run until their step budget; on a busy CI runner that takes longer than a learner waits
+    let outcome = match runner::run_with(ch, Mode::Score, &alt.code, &runner::python(), ALTERNATIVE_TIMEOUT) {
         Ok(Outcome::Score(s)) => s,
         Ok(_) => return (vec![format!("{}: wrong outcome kind", alt.name)], String::new()),
         Err(e) => {
