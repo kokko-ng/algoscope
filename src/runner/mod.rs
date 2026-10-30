@@ -39,7 +39,7 @@ impl Mode {
     fn timeout(self) -> Duration {
         match self {
             Mode::Visual => Duration::from_secs(8),
-            Mode::Score => Duration::from_secs(40),
+            Mode::Score => Duration::from_secs(30),
         }
     }
 }

@@ -471,6 +471,12 @@ impl App {
     }
 
     fn home_key(&mut self, key: KeyEvent) {
+        if key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) {
+            if key.code == KeyCode::Char('q') {
+                self.quit_app();
+            }
+            return;
+        }
         let n_topics = self.lib.topics.len();
         let n_ch = self.lib.topics.get(self.topic_idx).map_or(0, |t| t.challenges.len());
         match key.code {

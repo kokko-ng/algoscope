@@ -229,6 +229,17 @@ def run_visual(cfg, run_dir, out):
         out["passed"] = compare(cases_mod, case, got, expected)
 
 
+def run_limited(runner, filename, case, limit):
+    """Run one case with a step budget so runaway loops stop quickly. Raises traced.StepLimit."""
+    meter = traced.Meter(limit)
+    counter = tracer.Counter(filename, meter)
+    sys.settrace(counter.global_trace)
+    try:
+        return runner.run(case)
+    finally:
+        sys.settrace(None)
+
+
 def measure(cfg, runner, filename, case, limit):
     """Run one case under the step counter. Returns (steps, hit_limit)."""
     meter = traced.Meter(limit)
@@ -279,7 +290,14 @@ def run_score(cfg, run_dir, out):
         for case in suite:
             expected = ref.run(copy.deepcopy(case))
             try:
-                got = sol.run(copy.deepcopy(case))
+                got = run_limited(sol, sol_path, copy.deepcopy(case), cfg.get("case_step_limit", 3_000_000))
+            except traced.StepLimit:
+                out["error"] = {
+                    "text": "a test case ran for over 3,000,000 steps: look for an infinite loop",
+                    "line": None,
+                    "input": args_text(case),
+                }
+                break
             except Exception as exc:
                 out["error"] = user_traceback(exc, sol_path)
                 out["error"]["input"] = args_text(case)

@@ -152,3 +152,12 @@ def test_encoder_tags(value, kind):
 
     enc = tracer.Encoder().encode(value, {})
     assert enc["k"] == kind
+
+
+def test_infinite_loop_in_suite_is_reported_quickly(tmp_path):
+    import time
+
+    start = time.monotonic()
+    out = run(tmp_path, "def solve(nums):\n    while True:\n        pass\n", "score", case_step_limit=50000)
+    assert "infinite loop" in out["error"]["text"]
+    assert time.monotonic() - start < 10
