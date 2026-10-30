@@ -17,9 +17,10 @@ It is built for focused 20-30 minute sessions. Every topic goes through three st
 2. **Build.** Implement the structure or algorithm yourself.
 3. **Apply.** Use it on two or three problems.
 
-Topics unlock along a dependency tree, from arrays and two pointers through hashing, sorting, linked
-lists, trees, heaps, tries, graphs and dynamic programming. Correct solutions earn points scaled by
-an efficiency grade.
+Its 21 topics unlock along a dependency tree, from arrays and two pointers through hashing, sorting,
+linked lists, trees, heaps, tries, graphs and dynamic programming, to balanced trees, range queries,
+bit manipulation, string matching and a route-planner capstone. Correct solutions earn points scaled
+by an efficiency grade.
 
 ### System design
 
@@ -30,9 +31,10 @@ numbers and ask for estimates or choices. You type answers like `12k` or `1.5M`;
 accepted within a stated tolerance. Each answer reveals a worked explanation with its own animation.
 Grades come from first-try accuracy.
 
-The 13 topics run from back-of-the-envelope estimation through caching, replication, sharding,
-quorums, queues, resilience and availability, to case studies of a URL shortener, a news feed and a
-chat service.
+Its 18 topics run from back-of-the-envelope estimation through caching, replication, sharding,
+quorums, queues, resilience, availability and observability, to case studies of a URL shortener, a
+news feed, a chat service, a rate limiter, a distributed cache, typeahead search, video streaming and
+a payments ledger.
 
 ### Themes
 

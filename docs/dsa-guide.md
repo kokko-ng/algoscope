@@ -35,7 +35,12 @@ If you change a sample, run the test again.
 14. [Graphs](#graphs)
 15. [Dynamic programming](#dynamic-programming)
 16. [Greedy algorithms and intervals](#greedy-algorithms-and-intervals)
-17. [How to select a data structure](#how-to-select-a-data-structure)
+17. [Balanced trees](#balanced-trees)
+18. [Range queries](#range-queries)
+19. [Bit manipulation](#bit-manipulation)
+20. [String matching](#string-matching)
+21. [Capstone: route planning on a grid](#capstone-route-planning-on-a-grid)
+22. [How to select a data structure](#how-to-select-a-data-structure)
 
 ## How to measure cost
 
@@ -846,7 +851,7 @@ Each comparison removes one subtree from the search.
 | In-order traversal | O(n) | O(n) |
 
 NOTE: If you add sorted values to a plain BST, the tree becomes a chain. The cost becomes O(n).
-Self-balancing trees (for example, AVL trees) prevent this.
+Self-balancing trees (for example, AVL trees) prevent this. See [Balanced trees](#balanced-trees).
 
 ### Traversals
 
@@ -1409,6 +1414,823 @@ def rooms_needed(meetings):
 assert rooms_needed([[0, 30], [5, 10], [15, 20]]) == 2
 ```
 
+## Balanced trees
+
+A BST is fast only when its height is small.
+The order of the inserts sets the height of a plain BST.
+A balanced tree changes its shape after each insert, so that its height stays at O(log n).
+
+### Why sorted inserts break a plain BST
+
+If you add the values 1, 2, 3 and so on, each new value is larger than all the values in the tree.
+Thus, each new node goes to the right of the last node, and the tree becomes a chain.
+A chain of n nodes has a height of n. Each search has a cost of O(n), as in a linked list.
+Sorted input is common, for example IDs and timestamps that increase.
+
+### Height and balance factor
+
+The height of a node is the number of levels in its subtree. An empty subtree has a height of 0.
+The balance factor of a node is the height of its left subtree minus the height of its right subtree.
+An AVL tree keeps the balance factor of each node at -1, 0 or 1.
+This rule keeps the height of the tree at less than about 1.44 log2 n.
+
+Each node keeps its own height.
+Thus, the tree calculates a balance factor in O(1), without a walk through the subtrees.
+
+### AVL rotations
+
+A rotation changes the shape of a subtree, but the in-order sequence of the values does not change.
+A rotation changes only three references, so its cost is O(1).
+
+To do a right rotation at node X, do these steps:
+
+1. Let P be the left child of X. P becomes the new root of the subtree.
+2. Move the right subtree of P to the left side of X.
+3. Make X the right child of P.
+4. Update the height of X. Then update the height of P.
+
+A left rotation is the mirror image. Change "left" to "right" and "right" to "left" in each step.
+
+An insert can make the balance factor of a node 2 or -2.
+The table shows the four cases and their rotations.
+
+| Case | Balance factor of the node | Balance factor of the child on the heavy side | Fix |
+|---|---|---|---|
+| Left-left | 2 | 0 or more (left child) | One right rotation at the node |
+| Right-right | -2 | 0 or less (right child) | One left rotation at the node |
+| Left-right | 2 | Less than 0 (left child) | A left rotation at the left child, then a right rotation at the node |
+| Right-left | -2 | More than 0 (right child) | A right rotation at the right child, then a left rotation at the node |
+
+To add a value to an AVL tree, do these steps:
+
+1. Add the value as in a plain BST.
+2. Go back up the path to the root. Update the height of each node.
+3. At each node, calculate the balance factor.
+4. If the factor is 2 or -2, find the case in the table. Do its rotations.
+5. Continue to the root.
+
+| Operation | Plain BST, worst case | AVL tree |
+|---|---|---|
+| Find, add, remove | O(n) | O(log n) |
+| One rotation | Not used | O(1) |
+| Height after n sorted inserts | n | Less than about 1.44 log2 n |
+
+The sample adds the values 1 to 1000 in order.
+The plain BST becomes a chain with a height of 1000. The AVL tree has a height of 10.
+
+```python
+import math
+
+
+class Node:
+    def __init__(self, val):
+        self.val = val
+        self.left = None
+        self.right = None
+        self.height = 1
+
+
+def height(node):
+    return node.height if node else 0
+
+
+def balance(node):
+    return height(node.left) - height(node.right)
+
+
+def update(node):
+    node.height = 1 + max(height(node.left), height(node.right))
+
+
+def rotate_right(node):
+    pivot = node.left
+    node.left = pivot.right
+    pivot.right = node
+    update(node)
+    update(pivot)
+    return pivot
+
+
+def rotate_left(node):
+    pivot = node.right
+    node.right = pivot.left
+    pivot.left = node
+    update(node)
+    update(pivot)
+    return pivot
+
+
+def insert(node, val):
+    if node is None:
+        return Node(val)
+    if val < node.val:
+        node.left = insert(node.left, val)
+    elif val > node.val:
+        node.right = insert(node.right, val)
+    else:
+        return node
+    update(node)
+    if balance(node) > 1:
+        if balance(node.left) < 0:
+            node.left = rotate_left(node.left)  # left-right case
+        return rotate_right(node)
+    if balance(node) < -1:
+        if balance(node.right) > 0:
+            node.right = rotate_right(node.right)  # right-left case
+        return rotate_left(node)
+    return node
+
+
+def build(values):
+    root = None
+    for value in values:
+        root = insert(root, value)
+    return root
+
+
+def inorder(node):
+    return inorder(node.left) + [node.val] + inorder(node.right) if node else []
+
+
+def is_balanced(node):
+    if node is None:
+        return True
+    return abs(balance(node)) <= 1 and is_balanced(node.left) and is_balanced(node.right)
+
+
+def plain_bst_height(values):
+    """Add values to a plain BST without rotations. Return its height."""
+    root, tallest = None, 0
+    for value in values:
+        depth, parent, node = 1, None, root
+        while node is not None:
+            parent, depth = node, depth + 1
+            node = node.left if value < node.val else node.right
+        child = Node(value)
+        if parent is None:
+            root = child
+        elif value < parent.val:
+            parent.left = child
+        else:
+            parent.right = child
+        tallest = max(tallest, depth)
+    return tallest
+
+
+# each of the four cases gives the same balanced tree, with 2 at the root
+for order in ([3, 2, 1], [1, 2, 3], [3, 1, 2], [1, 3, 2]):
+    root = build(order)
+    assert (root.val, root.left.val, root.right.val) == (2, 1, 3)
+    assert height(root) == 2
+
+values = list(range(1, 1001))
+assert plain_bst_height(values) == 1000  # sorted inserts make a chain
+root = build(values)
+assert inorder(root) == values
+assert is_balanced(root)
+assert height(root) == 10
+assert height(root) <= 1.44 * math.log2(len(values) + 2)
+
+import random
+
+shuffled = random.Random(5).sample(range(10_000), 10_000)
+root = build(shuffled)
+assert is_balanced(root)
+assert height(root) <= 1.44 * math.log2(10_000 + 2)
+```
+
+NOTE: After one insert, one rotation or one double rotation is sufficient.
+A remove can need rotations at each node on the path, so it does up to O(log n) rotations.
+
+NOTE: Red-black trees use a weaker rule. Their height is at most 2 log2 (n + 1), and they do fewer rotations.
+Many libraries use them for sorted maps.
+
+CAUTION: The Python standard library has no balanced BST.
+The `bisect` module keeps a list sorted, but each insert moves items, so its cost is O(n).
+
+## Range queries
+
+A range query asks for one value over a range of indices.
+For example, it asks for the sum or the minimum of the items from index lo to index hi - 1.
+If the list does not change, a [prefix sum](#prefix-sums) array gives each range sum in O(1).
+But one change to an item then changes O(n) prefix sums.
+
+A Fenwick tree and a segment tree make a change and a query both O(log n).
+
+| Structure | Change one item | Range sum | Range minimum | Memory |
+|---|---|---|---|---|
+| Plain list | O(1) | O(n) | O(n) | O(n) |
+| Prefix sum array | O(n) | O(1) | Not supported | O(n) |
+| Fenwick tree | O(log n) | O(log n) | Not supported | O(n) |
+| Segment tree | O(log n) | O(log n) | O(log n) | O(n), about 2n slots |
+
+### Fenwick tree
+
+A Fenwick tree (binary indexed tree) keeps partial sums in a list. It uses indices from 1.
+The slot at index i holds the sum of a block of items that ends at item i.
+The length of that block is `i & -i`, the lowest set bit of i. See [Bit manipulation](#bit-manipulation).
+For example, slot 6 (binary 110) holds 2 items, and slot 8 (binary 1000) holds 8 items.
+
+To get the sum of the first i items, do these steps:
+
+1. Set the total to 0.
+2. Add the slot at index i to the total.
+3. Remove the lowest set bit from i: `i -= i & -i`.
+4. If i is more than 0, go back to step 2.
+
+To add a delta to item i, do these steps:
+
+1. Add the delta to the slot at index i.
+2. Go to the next slot that covers item i: `i += i & -i`.
+3. If i is not more than n, go back to step 1.
+
+Each loop runs at most about log2 n times.
+The sum of the items from lo to hi - 1 is `prefix_sum(hi) - prefix_sum(lo)`.
+
+CAUTION: A Fenwick tree needs an operation that you can undo, for example subtraction for sums.
+You cannot get the minimum of a range from two prefix minimums. For a range minimum, use a segment tree.
+
+### Segment tree
+
+A segment tree is a binary tree over the list. Each node holds the result for a range of items.
+The leaves are the items. In a range minimum tree, each parent holds the smaller value of its two children.
+The sample keeps the tree in a list from index 1. Node i has the children 2i and 2i + 1.
+The leaves are at the indices n to 2n - 1.
+
+To change one item, do these steps:
+
+1. Write the new value in its leaf.
+2. Move to the parent of the node.
+3. Set the parent to the minimum of its two children.
+4. Do steps 2 and 3 again until you reach the root.
+
+To find the minimum of the items from lo to hi - 1, do these steps:
+
+1. Put the two edges at the leaves for lo and hi.
+2. If the left edge is a right child, use its value. Then move the edge one node to the right.
+3. If the right edge is a right child, move it one node to the left. Use its value.
+4. Move both edges up to their parents.
+5. Stop when the edges meet. The result is the smallest value that you used.
+
+Each level adds at most two nodes, so a query reads at most about 2 log2 n nodes.
+A segment tree works for each associative operation, for example minimum, maximum, sum and greatest common divisor.
+
+```python
+import random
+
+
+class FenwickTree:
+    def __init__(self, size):
+        self.tree = [0] * (size + 1)  # index 0 is not used
+
+    def add(self, index, delta):
+        i = index + 1
+        while i < len(self.tree):
+            self.tree[i] += delta
+            i += i & -i  # go to the next node that covers index
+
+    def prefix_sum(self, count):
+        """Return the sum of the first count items."""
+        total, i = 0, count
+        while i > 0:
+            total += self.tree[i]
+            i -= i & -i  # remove the lowest set bit
+        return total
+
+    def range_sum(self, lo, hi):
+        """Return the sum of the items from index lo to index hi - 1."""
+        return self.prefix_sum(hi) - self.prefix_sum(lo)
+
+
+class MinSegmentTree:
+    def __init__(self, values):
+        self.size = len(values)
+        self.tree = [float("inf")] * self.size + list(values)
+        for node in range(self.size - 1, 0, -1):
+            self.tree[node] = min(self.tree[2 * node], self.tree[2 * node + 1])
+
+    def set(self, index, value):
+        node = index + self.size
+        self.tree[node] = value
+        while node > 1:
+            node //= 2
+            self.tree[node] = min(self.tree[2 * node], self.tree[2 * node + 1])
+
+    def range_min(self, lo, hi):
+        """Return the smallest item from index lo to index hi - 1."""
+        best = float("inf")
+        lo, hi = lo + self.size, hi + self.size
+        while lo < hi:
+            if lo & 1:
+                best = min(best, self.tree[lo])
+                lo += 1
+            if hi & 1:
+                hi -= 1
+                best = min(best, self.tree[hi])
+            lo //= 2
+            hi //= 2
+        return best
+
+
+assert [i & -i for i in range(1, 9)] == [1, 2, 1, 4, 1, 2, 1, 8]
+
+values = [5, 2, 8, 1, 9, 3]
+sums = FenwickTree(len(values))
+for index, value in enumerate(values):
+    sums.add(index, value)
+assert sums.prefix_sum(3) == 15
+assert sums.range_sum(2, 5) == 18
+sums.add(3, 10)  # values[3] becomes 11
+assert sums.range_sum(2, 5) == 28
+
+mins = MinSegmentTree(values)
+assert mins.range_min(0, 6) == 1
+assert mins.range_min(4, 6) == 3
+mins.set(3, 7)
+assert mins.range_min(0, 6) == 2
+assert mins.range_min(2, 5) == 7
+
+# compare both trees with direct calculation, after many random changes
+rng = random.Random(3)
+data = [rng.randint(-50, 50) for _ in range(37)]
+sums, mins = FenwickTree(len(data)), MinSegmentTree(data)
+for index, value in enumerate(data):
+    sums.add(index, value)
+for _ in range(500):
+    index, value = rng.randrange(len(data)), rng.randint(-50, 50)
+    sums.add(index, value - data[index])
+    mins.set(index, value)
+    data[index] = value
+    lo = rng.randrange(len(data))
+    hi = rng.randrange(lo + 1, len(data) + 1)
+    assert sums.range_sum(lo, hi) == sum(data[lo:hi])
+    assert mins.range_min(lo, hi) == min(data[lo:hi])
+```
+
+NOTE: A segment tree with "lazy propagation" can also add a value to a full range in O(log n).
+
+## Bit manipulation
+
+An integer is a sequence of bits. One bit operation changes many bits in one step.
+Use bit operations for sets of flags, for small sets of integers, and for some fast calculations.
+
+The operators are:
+
+- `a & b` (AND): a bit is 1 only if it is 1 in a and in b.
+- `a | b` (OR): a bit is 1 if it is 1 in a or in b.
+- `a ^ b` (XOR): a bit is 1 if the two bits are different.
+- `~a` (NOT): each bit changes. In Python, `~a` is equal to `-a - 1`.
+- `a << k` (left shift): the bits move k places to the left. This multiplies a by 2^k.
+- `a >> k` (right shift): the bits move k places to the right. This divides a by 2^k and rounds down.
+
+To work with bit k of n, use these expressions:
+
+- Set the bit: `n | (1 << k)`.
+- Clear the bit: `n & ~(1 << k)`.
+- Test the bit: `(n >> k) & 1`.
+- Change the bit to its opposite value: `n ^ (1 << k)`.
+
+| Operation | Cost |
+|---|---|
+| AND, OR, XOR, NOT or a shift on one machine word | O(1) |
+| Set, clear or test one bit | O(1) |
+| Count the set bits with `n & (n - 1)` | O(number of set bits) |
+| XOR of n numbers | O(n) |
+| Make all subsets of n items as bitmasks | O(n x 2^n) |
+
+NOTE: The costs are for numbers that fit in one machine word, for example 64 bits.
+Python integers have no fixed size. For a number with b bits, each operation has a cost of O(b / 64).
+
+### Remove the lowest set bit
+
+`n & (n - 1)` removes the lowest set bit of n.
+When you subtract 1, the lowest set bit becomes 0, and each 0 bit below it becomes 1.
+The AND then clears all of those bits.
+
+Two uses come from this operation:
+
+- A number n is a power of two when n is more than 0 and `n & (n - 1)` is 0.
+- To count the set bits, remove the lowest set bit until n is 0. Each loop removes one bit.
+
+`n & -n` keeps only the lowest set bit. The [Fenwick tree](#fenwick-tree) uses this value.
+
+### XOR tricks
+
+XOR has three useful properties:
+
+- `x ^ x` is 0.
+- `x ^ 0` is x.
+- The order does not change the result. Thus, `a ^ b ^ a` is b.
+
+In a list, each number occurs two times, except one number.
+To find the single number, XOR all the numbers. The pairs become 0, and only the single number stays.
+The cost is O(n), and the extra memory is O(1). A solution with a set uses O(n) memory.
+
+### Subsets as bitmasks
+
+A set of n items has 2^n subsets.
+Each integer from 0 to 2^n - 1 can show one subset: bit i is 1 when item i is in the subset.
+
+To make all subsets, do these steps:
+
+1. Count from 0 to 2^n - 1. Each number is a mask.
+2. For each mask, include item i if bit i of the mask is 1.
+
+This gives the same subsets as [backtracking](#backtracking), without recursion.
+A mask is also a small dictionary key, for example for a DP state that is a subset of items.
+
+```python
+from functools import reduce
+
+
+def set_bit(n, k):
+    return n | (1 << k)
+
+
+def clear_bit(n, k):
+    return n & ~(1 << k)
+
+
+def test_bit(n, k):
+    return (n >> k) & 1 == 1
+
+
+def is_power_of_two(n):
+    return n > 0 and n & (n - 1) == 0
+
+
+def count_bits(n):
+    count = 0
+    while n:
+        n &= n - 1  # remove the lowest set bit
+        count += 1
+    return count
+
+
+def single_number(nums):
+    return reduce(lambda a, b: a ^ b, nums, 0)
+
+
+def subsets(items):
+    result = []
+    for mask in range(1 << len(items)):
+        result.append([item for i, item in enumerate(items) if (mask >> i) & 1])
+    return result
+
+
+assert 0b1100 & 0b1010 == 0b1000
+assert 0b1100 | 0b1010 == 0b1110
+assert 0b1100 ^ 0b1010 == 0b0110
+assert 5 << 3 == 40 and 40 >> 3 == 5
+
+flags = 0
+flags = set_bit(flags, 1)
+flags = set_bit(flags, 4)
+assert flags == 0b10010
+assert test_bit(flags, 4) and not test_bit(flags, 2)
+assert clear_bit(flags, 4) == 0b10
+
+assert 0b10110 & (0b10110 - 1) == 0b10100  # n & (n - 1) removes the lowest set bit
+assert [n for n in range(1, 70) if is_power_of_two(n)] == [1, 2, 4, 8, 16, 32, 64]
+assert count_bits(0b1011_0110) == 5 == bin(0b1011_0110).count("1")
+
+assert single_number([4, 1, 2, 1, 2]) == 4
+
+assert subsets(["a", "b", "c"]) == [[], ["a"], ["b"], ["a", "b"], ["c"], ["a", "c"], ["b", "c"], ["a", "b", "c"]]
+
+assert ~5 == -6  # Python integers have no fixed width
+assert ~5 & 0xFF == 0b1111_1010  # a mask keeps only the low 8 bits
+```
+
+CAUTION: In Python, `~5` is -6, and a right shift of a negative number keeps the sign.
+For a result with a fixed width, AND the result with a mask, for example `0xFFFFFFFF` for 32 bits.
+
+## String matching
+
+A string search finds each position where a pattern occurs in a text.
+We use n for the length of the text and m for the length of the pattern.
+
+| Algorithm | Preparation | Search, usual text | Search, worst case | Extra memory |
+|---|---|---|---|---|
+| Naive | None | O(n) | O(n x m) | O(1) |
+| KMP | O(m) | O(n) | O(n) | O(m) |
+| Rabin-Karp | O(m) | O(n + m) | O(n x m) | O(1) |
+
+NOTE: The Python `in` operator and `str.find` use a fast built-in algorithm. Use them in usual code.
+Use these algorithms when you must control the steps, for example for many patterns or for a stream of text.
+
+### Naive search
+
+To find a pattern with the naive procedure, do these steps:
+
+1. Put the pattern at position 0 of the text.
+2. Compare the characters from left to right until two characters are different.
+3. If all m characters are equal, record the position.
+4. Move the pattern one position to the right. Go back to step 2.
+
+The worst case occurs when almost all of the pattern matches at each position.
+For example, the pattern "aaaaaaaaab" in a text of 1,000 "a" characters needs 991 x 10 comparisons.
+After each failure, the search starts again from the first character of the pattern. It does not use the comparisons that it did.
+
+### KMP
+
+The Knuth-Morris-Pratt (KMP) algorithm never goes back in the text.
+When a character is different, KMP knows how much of the pattern still agrees with the last characters that it read.
+The failure table gives that length.
+
+`fail[i]` is the length of the longest proper prefix of `pattern[: i + 1]` that is also a suffix of it.
+A proper prefix is shorter than the full string.
+For "ababaca", the table is [0, 0, 1, 2, 3, 0, 1]. For example, "ababa" starts and ends with "aba", so `fail[4]` is 3.
+
+To make the failure table, do these steps:
+
+1. Set `fail[0]` to 0. Set `length` to 0.
+2. For each i from 1, compare `pattern[i]` with `pattern[length]`.
+3. While they are different and `length` is more than 0, set `length` to `fail[length - 1]`.
+4. If they are equal, add 1 to `length`.
+5. Set `fail[i]` to `length`.
+
+To search with KMP, do these steps:
+
+1. Set `matched` to 0. It is the number of pattern characters that agree now.
+2. For each character of the text, compare it with `pattern[matched]`.
+3. While they are different and `matched` is more than 0, set `matched` to `fail[matched - 1]`.
+4. If they are equal, add 1 to `matched`.
+5. If `matched` is equal to m, record a match. Then set `matched` to `fail[m - 1]`.
+
+`matched` increases at most n times, and each step back decreases it.
+Thus, the search does at most 2n comparisons.
+
+### Rabin-Karp
+
+Rabin-Karp compares hashes before it compares characters.
+It calculates the hash of the pattern and the hash of each window of m characters in the text.
+A rolling hash gets the hash of the next window from the hash of the last window in O(1).
+
+The hash of the window c0 c1 ... c(m-1) is (c0 x B^(m-1) + c1 x B^(m-2) + ... + c(m-1)) mod M.
+B is the base, for example 256. M is a large prime modulus, for example 1,000,000,007.
+The modulus keeps the numbers small.
+
+To move the window one position to the right, do these steps:
+
+1. Subtract the first character x B^(m-1). Keep B^(m-1) mod M in a variable.
+2. Multiply the result by B.
+3. Add the new character.
+4. Take the result mod M.
+
+Two different strings can have the same hash. This is a false positive.
+Thus, when the two hashes are equal, compare the characters of the window with the pattern.
+With a large prime modulus, false positives are rare, and the average cost is O(n + m).
+With a bad modulus, or with a text that an attacker selects, many windows are false positives. The cost becomes O(n x m).
+
+Rabin-Karp is good for many patterns of the same length. Keep the hashes of the patterns in a set.
+
+```python
+def naive_search(text, pattern):
+    """Return the start of each match, and the number of character comparisons."""
+    found, comparisons = [], 0
+    for start in range(len(text) - len(pattern) + 1):
+        for offset, char in enumerate(pattern):
+            comparisons += 1
+            if text[start + offset] != char:
+                break
+        else:
+            found.append(start)
+    return found, comparisons
+
+
+def failure_table(pattern):
+    """fail[i] is the length of the longest proper prefix of pattern[: i + 1] that is also its suffix."""
+    fail = [0] * len(pattern)
+    length = 0
+    for i in range(1, len(pattern)):
+        while length > 0 and pattern[i] != pattern[length]:
+            length = fail[length - 1]
+        if pattern[i] == pattern[length]:
+            length += 1
+        fail[i] = length
+    return fail
+
+
+def kmp_search(text, pattern):
+    fail = failure_table(pattern)
+    found, comparisons, matched = [], 0, 0
+    for i, char in enumerate(text):
+        while True:
+            comparisons += 1
+            if char == pattern[matched]:
+                matched += 1
+                break
+            if matched == 0:
+                break
+            matched = fail[matched - 1]
+        if matched == len(pattern):
+            found.append(i - len(pattern) + 1)
+            matched = fail[matched - 1]
+    return found, comparisons
+
+
+def rabin_karp(text, pattern, base=256, modulus=1_000_000_007):
+    """Return the start of each match, and the number of hash candidates."""
+    m = len(pattern)
+    if m > len(text):
+        return [], 0
+    high = pow(base, m - 1, modulus)  # the weight of the first character in a window
+    target = window = 0
+    for i in range(m):
+        target = (target * base + ord(pattern[i])) % modulus
+        window = (window * base + ord(text[i])) % modulus
+    found, candidates = [], 0
+    for start in range(len(text) - m + 1):
+        if window == target:
+            candidates += 1
+            if text[start : start + m] == pattern:  # a check removes false positives
+                found.append(start)
+        if start + m < len(text):
+            window = (window - ord(text[start]) * high) % modulus
+            window = (window * base + ord(text[start + m])) % modulus
+    return found, candidates
+
+
+assert failure_table("ababaca") == [0, 0, 1, 2, 3, 0, 1]
+
+text = "abababacaba ababaca"
+expected = [2, 12]
+assert naive_search(text, "ababaca")[0] == expected
+assert kmp_search(text, "ababaca")[0] == expected
+assert rabin_karp(text, "ababaca")[0] == expected
+assert kmp_search("aaaa", "aa")[0] == [0, 1, 2]  # matches can overlap
+
+# the worst case for the naive search: n = 1,000 and m = 10
+text, pattern = "a" * 1_000, "a" * 9 + "b"
+assert naive_search(text, pattern) == ([], 991 * 10)
+found, comparisons = kmp_search(text, pattern)
+assert found == [] and comparisons <= 2 * len(text)
+
+# a small modulus gives many false candidates, but the check removes them
+found, candidates = rabin_karp("the cat sat on the mat", "at", modulus=5)
+assert found == [5, 9, 20]
+assert candidates == 9  # 6 of the 9 candidates are false positives
+assert rabin_karp("the cat sat on the mat", "at")[1] == 3
+```
+
+CAUTION: Do not report a match from equal hashes only. Always compare the characters.
+The sample uses a small modulus of 5 to show 6 false positives that the check removes.
+
+## Capstone: route planning on a grid
+
+This section uses [graphs](#graphs), [heaps](#heaps) and breadth-first search together.
+A robot must cross a grid map from a start cell to a goal cell.
+Each cell has a cost to enter, for example 1 for a road and 9 for mud. The robot cannot enter a wall cell.
+Find the route with the lowest total cost, and the cells on that route.
+
+### Grid as a graph
+
+Each open cell is a vertex. Each cell connects to its four neighbours: up, down, left and right.
+The weight of an edge is the cost of the cell that the edge enters.
+You do not need an adjacency list. Calculate the neighbours of a cell when you need them.
+A grid of R rows and C columns has V = R x C vertices and at most 4V edges.
+
+| Method | Use it when | Cost on a grid |
+|---|---|---|
+| BFS | Each move has the same cost | O(V) |
+| 0-1 BFS with a deque | Each move costs 0 or 1 | O(V) |
+| Dijkstra with a heap | The costs are different and not negative | O(V log V) |
+| A* search | As Dijkstra, with a good estimate of the cost to the goal | O(V log V) in the worst case |
+
+### Dijkstra on a grid
+
+To find the cheapest route, do these steps:
+
+1. Put the start cell in a min-heap with a cost of 0.
+2. Remove the cell with the lowest cost from the heap.
+3. If the cell is the goal, stop. Its cost is the answer.
+4. If the cost is more than the best known cost of the cell, ignore this old entry.
+5. For each open neighbour, calculate the cost through this cell.
+6. If that cost is lower than the best known cost, record it. Record this cell as the parent.
+7. Push the neighbour with its new cost. Go back to step 2.
+8. If the heap becomes empty, no route exists.
+
+### Path reconstruction
+
+Dijkstra gives the lowest cost. To get the route, keep a parent pointer for each cell.
+The parent is the cell before it on the best known route.
+
+To make the route from the parent pointers, do these steps:
+
+1. Start at the goal.
+2. Go to the parent of the current cell, and record it.
+3. Stop at the start cell, which has no parent.
+4. Reverse the list.
+
+The route has at most V cells, so this costs O(V).
+
+### BFS for uniform costs
+
+When each move has the same cost, the cheapest route is the route with the fewest steps.
+BFS finds that route in O(V + E), without a heap.
+On the sample grid, BFS finds a route of 4 steps through the mud, with a cost of 28.
+Dijkstra finds a route of 6 steps around the mud, with a cost of 6.
+
+```python
+import heapq
+from collections import deque
+
+WALL = None
+STEPS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+
+def neighbours(grid, cell):
+    row, col = cell
+    for dr, dc in STEPS:
+        r, c = row + dr, col + dc
+        if 0 <= r < len(grid) and 0 <= c < len(grid[0]) and grid[r][c] is not WALL:
+            yield (r, c)
+
+
+def path_to(parent, goal):
+    path = [goal]
+    while parent[path[-1]] is not None:
+        path.append(parent[path[-1]])
+    return path[::-1]
+
+
+def cheapest_route(grid, start, goal):
+    """Dijkstra. A move into a cell costs the number in that cell."""
+    cost = {start: 0}
+    parent = {start: None}
+    heap = [(0, start)]
+    while heap:
+        spent, cell = heapq.heappop(heap)
+        if cell == goal:
+            return spent, path_to(parent, goal)
+        if spent > cost[cell]:
+            continue  # an old entry: a cheaper route to this cell was found
+        for nxt in neighbours(grid, cell):
+            candidate = spent + grid[nxt[0]][nxt[1]]
+            if candidate < cost.get(nxt, float("inf")):
+                cost[nxt] = candidate
+                parent[nxt] = cell
+                heapq.heappush(heap, (candidate, nxt))
+    return None
+
+
+def fewest_steps(grid, start, goal):
+    """BFS. Each move has the same cost."""
+    parent = {start: None}
+    queue = deque([start])
+    while queue:
+        cell = queue.popleft()
+        if cell == goal:
+            path = path_to(parent, goal)
+            return len(path) - 1, path
+        for nxt in neighbours(grid, cell):
+            if nxt not in parent:
+                parent[nxt] = cell
+                queue.append(nxt)
+    return None
+
+
+def route_cost(grid, path):
+    return sum(grid[r][c] for r, c in path[1:])
+
+
+grid = [
+    [1, 1, 1, 1, 1],
+    [1, 9, 9, 9, 1],
+    [1, 1, WALL, 1, 1],
+]
+start, goal = (1, 0), (1, 4)
+
+cost, path = cheapest_route(grid, start, goal)
+assert cost == 6
+assert path == [(1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 4)]
+
+steps, short_path = fewest_steps(grid, start, goal)
+assert steps == 4
+assert short_path == [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4)]
+assert route_cost(grid, short_path) == 28  # the fewest steps is not the lowest cost
+
+# when each cell costs the same, BFS and Dijkstra agree
+flat = [[1] * 6 for _ in range(5)]
+flat[2][1:5] = [WALL] * 4
+for target in [(4, 5), (3, 2), (0, 0)]:
+    assert cheapest_route(flat, (2, 0), target)[0] == fewest_steps(flat, (2, 0), target)[0]
+
+closed = [[1, WALL], [WALL, 1]]
+assert cheapest_route(closed, (0, 0), (1, 1)) is None
+assert fewest_steps(closed, (0, 0), (1, 1)) is None
+```
+
+CAUTION: Use BFS only when all moves have the same cost.
+With different costs, the route with the fewest steps can have a much higher cost.
+
+NOTE: 0-1 BFS puts a cell after a move of cost 0 at the front of the deque, and other cells at the back.
+
+NOTE: A* search is Dijkstra with one change: each heap key also includes an estimate of the cost to the goal.
+On this grid, the lowest cell cost x the Manhattan distance is a good estimate.
+The estimate must never be more than the true cost. If it is, A* can return a route that is not the cheapest.
+
 ## How to select a data structure
 
 Use the table to find a data structure for the operation that you must do quickly.
@@ -1423,6 +2245,9 @@ Use the table to find a data structure for the operation that you must do quickl
 | Get the smallest or largest item many times | Heap (`heapq`) | O(log n) |
 | Find a value in sorted data | Sorted list and binary search | O(log n) |
 | Keep data sorted while you add and remove | Balanced BST | O(log n) |
+| Get the sum of a range while items change | Fenwick tree | O(log n) |
+| Get the minimum, maximum or sum of a range while items change | Segment tree | O(log n) |
+| Keep a set of small integers, and join or compare sets quickly | Bitset (an integer used as bits) | O(1) for each bit. O(n / 64) to join two sets of n bits |
 | Find words by their prefix | Trie | O(L) |
 | Model connections between items | Graph (adjacency list) | O(V + E) to traverse |
 | Join groups and check if two items are in the same group | Union-find | Almost O(1) |

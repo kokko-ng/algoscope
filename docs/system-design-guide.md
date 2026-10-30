@@ -39,7 +39,12 @@ Use them for estimates. Measure your own system before you buy hardware.
 11. [Case study: URL shortener](#case-study-url-shortener)
 12. [Case study: news feed](#case-study-news-feed)
 13. [Case study: chat service](#case-study-chat-service)
-14. [How to approach a design](#how-to-approach-a-design)
+14. [Case study: rate limiter](#case-study-rate-limiter)
+15. [Case study: distributed cache](#case-study-distributed-cache)
+16. [Case study: typeahead search](#case-study-typeahead-search)
+17. [Case study: video streaming](#case-study-video-streaming)
+18. [Case study: payments ledger](#case-study-payments-ledger)
+19. [How to approach a design](#how-to-approach-a-design)
 
 ## Back-of-the-envelope estimation
 
@@ -1672,6 +1677,1048 @@ The server marks a user as offline after three heartbeats do not arrive.
 
 CAUTION: A large group multiplies each message by the number of members.
 For a group with many thousands of members, send a notice of new messages and let clients pull the messages.
+
+## Case study: rate limiter
+
+A rate limiter sets the maximum number of requests for each client across a fleet of servers.
+For example, it allows 100 requests a minute for each API key.
+No single server sees all the traffic of a client, so the counts are in a shared in-memory store.
+The section [Rate limits and resilience](#rate-limits-and-resilience) gives the algorithms. This case study puts them on many servers.
+
+### Limiter requirements
+
+- Limit each client to a number of requests in a window, for example 100 a minute for each API key.
+- Give each client the same count on all gateway servers.
+- Add less than about 1 ms to each request.
+- Reject a request over the limit with status 429 and a `Retry-After` header.
+- Continue to serve requests when the counter store fails.
+
+### Limiter estimates
+
+| Quantity | Calculation | Result |
+|---|---|---|
+| Active API keys a day | Given | 10 million |
+| Checks a second at peak | Given. Each check is one atomic store operation | 500,000 |
+| Memory for token buckets | 10 million x 100 bytes x 2 copies | 2 GB |
+| Memory for sliding window logs, at 1,000 requests an hour | 10 million x 1,000 x 8 bytes, before copies | 80 GB |
+| Store nodes | 500,000 / (100,000 operations x 50% target load) | 10 |
+| Latency of one check | One round trip in the data center | About 0.5 ms |
+
+### Limiter API and data model
+
+The limiter is not a separate public API.
+Each gateway server calls it before it sends a request to a service.
+
+| Call | Input | Result |
+|---|---|---|
+| check | The client key and the cost, usually 1 | Allowed, or rejected with the seconds to wait |
+
+| Response to the client | When | Headers |
+|---|---|---|
+| The normal result | The check allows the request | The limit and the number of requests that are left |
+| Status 429 (too many requests) | The check rejects the request | `Retry-After`, in seconds |
+
+| Field | Type | Note |
+|---|---|---|
+| key | string | `rl:{client}:{window number}`. A hash of the client part selects the store node |
+| count | integer | The store increments it in one atomic operation |
+| TTL | seconds | Two windows. The store removes old counters automatically |
+
+```text
+  ┌─────────┐     ┌───────────────┐
+  │ Clients ├────>│ Load balancer │
+  └─────────┘     └───────┬───────┘
+              ┌───────────┴───────────┐
+              v                       v
+        ┌───────────┐           ┌────────────┐
+        │ Gateway 1 │    ...    │ Gateway 20 │
+        └─┬───────┬─┘           └─┬────────┬─┘
+          │       │  1. check     │        │
+          │       v               v        │
+          │     ┌─────────────────────┐    │
+          │     │ Counter store:      │    │
+          │     │ 10 nodes, by a hash │    │
+          │     │ of the client key   │    │
+          │     └─────────────────────┘    │
+          │  2. allowed requests only      │
+          v                                v
+        ┌────────────────────────────────────┐
+        │              Services              │
+        └────────────────────────────────────┘
+```
+
+### Where to keep the counts
+
+In the scenario below, a load balancer sends the requests of each client evenly to 20 gateway servers.
+
+| Option | How it works | Result |
+|---|---|---|
+| Memory of each gateway | Each server counts only the requests that it gets | One user gets 20 x 100 = 2,000 requests a minute |
+| Split the limit | Each server allows 100 / 20 = 5 a minute | Rejects users whose requests go to one server |
+| Shared store | Each server updates one counter for each client | Correct counts, for one store round trip |
+
+A check in the gateway stops a rejected request before it uses service capacity.
+
+### Atomic counter updates
+
+A check that reads the count, compares it in the gateway and then writes it back has a race.
+For example, 8 gateways read the count 95 at the same time. Each allows its request and writes 96.
+8 requests passed, but the store recorded only 1 of them. The store lost 7 updates.
+
+Let the store do the check and the update in one atomic step, for example as a short script.
+
+To check a request with a sliding window counter, do these steps:
+
+1. Calculate the current window number: the time divided by the window length, rounded down.
+2. Send one atomic operation to the store for the client key.
+3. In that operation, read the counter of the current window and of the last window.
+4. Calculate the estimate: current + last x (the part of the last window that is still in the window).
+5. If the estimate plus 1 is more than the limit, reject the request.
+6. If not, increment the current counter, and allow the request.
+
+For example, the limit is 100 a minute. The last minute had 80 requests. The current minute has 30.
+15 seconds of the current minute have passed, so 45 seconds (75%) of the last minute are still in the window.
+The estimate is 30 + 80 x 0.75 = 90. The limiter allows the request.
+
+| Algorithm | State for each client | Use it when |
+|---|---|---|
+| Token bucket | The tokens and the time of the last refill, about 100 bytes | Bursts up to a size are acceptable |
+| Sliding window counter | Two counters | You need a smooth limit with little memory |
+| Sliding window log | One time for each request, 8 KB at 1,000 an hour | You need an exact count for a small number of clients |
+
+### Limiter keys and failure modes
+
+Select the key that identifies the client:
+
+- After login, limit by API key or by user ID.
+- Before login, the service does not know the user, so limit by IP address. This also slows password guesses from one machine.
+
+A limit by IP address also hits users who share an address.
+For example, 3,000 students on one campus network send 2 requests a minute each, from one public IP address.
+That is 6,000 requests a minute. A limit of 600 a minute rejects 5,400 of them, or 90%.
+
+The limiter protects the service. It must not become the cause of an outage.
+In one scenario, 400,000 requests a second arrive at peak, and the limiter rejects 30% of them.
+
+| When the store fails | Result | Risk |
+|---|---|---|
+| Fail open | Allow each request | The load on the services increases from 280,000 to 400,000 a second, by 42.9% |
+| Fail closed | Reject each request | The API stops for all clients |
+| Local fallback | Each gateway applies a simple limit in its own memory | The limits are less exact for a short time |
+
+Calculate `Retry-After` from the state of the limiter.
+For example, a token bucket refills 0.5 tokens a second, and a bulk export costs 5 tokens.
+When the bucket is empty, the client must wait 5 / 0.5 = 10 seconds.
+A good client waits at least that time, plus a small random delay.
+
+```python
+import math
+
+GB = 10**9
+
+
+class SlidingWindowCounter:
+    """Two counters for each client: this window and the last window."""
+
+    def __init__(self, limit, window_seconds):
+        self.limit = limit
+        self.window = window_seconds
+        self.counts = {}  # (client, window number) -> count
+
+    def estimate(self, client, now):
+        number = int(now // self.window)
+        elapsed = now - number * self.window
+        current = self.counts.get((client, number), 0)
+        previous = self.counts.get((client, number - 1), 0)
+        return current + previous * (self.window - elapsed) / self.window
+
+    def allow(self, client, now):
+        # the store runs this check and the increment as one atomic step
+        if self.estimate(client, now) + 1 > self.limit:
+            return False
+        number = int(now // self.window)
+        self.counts[(client, number)] = self.counts.get((client, number), 0) + 1
+        return True
+
+
+def fixed_window_allowed(times, limit, window_seconds):
+    counts, allowed = {}, 0
+    for now in times:
+        number = int(now // window_seconds)
+        if counts.get(number, 0) < limit:
+            counts[number] = counts.get(number, 0) + 1
+            allowed += 1
+    return allowed
+
+
+def retry_after_seconds(missing_tokens, refill_per_second):
+    return math.ceil(missing_tokens / refill_per_second)
+
+
+limiter = SlidingWindowCounter(limit=100, window_seconds=60)
+assert all(limiter.allow("key1", now=10.0) for _ in range(80))  # minute 0
+assert all(limiter.allow("key1", now=70.0) for _ in range(30))  # minute 1
+assert limiter.estimate("key1", now=75.0) == 90  # 30 + 80 x 45/60
+assert sum(limiter.allow("key1", now=75.0) for _ in range(20)) == 10
+assert limiter.estimate("key1", now=90.0) == 80  # half of the last minute is still in the window
+assert limiter.allow("key2", now=75.0)  # each client has its own counters
+
+# a burst at a window edge: the fixed window allows two times the limit
+burst = [59.9] * 100 + [60.0] * 100
+assert fixed_window_allowed(burst, limit=100, window_seconds=60) == 200
+edge = SlidingWindowCounter(limit=100, window_seconds=60)
+assert sum(edge.allow("key", now) for now in burst) == 100
+
+# a read-then-write race: 8 gateways read 95, and each writes 96
+store = {"key": 95}
+seen = [store["key"] for _ in range(8)]
+for count in seen:
+    store["key"] = count + 1
+assert store["key"] == 96  # 8 requests passed, but 7 updates are lost
+store = {"key": 95}
+for _ in range(8):
+    store["key"] += 1  # an atomic increment in the store
+assert store["key"] == 103
+
+assert 20 * 100 == 2_000  # local counts on 20 gateways: 2,000 a minute for one user
+assert retry_after_seconds(5, 0.5) == 10  # a bulk export of 5 tokens, 0.5 tokens a second
+
+assert 10_000_000 * 100 * 2 / GB == 2  # token buckets, 2 copies
+assert 10_000_000 * 1_000 * 8 / GB == 80  # logs of 1,000 times, before copies
+assert math.ceil(500_000 / (100_000 * 0.5)) == 10  # store nodes at 50% load
+passed = 400_000 * (1 - 0.30)  # the limiter usually rejects 30%
+assert round((400_000 - passed) / passed * 100, 1) == 42.9  # fail open: the extra load
+```
+
+NOTE: The limiter adds one store operation to each request.
+Thus, the store must scale with the total traffic of the API, not with the number of clients.
+
+CAUTION: Do not read a count from a replica of the store.
+A replica lags, so more requests get through before the count reaches the limit.
+
+## Case study: distributed cache
+
+A distributed cache keeps hot data in the memory of many nodes, in front of a slower database.
+A read from the cache takes about 0.5 ms over the network.
+A database read takes some milliseconds and uses much more capacity.
+No central router is on the read path. A client library in each app server sends each key directly to its node.
+
+### Cache requirements
+
+- Get, set and delete a value by its key, in about 1 ms.
+- Hold 500 million keys, and serve 2 million reads a second at peak.
+- Keep at least 98% of the reads as hits.
+- Continue to serve when a node fails, and keep the database load below its limit.
+- Add nodes without a large drop of the hit ratio.
+
+### Cache estimates
+
+| Quantity | Calculation | Result |
+|---|---|---|
+| Keys | Given | 500 million |
+| Size of one entry | The key, the value and the overhead of the cache | 1,000 bytes |
+| Data with 2 copies | 500 million x 1,000 bytes x 2 | 1 TB |
+| Data that one node holds | 64 GB x 75%. The rest is for fragmentation and the system | 48 GB |
+| Nodes for memory | 1,000 GB / 48 GB = 20.8 | 21 |
+| Nodes for reads | 2,000,000 / (100,000 operations x 50% target load) | 40 |
+| Nodes in the cluster | The larger of the two | 40 |
+| Database reads a second | 2,000,000 x 2% misses | 40,000 |
+
+Size the cluster for each limit, and take the largest result.
+Here, the read load and not the memory sets the size.
+
+### Cache API and data model
+
+| Call | Input | Result |
+|---|---|---|
+| get | key | The value, or a miss |
+| set | key, value, TTL | The node keeps the value until the TTL ends or until eviction |
+| delete | key | The node removes the key |
+
+| Field | Type | Note |
+|---|---|---|
+| key | string | The hash of the key selects the node |
+| value | bytes | About 1 KB in this scenario |
+| expires_at | timestamp | From the TTL |
+| last_read | timestamp | For LRU eviction |
+
+```text
+  ┌────────────────────────┐  ring   ┌────────────────┐
+  │ App server             │<────────┤ Config service │
+  │ client library + ring  │         │ (node list)    │
+  └───┬────────────────┬───┘         └────────────────┘
+      │ 1. get key     │ 2. on a miss, read
+      │                │    the database
+      v                v
+  ┌────────────────┐  ┌──────────┐
+  │ Cache nodes    │  │ Database │
+  │ 1 to 40, each  │  └──────────┘
+  │ key on its     │
+  │ primary and    │
+  │ next node      │
+  └────────────────┘
+```
+
+### Key placement and replicas
+
+The client library puts the nodes on a hash ring with many virtual nodes.
+See [Consistent hashing](#consistent-hashing).
+A config service sends the new ring to each app server when a node joins or leaves.
+
+To find the nodes for a key, do these steps:
+
+1. Calculate the hash of the key.
+2. Move clockwise on the ring to the first point. Its node is the primary.
+3. Continue clockwise. Skip the points of nodes that you already have.
+4. The next node is the replica.
+
+When the primary fails, the next node on the ring becomes the new primary.
+That node is the replica, so it already has the key.
+The cache loses a key only when all of its copies fail.
+
+### Cache node failures
+
+In this scenario, the cluster has 40 nodes and no replicas.
+When a node fails, the cache must load its keys again from the database. The database serves at most 150,000 reads a second.
+
+| Placement | Keys that move when one node of 40 fails | Database reads a second after the failure |
+|---|---|---|
+| Consistent hashing | 1/40, or 12.5 million keys | 50,000 from the lost node + 2% of 1,950,000 = 89,000 |
+| hash(key) mod N, N from 40 to 39 | About 39/40 of all keys | Almost 2,000,000. The database fails |
+
+To restart all nodes for a software update, do these steps:
+
+1. Restart one node, or a small number of nodes.
+2. Wait until the hit ratio of the node is normal again.
+3. Restart the next node.
+
+One cold node adds about 50,000 misses a second. The database can serve that load.
+A restart of all 40 nodes at the same time gives about 2,000,000 misses a second, far above the limit.
+
+### Hot keys and expiry
+
+One key, for example a popular product page, gets 300,000 reads a second.
+A node serves 100,000 operations a second, and no node must spend more than 30,000 a second on one key.
+
+| Remedy | How it works | Result | Cost |
+|---|---|---|---|
+| Local copy | Each of 500 app servers keeps the key in memory for 1 second | 500 reads a second reach the cluster | A change can take 1 second to show |
+| Split the key | Copies `product:7#0` to `product:7#9` on different nodes. Each read selects one at random | 300,000 / 10 = 30,000 reads a second on each node | Each write must update or delete 10 copies |
+
+When a popular key expires, many reads miss at the same time.
+At 20,000 reads a second and a load time of 50 ms, 20,000 x 0.05 = 1,000 requests miss.
+Without protection, each of them reads the same row from the database. This is a cache stampede.
+With request coalescing, the first miss loads the key, and the other 999 requests wait for its result.
+
+When a batch job loads many keys with the same TTL, they all expire at the same time.
+Give each key a TTL of 60 minutes plus a random 0 to 10 minutes.
+The reloads then spread over 10 minutes, and no key is older than 70 minutes.
+
+For a catalog with many writes and few reads, use write-around.
+With write-through, 500 writes a second of 2 KB items fill 86.4 GB of cache each day.
+If only 5% of those items get a read, 95% of that memory holds data that no client reads.
+
+```python
+import bisect
+import hashlib
+import math
+
+GB = 10**9
+
+
+def ring_hash(text):
+    return int.from_bytes(hashlib.sha256(text.encode()).digest()[:8], "big")
+
+
+class CacheRing:
+    def __init__(self, nodes, vnodes=100):
+        self.points = sorted((ring_hash(f"{node}#{i}"), node) for node in nodes for i in range(vnodes))
+        self.hashes = [point for point, _ in self.points]
+
+    def nodes_for(self, key, copies=1):
+        """Move clockwise from the key. Collect the first `copies` different nodes."""
+        start = bisect.bisect(self.hashes, ring_hash(key))
+        found = []
+        for step in range(len(self.points)):
+            node = self.points[(start + step) % len(self.points)][1]
+            if node not in found:
+                found.append(node)
+                if len(found) == copies:
+                    break
+        return found
+
+    def without(self, *failed):
+        ring = CacheRing([])
+        ring.points = [(point, node) for point, node in self.points if node not in failed]
+        ring.hashes = [point for point, _ in ring.points]
+        return ring
+
+
+nodes = [f"n{i}" for i in range(40)]
+keys = [f"product:{i}" for i in range(20_000)]
+ring = CacheRing(nodes)
+placement = {key: ring.nodes_for(key, copies=2) for key in keys}
+
+# without replicas, one failed node loses about 1/40 of the keys
+lost = [key for key in keys if placement[key][0] == "n7"]
+assert 0.015 < len(lost) / len(keys) < 0.035
+
+# with 2 copies, the replica of each lost key becomes its new primary
+smaller = ring.without("n7")
+assert all(smaller.nodes_for(key)[0] == placement[key][1] for key in lost)
+assert all(smaller.nodes_for(key)[0] == placement[key][0] for key in keys if key not in lost)
+
+# a key is lost only when both of its copies fail
+both_lost = [key for key in keys if set(placement[key]) <= {"n7", "n8"}]
+assert 0 < len(both_lost) < len(keys) // 100
+
+# hash(key) mod N moves about 39 keys in 40 when N changes from 40 to 39
+moved = sum(ring_hash(key) % 40 != ring_hash(key) % 39 for key in keys)
+assert moved / len(keys) > 0.95
+
+# the figures of the case study
+assert 500_000_000 * 1_000 * 2 / GB == 1_000  # 1 TB of data with 2 copies
+assert math.ceil(1_000 / (64 * 0.75)) == 21  # nodes for memory
+assert 2_000_000 / (100_000 * 0.5) == 40  # nodes for reads
+assert round(2_000_000 * (1 - 0.98)) == 40_000  # database reads a second
+assert 500_000_000 / 40 == 12_500_000  # keys to load again after one node fails
+assert round(2_000_000 / 40 + 1_950_000 * 0.02) == 89_000  # database reads after the failure
+assert 20_000 * 0.050 == 1_000  # a stampede: misses before the first load ends
+```
+
+CAUTION: Do not place keys with `hash(key) mod N`.
+A change of N moves almost all keys, so almost all reads miss, and the database gets the full read load.
+
+## Case study: typeahead search
+
+Typeahead shows the 10 most popular completions of the text that the user has typed.
+The list must change within about 100 ms of each keystroke.
+Do the hard work before the request: a batch job makes a table that maps each prefix to its top 10 completions.
+At request time, a suggestion is one lookup.
+
+### Typeahead requirements
+
+- Return the 10 most popular completions of a prefix, most popular first.
+- Show the list within about 100 ms of a keystroke.
+- Show a new popular query within about 2 hours, and a sudden popular query within minutes.
+- Remove a harmful suggestion within minutes.
+
+### Typeahead estimates
+
+| Quantity | Calculation | Result |
+|---|---|---|
+| Daily active users | Given | 100 million |
+| Keystrokes a day | 100 million x 5 searches x 10 characters | 5 billion |
+| Requests a second, one for each keystroke | 5 billion / 86,400 | About 57,900 |
+| Requests a second at peak | 2 x the average | About 115,700 |
+| Peak after a pause of 100 ms in the browser | 4 requests for each 10 keystrokes | About 46,300 |
+| Peak at the suggest service | 20% of the requests miss the edge cache | About 9,260 |
+| Prefix table | 300 million prefixes x 100 bytes | 30 GB |
+| Log rows for each rebuild | 7 days x 500 million searches | 3.5 billion |
+| Builder workers, 30 minutes for each rebuild | 3.5 billion / (100,000 rows a second x 1,800 s) = 19.4 | 20 |
+
+The suggestion traffic is 10 times the search traffic, because the user types each search one character at a time.
+
+### Typeahead API and data model
+
+| Method | Path | Body or result |
+|---|---|---|
+| GET | /suggest?q={prefix} | Result: up to 10 completions, most popular first |
+
+| Table | Fields | Note |
+|---|---|---|
+| Prefix table | prefix, the IDs of the top 10 queries | 10 x 8 bytes, plus 20 bytes for the prefix and overhead: 100 bytes |
+| Query table | query ID, text | Each query text is in one place only |
+
+Partition the prefix table by a hash of the full prefix.
+Each request reads one partition, because it looks up one full prefix.
+Do not partition by the first character. Some letters have many more queries than others.
+
+```text
+  ┌─────────┐ 100 ms pause ┌────────────┐ 20% miss ┌─────────────────┐
+  │ Browser ├─────────────>│ Edge cache ├─────────>│ Suggest service │
+  └─────────┘              └────────────┘          │ prefix table    │
+                                                   │ and block list  │
+                                                   └────────┬────────┘
+                                                            ^
+  ┌─────────────┐ each hour ┌─────────────────┐ new table   │
+  │ Search logs ├──────────>│ Batch builder   ├─────────────┘
+  └──────┬──────┘           └─────────────────┘
+         │                  ┌─────────────────┐ new popular queries
+         └─────────────────>│ Stream job      ├───> to the suggest service
+                            └─────────────────┘
+```
+
+### Precomputed top-k lists
+
+Without the table, the service walks a trie at request time to find the top 10.
+For the prefix "c", it visits 5 million queries. At 100 ns a visit, one request takes 500 ms.
+That is five times the full budget of 100 ms.
+With the table, the same request is one lookup of much less than 1 ms.
+
+To make the prefix table, do these steps:
+
+1. Read the search logs of the last 7 days.
+2. Count each query.
+3. For each query, add the query and its count to the list of each of its prefixes.
+4. For each prefix, keep the 10 queries with the highest counts.
+5. Write the table, and copy it to all suggest servers.
+
+With a heap of size k for each prefix, the cost is O(L log k).
+L is the total length of all the queries.
+
+The table uses more memory than the queries, because each query ID is in the lists of many prefixes.
+But 30 GB fits in the memory of one large server, and copies of it serve the reads.
+
+### Typeahead traffic control
+
+The browser waits for a pause of 100 ms before it sends a request.
+Fast typists skip the middle prefixes, which nobody sees.
+Over all users, this sends 4 requests for each 10 keystrokes.
+The browser also cancels a request when its answer is no longer necessary.
+
+The edge cache answers short prefixes best.
+There are only 26 x 26 = 676 prefixes of two English letters, and each user types them.
+Long prefixes are almost unique, so most of them miss.
+
+### Typeahead freshness
+
+| Step | Minutes after the start of a rebuild |
+|---|---|
+| A query becomes popular. The current rebuild read its logs at minute 0, so it does not see the query | 1 |
+| The next rebuild starts | 60 |
+| The rebuild ends | 90 |
+| All suggest servers have the new table | 95 |
+| The last edge copy of the old list expires, with a TTL of 10 minutes | 105 |
+
+Thus, in the worst case, a new popular query takes 105 minutes to reach all users.
+20 edge sites each keep 200,000 lists with a TTL of 10 minutes.
+They send 20 x 200,000 / 600 = about 6,667 requests a second to the suggest service.
+A TTL of 1 minute decreases the delay by 9 minutes, but it sends 10 times as many requests.
+
+For a sudden popular query, a small stream job counts the searches of the last few minutes.
+It keeps a short list of queries that become popular quickly. The suggest service merges them into its answers.
+For a harmful suggestion, add the query to a block list that the service checks for each response.
+Then remove the edge copies of the lists that contain it.
+
+```python
+import heapq
+import math
+
+
+def build_prefix_table(query_counts, k):
+    """Map each prefix to its k most popular queries, most popular first."""
+    candidates = {}
+    for query, count in query_counts.items():
+        for end in range(1, len(query) + 1):
+            candidates.setdefault(query[:end], []).append((-count, query))
+    return {prefix: [query for _, query in heapq.nsmallest(k, pairs)] for prefix, pairs in candidates.items()}
+
+
+def suggest(table, prefix, blocked=frozenset()):
+    return [query for query in table.get(prefix, []) if query not in blocked]
+
+
+def requests_sent(key_times_ms, pause_ms):
+    """Send a request only after a pause in the keystrokes, or after the last one."""
+    sent = 0
+    for now, following in zip(key_times_ms, key_times_ms[1:] + [math.inf]):
+        if following - now >= pause_ms:
+            sent += 1
+    return sent
+
+
+counts = {"cat": 90, "car": 120, "cart": 40, "care": 70, "dog": 50, "card": 70}
+table = build_prefix_table(counts, k=3)
+assert table["c"] == ["car", "cat", "card"]  # equal counts keep alphabetical order
+assert table["car"] == ["car", "card", "care"]
+assert table["cart"] == ["cart"]
+assert "x" not in table
+
+# the table gives the same answer as a sort of all matches at request time
+for prefix in table:
+    matches = sorted((q for q in counts if q.startswith(prefix)), key=lambda q: (-counts[q], q))
+    assert table[prefix] == matches[:3]
+
+assert suggest(table, "ca", blocked={"cat"}) == ["car", "card"]  # a block list applies at once
+
+# keystrokes at these times, in ms: two pauses, then the last key
+assert requests_sent([0, 80, 150, 400, 470, 530, 900], pause_ms=100) == 3
+
+# keystroke traffic
+average = 100_000_000 * 5 * 10 / 86_400
+assert round(average) == 57_870
+peak = 2 * average
+assert round(peak) == 115_741
+assert round(peak * 0.4) == 46_296  # 4 requests for each 10 keystrokes
+assert round(peak * 0.4 * (1 - 0.8)) == 9_259  # the edge answers 80%
+
+# prefix table and rebuild
+assert 300_000_000 * (10 * 8 + 20) / 10**9 == 30  # GB
+assert 5_000_000 * 100 / 10**6 == 500  # ms to rank "c" at request time, at 100 ns a visit
+assert math.ceil(7 * 500_000_000 / (100_000 * 30 * 60)) == 20  # builder workers
+assert 60 + 30 + 5 + 10 == 105  # worst-case minutes until a new query shows
+assert round(20 * 200_000 / 600) == 6_667  # edge refreshes a second
+```
+
+CAUTION: Do not rebuild the full table each minute to get fresh results.
+One rebuild already needs 20 workers for 30 minutes. A small fast path for the few new popular queries costs much less.
+
+## Case study: video streaming
+
+A creator uploads a video one time, and viewers watch it many times, on phones, laptops and TVs.
+Connections are from 1 to 100 Mbps, so one file cannot suit all viewers.
+The service makes several renditions of each video, from a low to a high bitrate.
+It cuts each rendition into segments of a few seconds.
+The player downloads the segments one after the other. It selects the rendition of each segment from the bandwidth that it measures.
+
+### Video requirements
+
+- Upload a video, and make it ready to watch in minutes.
+- Play on slow and fast connections without stalls.
+- Start playback in less than about 1 second.
+- Serve 5 million viewers at the same time at peak.
+
+### Video estimates
+
+| Quantity | Calculation | Result |
+|---|---|---|
+| Viewers at the same time, peak | Given | 5 million |
+| Viewers at the same time, average over the day | Given | 2 million |
+| Average stream | Given | 3 Mbps |
+| Egress at peak | 5 million x 3 Mbps | 15 Tbps |
+| Egress from the origin, 95% CDN offload | 15,000 Gbps x 5% | 750 Gbps |
+| Origin servers | 750 Gbps / (10 Gbps x 50% target load) | 150. Without a CDN, 3,000 |
+| Data sent each day | 2 million x 3 Mbps / 8 x 86,400 s | 64.8 PB |
+| Uploads | Given | 30,000 hours of video a day |
+| Storage for one hour of video | (0.5 + 1 + 2.5 + 5 + 8) Mbps x 3,600 s / 8 | 7.65 GB |
+| New storage each day, before copies | 30,000 hours x 7.65 GB | 229.5 TB |
+| Transcode workers | 1,250 hours of video an hour x 2 worker-hours / 80% | 3,125 |
+
+The daily total uses the average number of viewers. The peak sets the size of the network.
+
+### Video API and data model
+
+| Method | Path | Body or result |
+|---|---|---|
+| POST | /videos | Body: the title and other metadata. Result: a video ID and an upload URL |
+| PUT | The upload URL | Body: the video file, in parts. A part that fails goes again |
+| GET | /videos/{id}/manifest | Result: the renditions and the URLs of their segments |
+| GET | /segments/{id}/{rendition}/{n} | Result: one segment, from the CDN |
+
+| Field | Type | Note |
+|---|---|---|
+| video_id | string | The primary key |
+| owner_id | integer | |
+| status | enum | Uploaded, in progress, ready or failed |
+| duration_s | integer | |
+| renditions | list | The bitrate, the resolution, the number of segments and the storage path of each rendition |
+
+The database keeps only the metadata. The video files and the segments are in object storage.
+
+```text
+  ┌─────────┐ upload ┌────────────────┐ jobs ┌───────┐   ┌───────────┐
+  │ Creator ├───────>│ Object storage ├─────>│ Queue ├──>│ Transcode │
+  └─────────┘        │ (originals)    │      └───────┘   │ workers   │
+                     └────────────────┘                  └─────┬─────┘
+                                                               │ segments
+                                                               v
+  ┌─────────┐ segments ┌──────────┐ 5% of bytes ┌──────────────────────┐
+  │ Player  │<─────────┤ CDN edge │<────────────┤ Origin: renditions   │
+  └─────────┘          └──────────┘             │ and segments         │
+                                                └──────────────────────┘
+```
+
+### Video egress and the CDN
+
+At peak, the viewers use 15 Tbps. No single data center can send that, so video goes through a CDN.
+The origin sends only the bytes that the edges miss: total egress x (1 - offload).
+At 95% offload, the origin sends 750 Gbps. At 90% offload, it sends 1,500 Gbps, two times as much.
+
+The edges keep the segments of popular videos, because many viewers ask for them again and again.
+The long tail of old videos is too large to keep at each edge.
+Thus, most origin load comes from views of old videos that few people watch.
+
+### Transcode pipeline
+
+To transcode an upload, do these steps:
+
+1. Keep the original file in object storage.
+2. Cut the video into segments, for example of 4 seconds.
+3. Put one job for each segment in the queue.
+4. Let each worker make all renditions of one segment.
+5. When the workers finish all jobs of a video, write the manifest.
+6. Mark the video as ready.
+
+A 2-hour film needs 4 worker-hours. As one job, it is ready after 4 hours.
+As 1,800 jobs of 4 seconds each, a few hundred workers finish it in minutes.
+
+The queue absorbs bursts. For 3 hours each day, uploads arrive at 2 times the average rate.
+The arrivals are 2,500 hours of video an hour. The fleet finishes 3,125 / 2 = 1,562.5 hours of video an hour.
+The queue grows by 937.5 hours of video each hour. After 3 hours, it holds 2,812.5 hours of video.
+The spare 20% of the fleet clears it later.
+
+The top two renditions, 5 and 8 Mbps, are 76% of the storage.
+For videos that few people watch, remove the top renditions or move them to colder storage.
+
+### Adaptive playback
+
+Before playback starts, the player gets the manifest (one round trip) and the first segment (one round trip and its download).
+
+| Start | Segment size | Download at 10 Mbps | Time to start, round trip 50 ms |
+|---|---|---|---|
+| 5 Mbps, 6-second segments | 30 megabits | 3 s | 3.1 s |
+| 1 Mbps, 2-second segments | 2 megabits | 0.2 s | 0.3 s |
+
+Thus, a player usually starts low and short. Then it moves up while its buffer fills.
+
+| Segment length | Start time | Requests a second for 5 million viewers | Compression |
+|---|---|---|---|
+| 2 seconds | Fast. The player also adapts sooner | 2,500,000 | A little worse |
+| 6 seconds | Slow | About 833,000 | Better |
+
+To select the rendition of the next segment, do these steps:
+
+1. Measure the throughput of the last segments.
+2. Multiply the throughput by 80%. The margin covers changes in throughput.
+3. Select the highest rendition at or below that value.
+4. If no rendition fits, select the lowest rendition.
+
+For example, at 3 Mbps the limit is 2.4 Mbps. The player selects the 1 Mbps rendition.
+A player that stays on 5 Mbps gets 3 / 5 = 0.6 seconds of video each second, but plays 1 second.
+Thus, the buffer decreases by 0.4 seconds each second. A buffer of 20 seconds is empty after 50 seconds.
+
+```python
+import math
+
+RENDITIONS_MBPS = [0.5, 1, 2.5, 5, 8]
+
+
+def egress_gbps(viewers, stream_mbps):
+    return viewers * stream_mbps / 1_000
+
+
+def origin_gbps(total_gbps, offload_percent):
+    return total_gbps * (100 - offload_percent) / 100
+
+
+def servers_for(gbps, server_gbps, target_utilization):
+    return math.ceil(gbps / (server_gbps * target_utilization))
+
+
+def bytes_per_day(average_viewers, stream_mbps):
+    return average_viewers * stream_mbps * 10**6 / 8 * 86_400
+
+
+def segments(duration_seconds, segment_seconds, renditions=1):
+    return math.ceil(duration_seconds / segment_seconds) * renditions
+
+
+def startup_seconds(rendition_mbps, segment_seconds, link_mbps, round_trip_seconds):
+    # one round trip for the manifest, one for the first segment, then its download
+    return 2 * round_trip_seconds + rendition_mbps * segment_seconds / link_mbps
+
+
+def pick_rendition(measured_mbps, margin=0.8):
+    fits = [rate for rate in RENDITIONS_MBPS if rate <= measured_mbps * margin]
+    return max(fits) if fits else RENDITIONS_MBPS[0]
+
+
+def seconds_to_stall(buffer_seconds, rendition_mbps, link_mbps):
+    loss_per_second = 1 - link_mbps / rendition_mbps
+    return math.inf if loss_per_second <= 0 else buffer_seconds / loss_per_second
+
+
+peak = egress_gbps(5_000_000, 3)
+assert peak == 15_000  # 15 Tbps
+assert origin_gbps(peak, 95) == 750
+assert origin_gbps(peak, 90) == 1_500  # 90% offload doubles the origin
+assert servers_for(origin_gbps(peak, 95), 10, 0.5) == 150
+assert servers_for(peak, 10, 0.5) == 3_000  # without a CDN
+assert round(bytes_per_day(2_000_000, 3) / 10**15, 1) == 64.8  # PB a day
+
+assert segments(2 * 3_600, 4) == 1_800  # a 2-hour film, 4-second segments
+assert segments(2 * 3_600, 4, renditions=len(RENDITIONS_MBPS)) == 9_000
+assert segments(10, 4) == 3  # the last segment is short
+assert 5_000_000 / 2 == 2_500_000  # segment requests a second, 2-second segments
+
+hour_gb = sum(RENDITIONS_MBPS) * 3_600 / 8 / 1_000
+assert math.isclose(hour_gb, 7.65)  # one hour of video, all renditions
+assert math.isclose(30_000 * hour_gb / 1_000, 229.5)  # TB of new video a day
+assert math.ceil(30_000 / 24 * 2 / 0.8) == 3_125  # transcode workers at 80% load
+
+assert math.isclose(startup_seconds(5, 6, 10, 0.05), 3.1)
+assert math.isclose(startup_seconds(1, 2, 10, 0.05), 0.3)
+assert pick_rendition(3) == 1  # 80% of 3 Mbps is 2.4 Mbps
+assert pick_rendition(12) == 8
+assert pick_rendition(0.4) == 0.5  # the lowest rendition is the floor
+assert math.isclose(seconds_to_stall(20, 5, 3), 50)
+assert seconds_to_stall(20, 1, 3) == math.inf  # the buffer grows
+```
+
+NOTE: Shorter segments give a faster start and faster adaptation.
+They also give more requests to the CDN, and slightly worse compression.
+
+## Case study: payments ledger
+
+A payments ledger records each movement of money as a set of entries.
+The amounts of the entries in one transaction add up to 0. This is double entry.
+The ledger never changes or deletes an entry. A new transaction that reverses the old one fixes a mistake.
+Networks fail, and clients retry money calls. Thus, each step must be safe to repeat.
+
+### Ledger requirements
+
+- Record each payment as a balanced transaction.
+- Never change or delete an entry. Keep entries for 7 years for audits.
+- Charge a card only one time, also when a client retries.
+- Never let two concurrent withdrawals spend the same money.
+- Each night, compare the ledger with the settlement file of the card processor.
+
+### Ledger estimates
+
+| Quantity | Calculation | Result |
+|---|---|---|
+| Payments a day | Given | 50 million |
+| Entries for each payment | Two for the charge and two for the fee | 4 |
+| Entries a second, average | 50 million x 4 / 86,400 | About 2,315 |
+| Entries a second, busiest hour | 3 x the average | About 6,900. That is about 1,700 transactions a second |
+| Data each day | 200 million entries x 250 bytes | 50 GB |
+| Data each year, before copies | 50 GB x 365 | 18.25 TB |
+| Data for 7 years with 3 copies | 18.25 TB x 7 x 3 | 383.25 TB |
+| Idempotency records, kept 7 days | 50 million x 500 bytes x 7 | 175 GB |
+
+### Ledger API and data model
+
+| Method | Path | Body or result |
+|---|---|---|
+| POST | /payments | Header: `Idempotency-Key`. Body: the amount, the currency, a card token and the merchant |
+| GET | /payments/{id} | Result: the payment and its status |
+| GET | /accounts/{id}/balance | Result: the balance in the smallest currency unit |
+
+| Table | Fields | Note |
+|---|---|---|
+| accounts | account_id, currency, balance | The balance changes in the same transaction as its entries |
+| transactions | transaction_id, idempotency_key, reverses, reason, created_at | The idempotency key is unique |
+| entries | transaction_id, account_id, amount, currency | Insert only. The amount is a signed 64-bit integer of cents |
+| idempotency_keys | key, request hash, response, expires_at | Kept for 7 days |
+| outbox | event_id, payload, published_at | Written in the same transaction as the entries |
+
+```text
+  ┌──────────┐ Idempotency-Key ┌─────────────┐  charge  ┌────────────────┐
+  │ Checkout ├────────────────>│ Payment API ├─────────>│ Card processor │
+  └──────────┘                 └──────┬──────┘          └───────┬────────┘
+                                      │ one transaction         │ settlement file
+                                      v                         v
+            ┌──────────────────────────────────────┐   ┌────────────────┐
+            │ Ledger DB: keys, entries, balances,  ├──>│ Nightly        │
+            │ outbox rows                          │   │ reconciliation │
+            └──────────────────┬───────────────────┘   └────────────────┘
+                               │ relay
+                               v
+                         ┌───────────┐
+                         │   Queue   ├───> consumers skip repeated event IDs
+                         └───────────┘
+```
+
+### Double-entry rules
+
+Each entry has a signed amount. Money that the platform holds is positive.
+Money that the platform owes or earns is negative.
+Thus, the account of money that the platform owes to merchants has a negative balance by design.
+
+To record a card payment of 100.00 with a fee of 2.9% plus 0.30, do these steps:
+
+1. Calculate the fee in integer cents: 10,000 x 2.9% + 30 = 320.
+2. Write +10,000 to the funds at the processor, and -10,000 to the merchant account.
+3. Write +320 to the merchant account, and -320 to fee revenue.
+4. Make sure that the entries add up to 0. If they do not, reject the transaction.
+5. Update the balances in the same database transaction.
+
+The merchant account then shows -9,680: the platform owes the merchant 96.80.
+You can also write the fee as one entry: +100.00, -96.80 and -3.20. The balances are the same.
+
+| Type for an amount | Result |
+|---|---|
+| 64-bit integer of the smallest unit, with a currency code | Exact sums. 0.10 + 0.20 is 10 + 20 = 30 cents |
+| Binary floating point | 0.10 has no exact value, so sums drift |
+| Text, for example "50.00" | The database cannot add the values |
+
+To fix a mistake, write a new transaction with the opposite entries.
+Link it to the old transaction and to the reason. Both stay on record, so an auditor can see what occurred.
+
+### Ledger retries and idempotency
+
+The checkout sends the same idempotency key with each attempt.
+It waits up to 10 seconds for each of 4 attempts, with waits of 1, 2 and 4 seconds between them.
+In the worst case, it stops after 4 x 10 + 7 = 47 seconds.
+All attempts carry the same key, so the processor charges the card one time only.
+
+To handle a payment request, do these steps:
+
+1. Insert the idempotency key into a table with a unique constraint.
+2. If the insert fails, read the stored record for the key.
+3. If the stored request hash is different, reject the request.
+4. If the stored record has a response, return it. If not, return "in progress".
+5. If the insert succeeds, call the processor with the same key.
+6. Write the entries, the balances, the outbox row and the response in one transaction.
+
+The unique constraint makes the database select one winner, also when two inserts arrive together.
+A check, then an insert, lets two servers both see "no key", and both charge the card.
+
+Keep each key for longer than any client retries. Here, that is 7 days, and the records use 175 GB.
+
+### Outbox and events
+
+Other services must know about each payment.
+If the service commits and then publishes, a crash between the two steps loses the event.
+If it publishes first, it can announce a payment that does not commit.
+
+The outbox row commits in the same transaction as the entries. A relay then publishes the row.
+The relay retries until it succeeds, so it can publish an event more than one time.
+Consumers keep the event IDs that they have finished, and skip a repeated ID.
+
+Make sure that the relay has spare capacity.
+In one scenario, 2,000 rows a second arrive at peak, and the relay publishes 2,500 a second.
+After an outage of 10 minutes, 1,200,000 rows wait. The backlog decreases by only 500 rows a second.
+The relay needs 2,400 seconds (40 minutes) to catch up.
+
+### Balances and reconciliation
+
+A wallet holds 100.00. Two withdrawals of 80.00 arrive at the same time on two servers.
+Do the check and the debit as one conditional update on the leader.
+For example, subtract 80.00 only in the row where the balance is at least 80.00.
+The second withdrawal then sees 20.00, and it fails.
+
+The balance row of a large merchant is a hot spot.
+It gets 3,000 updates a second at peak. One row takes at most 500 locked updates a second.
+At a target load of 50%, each row takes 250 updates a second.
+Split the balance into 3,000 / 250 = 12 sub-account rows. Each payment updates one row at random.
+The balance is the sum of the 12 rows.
+
+Each night, reconciliation compares 50 million payments with the settlement file of the processor.
+0.01% do not agree, and an analyst examines each of them for 3 minutes.
+That is 5,000 x 3 minutes = 250 hours. At 7 hours a day for each analyst, the team needs 36 analysts.
+Each improvement in automatic matches makes this team smaller.
+
+```python
+import hashlib
+import json
+import math
+
+
+class Ledger:
+    """Amounts are integer cents. The entries of each transaction add up to 0."""
+
+    def __init__(self):
+        self.entries = []  # (transaction ID, account, cents)
+        self.balances = {}
+        self.reverses = {}  # transaction ID -> the transaction that it cancels
+        self.by_key = {}  # idempotency key -> (request hash, transaction ID)
+
+    def transfer(self, key, legs, reverses=None):
+        """legs is a list of (account, cents). A retry with the same key returns the same transaction."""
+        request = hashlib.sha256(json.dumps([legs, reverses]).encode()).hexdigest()
+        if key in self.by_key:
+            stored_request, txn = self.by_key[key]
+            if stored_request != request:
+                raise ValueError("the key was used for a different request")
+            return txn  # a retry: no new entries
+        if sum(cents for _, cents in legs) != 0:
+            raise ValueError("the entries do not add up to 0")
+        txn = len(self.by_key) + 1
+        for account, cents in legs:  # a real ledger writes all of this in one database transaction
+            self.entries.append((txn, account, cents))
+            self.balances[account] = self.balances.get(account, 0) + cents
+        self.by_key[key] = (request, txn)
+        if reverses is not None:
+            self.reverses[txn] = reverses
+        return txn
+
+    def reverse(self, key, txn):
+        legs = [(account, -cents) for t, account, cents in self.entries if t == txn]
+        return self.transfer(key, legs, reverses=txn)
+
+    def invariants_hold(self):
+        totals, from_entries = {}, {}
+        for txn, account, cents in self.entries:
+            totals[txn] = totals.get(txn, 0) + cents
+            from_entries[account] = from_entries.get(account, 0) + cents
+        balanced = all(total == 0 for total in totals.values())
+        return balanced and from_entries == self.balances and sum(self.balances.values()) == 0
+
+
+def fee_cents(amount_cents):
+    return amount_cents * 29 // 1_000 + 30  # 2.9% plus 0.30, rounded down to a cent
+
+
+def payment(amount_cents):
+    """Two entries for the charge and two for the fee."""
+    fee = fee_cents(amount_cents)
+    return [
+        ("processor_funds", amount_cents),
+        ("merchant_payable", -amount_cents),
+        ("merchant_payable", fee),
+        ("fee_revenue", -fee),
+    ]
+
+
+def withdraw(balances, account, cents):
+    # the leader runs this check and the debit as one atomic update
+    if balances[account] < cents:
+        return False
+    balances[account] -= cents
+    return True
+
+
+assert fee_cents(10_000) == 320
+ledger = Ledger()
+first = ledger.transfer("order-1", payment(10_000))
+assert ledger.balances == {"processor_funds": 10_000, "merchant_payable": -9_680, "fee_revenue": -320}
+assert ledger.transfer("order-1", payment(10_000)) == first  # a retry with the same key
+assert len(ledger.entries) == 4
+
+try:
+    ledger.transfer("order-1", payment(5_000))
+    raise AssertionError("a reused key must fail")
+except ValueError:
+    pass
+try:
+    ledger.transfer("bad", [("merchant_payable", -5_000)])
+    raise AssertionError("a single entry must fail")
+except ValueError:
+    pass
+
+ledger.transfer("order-2", payment(5_000))
+duplicate = ledger.transfer("order-2-copy", payment(5_000))  # a bug records it two times
+fix = ledger.reverse("fix-order-2-copy", duplicate)
+assert ledger.reverses[fix] == duplicate
+assert len(ledger.entries) == 16  # the duplicate stays on record
+assert ledger.balances["merchant_payable"] == -(9_680 + 4_825)
+assert ledger.invariants_hold()
+
+ledger.balances["fee_revenue"] -= 1  # a bug changes a balance without an entry
+assert not ledger.invariants_hold()
+
+wallet = {"ann": 10_000}
+assert [withdraw(wallet, "ann", 8_000), withdraw(wallet, "ann", 8_000)] == [True, False]
+assert wallet["ann"] == 2_000
+
+assert 0.1 + 0.2 != 0.3  # binary floating point cannot hold 0.10 exactly
+assert 10 + 20 == 30  # integer cents add exactly
+
+# the figures of the case study
+assert round(50_000_000 * 4 / 86_400 * 3) == 6_944  # entries a second in the busiest hour
+assert 50_000_000 * 4 * 250 * 365 / 10**12 == 18.25  # TB a year, before copies
+assert math.isclose(18.25 * 7 * 3, 383.25)  # TB for 7 years with 3 copies
+assert 50_000_000 * 500 * 7 / 10**9 == 175  # GB of idempotency records
+assert 4 * 10 + (1 + 2 + 4) == 47  # seconds before the checkout stops
+assert 3_000 / (500 * 0.5) == 12  # balance rows for one large merchant
+assert 2_000 * 600 / (2_500 - 2_000) / 60 == 40  # minutes for the outbox relay to catch up
+assert math.ceil(50_000_000 * 0.0001 * 3 / 60 / 7) == 36  # analysts for the nightly review
+```
+
+CAUTION: Do not read a balance from a replica before you move money.
+A replica can lag. Run the check and the debit on the leader, in one atomic step.
 
 ## How to approach a design
 
