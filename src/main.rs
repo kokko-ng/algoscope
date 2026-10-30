@@ -2,6 +2,8 @@ mod app;
 mod app_quiz;
 mod check;
 mod content;
+#[cfg(test)]
+mod e2e_tests;
 mod progress;
 mod quiz;
 mod runner;

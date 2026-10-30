@@ -95,7 +95,12 @@ pub fn python() -> String {
 
 /// Returns the Python version, or an error explaining why it cannot be used.
 pub fn check_python() -> Result<(u32, u32)> {
-    let py = python();
+    check_python_at(&python())
+}
+
+/// Version check for a specific interpreter.
+pub fn check_python_at(py: &str) -> Result<(u32, u32)> {
+    let py = py.to_string();
     let out = Command::new(&py)
         .args(["-I", "-c", "import sys; print(sys.version_info[0], sys.version_info[1])"])
         .output()
@@ -124,14 +129,25 @@ fn write_run_dir(dir: &Path, ch: &Challenge, mode: Mode, solution: &str) -> Resu
 
 /// Run one job synchronously.
 pub fn run(ch: &Challenge, mode: Mode, solution: &str) -> Result<Outcome, String> {
-    run_inner(ch, mode, solution).map_err(|e| format!("{e:#}"))
+    run_with(ch, mode, solution, &python(), mode.timeout())
 }
 
-fn run_inner(ch: &Challenge, mode: Mode, solution: &str) -> Result<Outcome> {
+/// Run one job with an explicit interpreter and time limit.
+pub fn run_with(
+    ch: &Challenge,
+    mode: Mode,
+    solution: &str,
+    python: &str,
+    timeout: Duration,
+) -> Result<Outcome, String> {
+    run_inner(ch, mode, solution, python, timeout).map_err(|e| format!("{e:#}"))
+}
+
+fn run_inner(ch: &Challenge, mode: Mode, solution: &str, python: &str, timeout: Duration) -> Result<Outcome> {
     let dir = tempfile::Builder::new().prefix("algoscope-").tempdir()?;
     write_run_dir(dir.path(), ch, mode, solution)?;
     let stderr_path = dir.path().join("stderr.txt");
-    let mut child = Command::new(python())
+    let mut child = Command::new(python)
         .arg("-I")
         .arg(dir.path().join("_harness").join("harness.py"))
         .arg(dir.path())
@@ -141,18 +157,18 @@ fn run_inner(ch: &Challenge, mode: Mode, solution: &str) -> Result<Outcome> {
         .stdout(Stdio::null())
         .stderr(Stdio::from(fs::File::create(&stderr_path)?))
         .spawn()
-        .with_context(|| format!("could not start `{}`", python()))?;
+        .with_context(|| format!("could not start `{python}`"))?;
     let start = Instant::now();
     let status = loop {
         if let Some(status) = child.try_wait()? {
             break status;
         }
-        if start.elapsed() > mode.timeout() {
+        if start.elapsed() > timeout {
             let _ = child.kill();
             let _ = child.wait();
             return Err(anyhow!(
                 "timed out after {}s: look for an infinite loop or a very slow path",
-                mode.timeout().as_secs()
+                timeout.as_secs()
             ));
         }
         thread::sleep(Duration::from_millis(10));

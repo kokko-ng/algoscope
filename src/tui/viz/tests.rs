@@ -263,6 +263,8 @@ fn every_challenge_renders() {
                         (0, ThemeKind::Stealth, 80, 24),
                         (25, ThemeKind::Game, 140, 40),
                         (usize::MAX, ThemeKind::Stealth, 100, 30),
+                        (3, ThemeKind::Game, 20, 6),
+                        (1, ThemeKind::Stealth, 1, 1),
                     ] {
                         let text = render_challenge(key, step, theme, w, h);
                         assert!(!text.is_empty(), "{key}");
