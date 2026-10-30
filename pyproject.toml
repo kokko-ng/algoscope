@@ -1,0 +1,47 @@
+# Tool configuration only: the Python here is the harness that runs solutions, plus curriculum content.
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",    # conflicts with D211
+    "D213",    # conflicts with D212
+    "COM812",  # conflicts with the formatter
+    "ISC001",  # conflicts with the formatter
+    "CPY001",  # no per-file copyright headers; see LICENSE
+    "INP001",  # loose scripts by design: the harness is copied into a temp dir and run as files
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Curriculum code is written to read like a learner's solution: plain functions, no annotations or
+# docstrings, numbers that belong to the problem, and case generators with a fixed (n, rng) signature.
+"content/**" = ["ANN", "D", "ARG001", "ARG002", "PLR2004", "S105", "S311", "N802", "N803", "N806", "FBT", "ERA001"]
+# References keep explicit loops so step counts compare like-for-like with loop-based solutions.
+"content/**/reference.py" = ["PERF401"]
+# Starters are scaffolding: imports the learner will need and placeholder variables they will fill in.
+"content/**/starter.py" = ["F401", "RET504"]
+# The nested if mirrors the walkthrough captions, which are pinned to line numbers.
+"content/stacks-queues/brackets-walkthrough/reference.py" = ["SIM102"]
+# The harness passes arbitrary learner values around; `Any` is the honest type for them.
+"harness/*.py" = ["ANN401"]
+"harness/tests/**" = ["S101", "S603", "PLR2004", "D103", "ANN001", "ANN201", "PLC0415"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unreachable = true
+files = ["harness/harness.py", "harness/tracer.py", "harness/traced.py", "harness/algoscope.py"]
+mypy_path = "harness"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "cargo"
+tag_format = "v$version"
+major_version_zero = true
+update_changelog_on_bump = true

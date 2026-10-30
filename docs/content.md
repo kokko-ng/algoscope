@@ -90,18 +90,22 @@ the code.
 ```python
 def visual():
     """One small, readable input for the trace: 5-10 elements, under ~400 steps."""
-    return ([1, 3, 4, 6, 8, 11, 14], 17)        # a tuple of positional arguments
+    return ([1, 3, 4, 6, 8, 11, 14], 17)  # a tuple of positional arguments
+
 
 def fixed():
     """Edge cases, each an argument tuple."""
     return [([], 5), ([2], 4)]
 
+
 def cases(n, rng):
     """Random inputs of size n for correctness. Return a list of argument tuples."""
     return [(sorted(rng.sample(range(10 * n + 10), n)), rng.randint(0, 20 * n))]
 
+
 def bench(n, rng):
     """Optional: worst-case-ish inputs of size n for profiling (defaults to cases)."""
+
 
 def check(case, got, expected):
     """Optional: custom comparison when many answers are valid."""

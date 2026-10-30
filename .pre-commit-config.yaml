@@ -1,17 +1,129 @@
-default_install_hook_types: [pre-commit, commit-msg]
+# Strict by design: every commit is formatted, linted, type-checked, tested and secret-scanned,
+# and every commit message follows Conventional Commits.
+#   pre-commit install            # installs the pre-commit, commit-msg and pre-push hooks
+#   pre-commit run --all-files    # everything except the commit-msg and pre-push checks
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
+fail_fast: false
+minimum_pre_commit_version: "3.2.0"
 
 repos:
+  # ---- repository hygiene ------------------------------------------------------------------
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: check-toml
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: fix-byte-order-marker
       - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: forbid-submodules
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=256]
+      - id: detect-private-key
+      - id: name-tests-test
+        args: [--pytest-test-first]
+        files: ^harness/tests/
 
-  # Commit messages follow Conventional Commits.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.3
+    hooks:
+      - id: codespell
+        # ratatui is the TUI crate; the rest are deliberate words in examples and test data
+        args: ["--ignore-words-list=crate,ratatui,tne,abd"]
+
+  - repo: https://github.com/jackdewinter/pymarkdown
+    rev: v0.9.41
+    hooks:
+      - id: pymarkdown
+        # long lines are fine in prose and tables
+        args: [--disable-rules, md013, scan]
+
+  # ---- house rules -------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: no-interview-framing
+        name: content stays safe for work (no interview or hiring framing)
+        language: pygrep
+        entry: "(?i)\\b(interview|leetcode|hiring|recruit|job hunt)"
+        files: ^(content/|src/|README\.md)
+      - id: no-emoji
+        name: no emoji
+        language: python
+        entry: scripts/check_no_emoji.py
+        types: [text]
+
+  # ---- Python: harness and curriculum ------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.4.1
+    hooks:
+      - id: mypy
+        # configured in pyproject.toml: --strict over the harness modules
+        pass_filenames: false
+        files: ^(harness/|pyproject\.toml)
+        additional_dependencies: [pytest]
+
+  - repo: local
+    hooks:
+      - id: harness-tests
+        name: harness tests (pytest)
+        language: system
+        entry: uv run --no-project --with pytest python -m pytest harness/tests -q
+        pass_filenames: false
+        files: ^harness/
+
+  # ---- Rust ----------------------------------------------------------------------------------
+      - id: cargo-fmt
+        name: cargo fmt
+        language: system
+        entry: scripts/cargo.sh fmt --all --check
+        pass_filenames: false
+        files: \.rs$|^(Cargo\.(toml|lock)|rustfmt\.toml)$
+      - id: cargo-clippy
+        name: cargo clippy (pedantic, warnings are errors)
+        language: system
+        entry: scripts/cargo.sh clippy --all-targets --locked -- -D warnings
+        pass_filenames: false
+        files: \.rs$|^(Cargo\.(toml|lock)|build\.rs)$|^(content|harness)/
+      - id: cargo-test
+        name: cargo test (unit, snapshot and render tests)
+        language: system
+        entry: scripts/cargo.sh test --locked --quiet
+        pass_filenames: false
+        files: \.rs$|\.snap$|^(Cargo\.(toml|lock)|build\.rs)$|^(content|harness)/
+      - id: check-content
+        name: every challenge passes, grades gold and measures its declared complexity
+        language: system
+        entry: scripts/cargo.sh run --locked --quiet -- check-content
+        pass_filenames: false
+        files: ^(content|harness|src)/
+
+  # ---- commit messages -------------------------------------------------------------------------
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.19.2
+    rev: v4.19.3
     hooks:
       - id: commitizen
         stages: [commit-msg]
+      - id: commitizen-branch
+        stages: [pre-push]
