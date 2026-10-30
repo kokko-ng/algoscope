@@ -144,7 +144,7 @@ fn build_array_tree(frame: &Frame, vals: &[V]) -> Vec<TNode> {
     let mut nodes: Vec<TNode> = (0..n)
         .map(|i| TNode {
             label: frame.cell(&vals[i]),
-            depth: (usize::BITS - (i + 1).leading_zeros() - 1) as usize,
+            depth: (i + 1).ilog2() as usize,
             x: 0,
             left: (2 * i + 1 < n).then_some(2 * i + 1),
             right: (2 * i + 2 < n).then_some(2 * i + 2),
