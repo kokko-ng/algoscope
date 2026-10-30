@@ -1,6 +1,6 @@
 [package]
 name = "algoscope"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "A terminal workbench for data structures and algorithms: write Python, watch it run, profile it."
 license = "MIT"
