@@ -92,3 +92,6 @@ The Rust side (`src/`) handles the TUI, editor, runner and scoring. The Python h
 (`harness/`) runs solutions, records trace frames and counts steps. It is embedded in the binary
 and written to a temp directory for each run. Curriculum content is in `content/`; see
 [docs/content.md](docs/content.md) to add topics or challenges.
+
+[docs/dsa-guide.md](docs/dsa-guide.md) is a reference guide to every topic in the curriculum, with
+Python samples. It is written in ASD-STE100 Simplified Technical English.
