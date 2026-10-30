@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: pip install pre-commit commitizen
       - run: pre-commit run --all-files --show-diff-on-failure
       - name: commit messages follow Conventional Commits
