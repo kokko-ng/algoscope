@@ -1,0 +1,7 @@
+id = "trees"
+title = "Trees"
+zone = "The Branching Wood"
+summary = "A binary tree gives every node a left and a right child. In a binary search tree, smaller values go left and larger values go right, so each comparison discards a whole subtree and a well-shaped tree answers lookups in O(log n)."
+prereqs = ["recursion", "linked-lists"]
+order = 10
+challenges = ["inorder-walkthrough", "bst-build", "validate-bst", "bst-lca", "level-order"]

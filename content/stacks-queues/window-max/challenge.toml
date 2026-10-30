@@ -1,0 +1,31 @@
+id = "window-max"
+title = "Sliding window maximum"
+stage = "apply"
+xp = 160
+complexity = "O(n)"
+statement = """
+Return the maximum of every window of k consecutive values in nums, from left to right. There are `len(nums) - k + 1` windows (none when nums is empty); 1 <= k.
+
+Taking the max of each window separately costs O(n * k), and the suite uses windows half as wide as the list. Aim for O(n) overall. `from collections import deque` is allowed.
+
+A value can never be a window maximum again once a larger value arrives after it. Those values can be thrown away for good.
+"""
+hints = [
+  "Keep a deque of indices whose values decrease from front to back. The front is always the maximum of the current window.",
+  "For each i: drop the front if it has slid out of the window, pop from the back while those values are <= nums[i], then append i. Once the first window is complete, record nums[front]. Each index enters and leaves once.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["i"]
+window = ["start", "i"]
+
+[[view]]
+var = "candidates"
+as = "queue"
+label = "candidate indices"
+
+[[view]]
+var = "result"
+as = "array"

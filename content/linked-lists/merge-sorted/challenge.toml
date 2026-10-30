@@ -1,0 +1,31 @@
+id = "merge-sorted"
+title = "Merge two sorted lists"
+stage = "apply"
+xp = 110
+complexity = "O(n + m)"
+forbid = ["sorted", "sort"]
+statement = """
+first and second are linked lists sorted in ascending order (either may be None). Return the head of a single sorted list containing every node from both. Reuse the existing nodes by relinking them; do not copy values into a Python list.
+
+Each node should be looked at once, so the work is O(n + m).
+
+The awkward part is the first node of the result, which could come from either list. A placeholder node in front of the result removes that special case.
+"""
+hints = [
+  "Create one placeholder node `dummy` and keep `tail` at the last node of the merged list. Repeatedly link the smaller of the two front nodes after tail.",
+  "When one list runs out, the rest of the other is already sorted: link it after tail in one step. Return `dummy.next`.",
+]
+
+[[view]]
+var = "dummy.next"
+as = "linked"
+label = "merged"
+pointers = ["tail"]
+
+[[view]]
+var = "first"
+as = "linked"
+
+[[view]]
+var = "second"
+as = "linked"

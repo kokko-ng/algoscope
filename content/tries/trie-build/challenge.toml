@@ -1,0 +1,28 @@
+id = "trie-build"
+title = "Build a trie"
+stage = "build"
+xp = 170
+kind = "class"
+entry = "Trie"
+complexity = "O(n·L)"
+forbid = ["startswith", "set"]
+sizes = [100, 200, 400, 800]
+statement = """
+Implement Trie using the TrieNode class in the starter: a `children` dict from a character to a node, and an `end` flag. Keep the root in `self.root` so the trace can draw it.
+
+- insert(word): store word
+- search(word): True only if word itself was inserted
+- starts_with(prefix): True if some inserted word begins with prefix (every trie contains the empty prefix)
+
+Words may repeat, and the empty string is a valid word. Comparing a prefix against every stored word costs O(n) per query. Each operation here should cost O(L) for a string of length L, so n operations on short words are O(n·L).
+"""
+hints = [
+  "insert walks from the root, creating a child node for any character that has no edge yet, then sets `end = True` on the last node.",
+  "search and starts_with share the same walk: follow the characters and give up when an edge is missing. Write it once as a helper that returns the node reached (or None). search then also checks `end`; starts_with does not.",
+]
+
+[[view]]
+var = "self.root"
+label = "trie"
+as = "trie"
+pointers = ["node"]

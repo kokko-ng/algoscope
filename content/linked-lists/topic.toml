@@ -1,0 +1,7 @@
+id = "linked-lists"
+title = "Linked lists"
+zone = "The Chain Works"
+summary = "A linked list stores each value in its own node with a reference to the next one. Inserting or removing at a known node is a couple of pointer changes instead of a shift, but reaching the k-th element means walking k links. Most linked-list problems come down to moving a few pointers in the right order."
+prereqs = ["foundations"]
+order = 7
+challenges = ["reverse-walkthrough", "linked-list", "cycle-start", "merge-sorted", "remove-from-end"]

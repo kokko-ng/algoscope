@@ -1,0 +1,25 @@
+id = "meeting-rooms"
+title = "Fewest rooms"
+stage = "apply"
+xp = 130
+complexity = "O(n log n)"
+sizes = [100, 200, 400, 800]
+statement = """
+Each meeting is [start, end) with start < end. Return the fewest rooms needed so that no room hosts two meetings at once. A meeting may start in a room at the exact moment another one ends there.
+
+Checking each meeting against all the others is O(n^2). Take meetings in order of start time and keep the end times of the rooms in use in a min-heap, so the room that frees up first is always on top. Sorting and `heapq` are allowed.
+"""
+hints = [
+  "When a meeting starts, the only room worth checking is the one that becomes free earliest. If even that one is still busy, every room is busy.",
+  "Sort by start. For each meeting, if `ends[0] <= start` reuse that room with `heapq.heapreplace(ends, end)`; otherwise push end as a new room. The answer is `len(ends)`.",
+]
+
+[[view]]
+var = "meetings"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "ends"
+label = "room end times"
+as = "heap"

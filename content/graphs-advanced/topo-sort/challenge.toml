@@ -1,0 +1,36 @@
+id = "topo-sort"
+title = "Build a topological sort"
+stage = "build"
+xp = 180
+complexity = "O(V + E)"
+forbid = ["graphlib"]
+sizes = [200, 400, 800, 1600]
+statement = """
+`graph[node]` lists the nodes that must come after `node`. Return a list containing every node once, ordered so that every edge points forward. Any valid order is accepted. If the edges form a cycle, no order exists: return None.
+
+Scanning all nodes for one with nothing left before it, again and again, is O(V^2). The suite expects O(V + E).
+
+Kahn's algorithm counts, for each node, how many edges still point into it. A node with a count of zero is free to go next, and placing it may free the nodes after it.
+"""
+hints = [
+  "Count incoming edges for every node first. Queue every node whose count is zero.",
+  "Pop a node, append it to the order, and decrement the count of each node after it, queueing any that reach zero. If the order ends up shorter than the graph, the leftover nodes sit on a cycle.",
+]
+
+[[view]]
+var = "graph"
+as = "graph"
+pointers = ["node", "order", "queue"]
+layout = { "A" = [0, 0], "B" = [0, 2], "C" = [1, 0], "D" = [1, 1], "E" = [1, 2], "F" = [2, 0], "G" = [2, 2] }
+
+[[view]]
+var = "indegree"
+as = "map"
+
+[[view]]
+var = "queue"
+as = "queue"
+
+[[view]]
+var = "order"
+as = "array"

@@ -1,0 +1,34 @@
+id = "sift-up-walkthrough"
+title = "Watch a value sift up"
+stage = "watch"
+xp = 40
+kind = "class"
+entry = "MinHeap"
+complexity = "O(log n)"
+statement = """
+A min-heap is a binary tree packed into a list: the children of index i live at 2i + 1 and 2i + 2, and every parent is no larger than its children. The tree is never stored as nodes, only as the list.
+
+Watch `child` and `parent` as values are pushed. A new value starts in the last slot and swaps upward while it is smaller than its parent. What is the most swaps one push can ever need when the heap holds n values?
+"""
+
+[[view]]
+var = "self.items"
+label = "heap"
+as = "heap"
+pointers = ["child", "parent"]
+
+[[captions]]
+line = 6
+text = "The new value goes in the next free slot. The tree stays complete, but this one spot may break the heap order."
+
+[[captions]]
+line = 9
+text = "Index arithmetic replaces pointers: the parent of slot i is always (i - 1) // 2."
+
+[[captions]]
+line = 11
+text = "Parent is already no larger: the order holds everywhere, so the push is done."
+
+[[captions]]
+line = 12
+text = "Smaller than its parent, so swap and keep climbing. Each swap moves up one level, and a complete tree has only about log2(n) levels."

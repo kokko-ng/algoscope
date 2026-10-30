@@ -1,0 +1,31 @@
+id = "common-subsequence"
+title = "Longest shared thread"
+stage = "apply"
+xp = 140
+complexity = "O(n·m)"
+sizes = [20, 40, 80, 120]
+check_sizes = [0, 1, 2, 3, 5, 8, 10, 12]
+statement = """
+A subsequence keeps some characters of a string in their original order, not necessarily side by side: "tne" is a subsequence of "stone". Return the length of the longest subsequence that `a` and `b` share.
+
+A string of length n has 2^n subsequences, and recursing on both strings without remembering results is exponential too. The suite expects O(n·m) for lengths n and m.
+
+Let `dp[i][j]` be the answer for the first i characters of `a` and the first j characters of `b`. Compare the last character of each prefix.
+"""
+hints = [
+  "If a[i - 1] == b[j - 1], that character can end the shared subsequence: dp[i][j] = dp[i - 1][j - 1] + 1.",
+  "Otherwise one of the two last characters is not used: dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]). Row 0 and column 0 stay 0 (an empty prefix shares nothing).",
+]
+
+[[view]]
+var = "dp"
+as = "grid"
+pointers = ["i", "j"]
+
+[[view]]
+var = "a"
+as = "value"
+
+[[view]]
+var = "b"
+as = "value"

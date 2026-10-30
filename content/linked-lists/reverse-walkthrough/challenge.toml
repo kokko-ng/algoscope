@@ -1,0 +1,42 @@
+id = "reverse-walkthrough"
+title = "Watch a linked list reverse"
+stage = "watch"
+xp = 40
+complexity = "O(n)"
+statement = """
+Each node knows only its successor. To reverse the list you turn every `next` link around, one node at a time, using three pointers: `prev` (the part already reversed), `cur` (the node being turned) and `nxt` (the rest of the list).
+
+Watch the two chains: the reversed part grows as the remaining part shrinks. What would be lost if you rewired `cur.next` before saving it in `nxt`?
+"""
+
+[[view]]
+var = "prev"
+as = "linked"
+label = "reversed so far"
+pointers = ["prev"]
+
+[[view]]
+var = "cur"
+as = "linked"
+label = "still to reverse"
+pointers = ["cur", "nxt"]
+
+[[captions]]
+line = 5
+text = "Save the rest of the list first. The next line overwrites cur.next, and without nxt there would be no way to reach the remaining nodes."
+
+[[captions]]
+line = 6
+text = "Turn the link around: cur now points back at the reversed part instead of forward."
+
+[[captions]]
+line = 7
+text = "cur is now the front of the reversed part, so prev moves onto it."
+
+[[captions]]
+line = 8
+text = "Step onto the saved node and repeat. Each node is visited once, so the whole reversal is O(n) with O(1) extra memory."
+
+[[captions]]
+line = 9
+text = "cur ran off the end. prev holds the old tail, which is the new head."

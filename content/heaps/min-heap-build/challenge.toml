@@ -1,0 +1,29 @@
+id = "min-heap-build"
+title = "Build a min-heap"
+stage = "build"
+xp = 180
+kind = "class"
+entry = "MinHeap"
+complexity = "O(n log n)"
+forbid = ["heapq", "sort", "sorted", "min", "bisect", "insert"]
+sizes = [100, 200, 400, 800]
+statement = """
+Implement MinHeap on the list `self.items`, stored as a binary heap: the children of index i are at 2i + 1 and 2i + 2, and no parent is larger than its children.
+
+- push(value): add a value
+- pop(): remove and return the smallest value
+- peek(): return the smallest value without removing it
+- __len__(): the number of stored values
+
+pop and peek are only called on a non-empty heap. The suite pushes n values in descending order, the worst case for sifting up, then pops them all. Keeping the list sorted or scanning it for the minimum costs O(n) per operation; each heap operation should touch one root-to-leaf path, so the whole run is O(n log n).
+"""
+hints = [
+  "push: append to the end, then swap with the parent at (i - 1) // 2 while the new value is smaller. peek is just items[0].",
+  "pop: save items[0], move the last value into slot 0, then sift it down: swap with the smaller of its two children while that child is smaller, stopping at the bottom. Check that a child index exists before reading it.",
+]
+
+[[view]]
+var = "self.items"
+label = "heap"
+as = "heap"
+pointers = ["child", "parent", "smallest"]

@@ -1,0 +1,30 @@
+id = "shortest-distances"
+title = "Shortest weighted routes"
+stage = "apply"
+xp = 150
+complexity = "O(E log V)"
+sizes = [200, 400, 800, 1600]
+statement = """
+Edges are one-way and have a length: `graph[node]` lists `(neighbour, weight)` pairs with weights of 0 or more. Return a dict that maps every node to the length of the shortest path from `source`, or -1 if no path exists.
+
+Breadth-first search counts edges, not lengths, so it gives wrong answers here. Scanning every node to find the closest unsettled one is O(V^2). The suite expects O(E log V). `heapq` is allowed.
+
+Settle nodes in order of distance, and let a min-heap find the next closest one.
+"""
+hints = [
+  "Push `(distance, node)` tuples onto a heap, starting with `(0, source)`. A popped node whose distance is already final can be skipped.",
+  "When you settle a node, try each edge: if `d + weight` beats the best known distance to the neighbour, record it and push the new pair. Old, larger entries are skipped when popped.",
+]
+
+[[view]]
+var = "graph"
+as = "graph"
+pointers = ["node", "done", "dist"]
+
+[[view]]
+var = "heap"
+as = "heap"
+
+[[view]]
+var = "dist"
+as = "map"

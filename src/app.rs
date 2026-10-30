@@ -477,7 +477,6 @@ impl App {
             }
             return;
         }
-        let n_topics = self.lib.topics.len();
         let n_ch = self.lib.topics.get(self.topic_idx).map_or(0, |t| t.challenges.len());
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => self.quit_app(),
@@ -488,16 +487,14 @@ impl App {
                 if self.home_focus_challenges {
                     self.chal_idx = self.chal_idx.saturating_sub(1);
                 } else {
-                    self.topic_idx = self.topic_idx.saturating_sub(1);
-                    self.chal_idx = 0;
+                    self.move_topic(-1);
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 if self.home_focus_challenges {
                     self.chal_idx = (self.chal_idx + 1).min(n_ch.saturating_sub(1));
                 } else {
-                    self.topic_idx = (self.topic_idx + 1).min(n_topics.saturating_sub(1));
-                    self.chal_idx = 0;
+                    self.move_topic(1);
                 }
             }
             KeyCode::Right | KeyCode::Char('l') | KeyCode::Tab => self.home_focus_challenges = true,
@@ -526,6 +523,17 @@ impl App {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Move the topic selection up or down the tree as drawn.
+    fn move_topic(&mut self, delta: i64) {
+        let order: Vec<usize> = self.lib.tree_order().into_iter().map(|(i, _)| i).collect();
+        let pos = order.iter().position(|i| *i == self.topic_idx).unwrap_or(0) as i64;
+        let next = (pos + delta).clamp(0, order.len().saturating_sub(1) as i64) as usize;
+        if let Some(i) = order.get(next) {
+            self.topic_idx = *i;
+            self.chal_idx = 0;
         }
     }
 

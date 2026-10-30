@@ -1,0 +1,32 @@
+id = "min-path-sum"
+title = "Build a cheapest-route table"
+stage = "build"
+xp = 180
+complexity = "O(n·m)"
+sizes = [10, 20, 30, 40]
+check_sizes = [0, 1, 2, 3, 4, 6, 8, 10]
+statement = """
+`grid` is a non-empty grid of costs. Start at the top-left cell and move only right or down to the bottom-right cell. Return the smallest possible sum of the cells you pass through, including both ends.
+
+An n by n grid has about 4^n / sqrt(n) routes, so trying them all, or recursing without remembering results, is hopeless past n = 12. The suite expects O(n·m): fill each cell of a table once.
+
+Let `dp[r][c]` be the cheapest cost of reaching cell (r, c). The last move into (r, c) came from above or from the left.
+"""
+hints = [
+  "dp[r][c] = grid[r][c] + min(dp[r - 1][c], dp[r][c - 1]). Fill rows top to bottom and each row left to right so both inputs are ready.",
+  "The first row can only be reached from the left and the first column only from above. Handle those edges (and the start cell) before applying the general rule.",
+]
+
+[[view]]
+var = "dp"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "best"
+as = "value"

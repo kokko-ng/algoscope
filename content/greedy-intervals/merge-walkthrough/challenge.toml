@@ -1,0 +1,35 @@
+id = "merge-walkthrough"
+title = "Watch intervals merge"
+stage = "watch"
+xp = 40
+complexity = "O(n log n)"
+statement = """
+Each interval is [start, end], and two intervals that overlap or touch should become one. Comparing every pair would be O(n^2), so the intervals are sorted by start first and then scanned once.
+
+Watch `i` move along the sorted list and `merged` grow. Each interval is only ever compared with the last merged interval, never with anything earlier. Why is that one comparison enough?
+"""
+
+[[view]]
+var = "intervals"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "merged"
+as = "array"
+
+[[captions]]
+line = 2
+text = "Sort by start. This is the O(n log n) step; everything after it is a single O(n) pass."
+
+[[captions]]
+line = 6
+text = "Starts only grow from here on. If this interval starts before the last merged one ends, they overlap."
+
+[[captions]]
+line = 7
+text = "Overlap: extend the last merged interval. Take the larger end, because a contained interval must not shrink it."
+
+[[captions]]
+line = 9
+text = "A gap. No later interval can reach back past this start, so the last merged interval is final. Open a new one."

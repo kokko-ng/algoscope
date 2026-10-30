@@ -1,0 +1,29 @@
+id = "hanoi"
+title = "Tower of Hanoi"
+stage = "apply"
+xp = 100
+complexity = "O(2^n)"
+sizes = [6, 8, 10, 12]
+check_sizes = [0, 1, 2, 3, 4, 5, 6, 9]
+statement = """
+`disks` disks of different sizes sit on peg "A", largest at the bottom. Move them all to peg "C", one disk at a time, never placing a disk on a smaller one. Peg "B" is spare. Return the moves as a list of `[from_peg, to_peg]` pairs, using as few moves as possible (that sequence is unique).
+
+Trying moves at random gets nowhere. Think about the largest disk: it moves exactly once, and at that moment every other disk must be out of the way on the spare peg.
+"""
+hints = [
+  "To move n disks from source to target: move n - 1 disks from source to spare, move the largest disk, then move n - 1 disks from spare onto target.",
+  "Write move(count, source, target, spare) with the base case count == 0 doing nothing. The two recursive calls swap the roles of the pegs. The total is 2^n - 1 moves.",
+]
+
+[[view]]
+var = "pegs"
+as = "map"
+
+[[view]]
+var = "count"
+as = "value"
+label = "disks in this call"
+
+[[view]]
+var = "moves"
+as = "value"

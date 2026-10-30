@@ -242,6 +242,31 @@ mod tests {
     }
 
     #[test]
+    fn topics_unlock_after_prerequisite_builds_and_master_at_silver() {
+        let lib = Library::load().unwrap();
+        let mut p = Progress::default();
+        let foundations = lib.topic("foundations").unwrap();
+        let two = lib.topic("two-pointers").unwrap();
+        assert_eq!(p.topic_state(&lib, foundations), TopicState::Open);
+        assert_eq!(p.topic_state(&lib, two), TopicState::Locked);
+        for c in foundations.challenges.iter().filter(|c| c.meta.stage == Stage::Build) {
+            p.complete(&c.key(), 10, Some(Grade::Bronze), None);
+        }
+        assert_eq!(p.topic_state(&lib, two), TopicState::Open);
+        for c in &foundations.challenges {
+            p.complete(&c.key(), 10, (c.meta.stage != Stage::Watch).then_some(Grade::Bronze), None);
+        }
+        assert_eq!(p.topic_state(&lib, foundations), TopicState::Done);
+        for c in &foundations.challenges {
+            p.complete(&c.key(), 20, (c.meta.stage != Stage::Watch).then_some(Grade::Silver), None);
+        }
+        assert_eq!(p.topic_state(&lib, foundations), TopicState::Mastered);
+        // a topic with two prerequisites needs both
+        let trees = lib.topic("trees").unwrap();
+        assert_eq!(p.topic_state(&lib, trees), TopicState::Locked);
+    }
+
+    #[test]
     fn missing_files_give_defaults() {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::new(dir.path().join("nope"));

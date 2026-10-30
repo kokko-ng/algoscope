@@ -1,0 +1,35 @@
+id = "inorder-walkthrough"
+title = "Walk a search tree in order"
+stage = "watch"
+xp = 40
+complexity = "O(n)"
+statement = """
+A binary search tree keeps one rule at every node: everything in the left subtree is smaller, everything in the right subtree is larger.
+
+An in-order walk handles the left subtree first, then the node itself, then the right subtree. Watch `node` move through the tree and `visited` fill up. Nothing is ever compared or sorted, so why do the values come out in ascending order?
+"""
+
+[[view]]
+var = "root"
+as = "tree"
+pointers = ["node"]
+
+[[view]]
+var = "visited"
+as = "array"
+
+[[captions]]
+line = 6
+text = "An empty subtree has nothing to visit. This is where every branch of the recursion stops."
+
+[[captions]]
+line = 7
+text = "Go left first. Every value down there is smaller than this node, so all of it must be listed before it."
+
+[[captions]]
+line = 8
+text = "The left subtree is finished. No smaller value is left unvisited, so this node is next in sorted order."
+
+[[captions]]
+line = 9
+text = "Now the right subtree: everything there is larger than this node. Each node is visited once, so the walk is O(n)."

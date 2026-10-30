@@ -1,0 +1,25 @@
+id = "count-prefix"
+title = "Count words by prefix"
+stage = "apply"
+xp = 110
+complexity = "O(n·L)"
+sizes = [100, 200, 400, 800]
+statement = """
+Given a list of words and a list of prefixes, return a list with, for each prefix, how many words start with it. Repeated words count every time, and the empty prefix matches every word.
+
+With n words and n prefixes, testing each prefix against each word is O(n^2). Build a trie once, and let each node remember how many words pass through it. Then every query is a walk of length L.
+"""
+hints = [
+  "Give each node a `count` field. While inserting a word, add 1 to the count of every node on its path, including the root.",
+  "To answer a prefix, walk its characters from the root. If an edge is missing the answer is 0; otherwise it is the count of the node where the walk ends.",
+]
+
+[[view]]
+var = "root"
+label = "trie"
+as = "trie"
+pointers = ["node"]
+
+[[view]]
+var = "counts"
+as = "array"

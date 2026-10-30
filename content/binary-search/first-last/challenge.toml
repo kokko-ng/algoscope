@@ -1,0 +1,30 @@
+id = "first-last"
+title = "First and last position"
+stage = "apply"
+xp = 110
+complexity = "O(log n)"
+forbid = ["index", "count", "bisect"]
+sizes = [1000, 4000, 16000, 64000]
+statement = """
+nums is a sorted list of integers that may contain long runs of equal values. Return `[first, last]`, the first and last index holding target, or `[-1, -1]` if target is absent.
+
+Finding one copy and walking outwards is not enough: in the suite, the run of copies can be half the list long, and walking it costs that many steps. Both ends of the run must be found by halving.
+"""
+hints = [
+  "Both ends of the run are boundaries in a sorted list. The first copy is the first index whose value is >= target.",
+  "Write the lower_bound search once as a helper. The last copy sits just before the first index whose value is >= target + 1.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["lo", "mid", "hi"]
+
+[[view]]
+var = "value"
+as = "value"
+label = "searching for >="
+
+[[view]]
+var = "start"
+as = "value"

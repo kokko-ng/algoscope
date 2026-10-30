@@ -1,0 +1,28 @@
+id = "rotated-search"
+title = "Search a rotated list"
+stage = "apply"
+xp = 130
+complexity = "O(log n)"
+forbid = ["index", "bisect"]
+sizes = [1000, 4000, 16000, 64000]
+statement = """
+nums held distinct integers in ascending order, then was rotated: some prefix was moved to the end, for example `[3, 6, 9, 15, 18]` became `[15, 18, 3, 6, 9]`. Return the index of target, or -1 if it is absent.
+
+The suite uses lists of up to 64,000 elements, so scanning is too slow, and you do not know where the rotation point is. A plain binary search fails because the list is not sorted as a whole.
+
+Look at what is still true when you split the window at mid.
+"""
+hints = [
+  "Split the window at mid. At least one of the two halves, `lo..mid` or `mid..hi`, is sorted with no break in it. Comparing nums[lo] with nums[mid] tells you which.",
+  "Once you know the sorted half, checking whether target lies between its two ends is a plain range test. If it does, keep that half; otherwise keep the other one.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["lo", "mid", "hi"]
+window = ["lo", "hi"]
+
+[[view]]
+var = "target"
+as = "value"

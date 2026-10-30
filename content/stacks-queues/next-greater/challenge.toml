@@ -1,0 +1,30 @@
+id = "next-greater"
+title = "Next greater value"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+statement = """
+For every position i, find the first value to the right of nums[i] that is strictly larger. Return a list of those values, with -1 where none exists. For `[4, 2, 1, 5]` the answer is `[5, 5, 5, -1]`.
+
+Scanning right from every position is O(n^2) when the values mostly fall, which is what the suite uses.
+
+Turn it around: as you scan left to right, keep the positions still waiting for their answer. Each new value settles some of them, and the ones it settles are always the most recent.
+"""
+hints = [
+  "Keep a stack of indices whose answer is not known yet. Their values never increase from bottom to top, because a larger value would already have settled the smaller ones below it.",
+  "For each i, pop while the value at the top index is smaller than nums[i], and record nums[i] as their answer. Then push i. Every index is pushed and popped at most once, so the total is O(n).",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "waiting"
+as = "stack"
+label = "waiting (indices)"
+
+[[view]]
+var = "result"
+as = "array"

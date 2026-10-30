@@ -195,3 +195,53 @@ fn map_buckets_stack_queue_value() {
     let views = "[[view]]\nvar = \"seen\"\nas = \"map\"\n[[view]]\nvar = \"table\"\nas = \"buckets\"\n[[view]]\nvar = \"stack\"\nas = \"stack\"\n[[view]]\nvar = \"q\"\nas = \"queue\"\n[[view]]\nvar = \"best\"\nas = \"value\"";
     insta::assert_snapshot!(draw(views, frame, None, 50, 26));
 }
+
+/// Every challenge's reference trace renders at several steps, in both themes and two sizes, without panicking.
+#[test]
+fn every_challenge_renders() {
+    let lib = Library::load().unwrap();
+    let keys: Vec<String> = lib.topics.iter().flat_map(|t| t.challenges.iter().map(|c| c.key())).collect();
+    std::thread::scope(|s| {
+        for chunk in keys.chunks(keys.len().div_ceil(8)) {
+            s.spawn(move || {
+                for key in chunk {
+                    for (step, theme, w, h) in [
+                        (0, ThemeKind::Stealth, 80, 24),
+                        (25, ThemeKind::Game, 140, 40),
+                        (usize::MAX, ThemeKind::Stealth, 100, 30),
+                    ] {
+                        let text = render_challenge(key, step, theme, w, h);
+                        assert!(!text.is_empty(), "{key}");
+                    }
+                }
+            });
+        }
+    });
+}
+
+#[test]
+fn home_screen_lists_every_topic() {
+    let lib = Library::load().unwrap();
+    let titles: Vec<String> = lib.topics.iter().map(|t| t.meta.title.clone()).collect();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = App::new(lib, Store::new(dir.path().to_path_buf()));
+    let mut term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    term.draw(|f| ui::draw(f, &mut app)).unwrap();
+    let text = buffer_text(term.backend().buffer());
+    println!("{text}");
+    for t in titles {
+        let head: String = t.chars().take(12).collect();
+        assert!(text.contains(&head), "missing {t}");
+    }
+}
+
+/// Prints sample renders: `cargo test print_samples -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn print_samples() {
+    let keys = std::env::var("ALGOSCOPE_SAMPLES").unwrap_or_else(|_| "trees/inorder-walkthrough".into());
+    for key in keys.split(',') {
+        let step: usize = std::env::var("ALGOSCOPE_STEP").ok().and_then(|s| s.parse().ok()).unwrap_or(20);
+        println!("== {key}\n{}", render_challenge(key, step, ThemeKind::Stealth, 120, 36));
+    }
+}

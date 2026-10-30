@@ -1,0 +1,7 @@
+id = "stacks-queues"
+title = "Stacks and queues"
+zone = "The Loading Docks"
+summary = "A stack hands back the most recent item first; a queue hands back the oldest. Both are restricted lists, and the restriction is the point: it matches problems where the latest open item must close first, or where work must be served in arrival order. Kept monotonic, a stack or deque also answers 'nearest larger' and 'maximum so far' questions in one pass."
+prereqs = ["foundations"]
+order = 8
+challenges = ["brackets-walkthrough", "ring-queue", "next-greater", "postfix-eval", "window-max"]

@@ -1,0 +1,7 @@
+id = "binary-search"
+title = "Binary search"
+zone = "The Halving Hall"
+summary = "Sorted data lets you throw away half of the remaining candidates with a single comparison. That turns a scan of a million items into about twenty steps, and the same idea works on any yes/no question whose answer flips once."
+prereqs = ["sorting"]
+order = 6
+challenges = ["halving-walkthrough", "lower-bound", "rotated-search", "min-capacity", "first-last"]

@@ -1,0 +1,27 @@
+id = "coin-change"
+title = "Fewest coins"
+stage = "apply"
+xp = 120
+complexity = "O(nk)"
+sizes = [20, 40, 80, 160]
+check_sizes = [0, 1, 2, 3, 5, 8, 10, 12]
+statement = """
+`coins` lists the coin values you have, each available in unlimited supply. Return the fewest coins that add up to exactly `amount`, or -1 if no combination does.
+
+Taking the largest coin that fits is not always right: with coins [1, 3, 4] and amount 6 it picks 4 + 1 + 1, but 3 + 3 uses two coins. Trying every combination is exponential. The suite expects O(nk): n is the amount and k the number of coin values.
+
+Solve every smaller amount first. The last coin in the best answer for a total could be any of the k values.
+"""
+hints = [
+  "Let fewest[t] be the fewest coins for total t, with fewest[0] = 0. Then fewest[t] = 1 + min(fewest[t - coin]) over coins no larger than t.",
+  "Start every other entry at a value larger than any real answer (amount + 1 works), fill t from 1 upward, and report -1 if fewest[amount] never came down.",
+]
+
+[[view]]
+var = "fewest"
+as = "array"
+pointers = ["total"]
+
+[[view]]
+var = "coin"
+as = "value"

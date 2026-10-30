@@ -1,0 +1,33 @@
+id = "subsets"
+title = "Build every subset"
+stage = "build"
+xp = 170
+complexity = "O(n·2^n)"
+forbid = ["itertools", "combinations", "product"]
+sizes = [6, 8, 10, 12]
+check_sizes = [0, 1, 2, 3, 4, 5, 6, 8]
+statement = """
+Return every subset of nums, including the empty one and nums itself. Values are distinct. Each subset is a list; the order of the subsets and of values within a subset does not matter.
+
+There are 2^n subsets, so no method can beat O(2^n) output, and this is the template for every search that follows: walk the values in order and, for each one, make a yes/no choice.
+
+Write a recursive helper that decides on one value, explores everything after it, then undoes the decision.
+"""
+hints = [
+  "Keep one list `chosen` and a helper explore(i) that has decided values 0..i-1. When i reaches len(nums), record a copy of chosen.",
+  "In explore(i): append nums[i], call explore(i + 1), pop it again, then call explore(i + 1) without it. Copy with `chosen[:]` when recording, or later changes will alter the saved subset.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "chosen"
+as = "array"
+
+[[view]]
+var = "result"
+as = "set"
+label = "subsets found"

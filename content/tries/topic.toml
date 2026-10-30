@@ -1,0 +1,7 @@
+id = "tries"
+title = "Tries"
+zone = "The Letter Roots"
+summary = "A trie stores strings as paths of characters from a shared root, so words with a common prefix share nodes. Looking up a word or a prefix costs time proportional to its length, no matter how many words are stored."
+prereqs = ["trees", "hashing"]
+order = 12
+challenges = ["trie-walkthrough", "trie-build", "count-prefix", "longest-common-prefix", "autocomplete"]

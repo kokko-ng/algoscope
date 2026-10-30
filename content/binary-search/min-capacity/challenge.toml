@@ -1,0 +1,37 @@
+id = "min-capacity"
+title = "Smallest shipping capacity"
+stage = "apply"
+xp = 150
+complexity = "O(n log n)"
+check_sizes = [1, 2, 3, 5, 8, 13, 40]
+statement = """
+Packages with the given weights must ship in order, one run of consecutive packages per day. A day's run may not weigh more than the capacity. Return the smallest whole-number capacity that ships every package within `days` days. weights is non-empty and 1 <= days <= len(weights).
+
+You can check one capacity in a single pass. Trying capacities one by one from the heaviest package upwards can take thousands of passes, because with few days the answer is far above that.
+
+Notice that if a capacity works, every larger capacity works too. The answer is the point where "too small" flips to "enough", and you can binary search for it over capacities rather than over the list. Each probe costs a pass of n, and the number of probes grows like the log of the total weight.
+"""
+hints = [
+  "Write a helper that, for a given capacity, greedily fills each day as much as possible and counts the days used. Every capacity from max(weights) to sum(weights) is a candidate.",
+  "Binary search that range: if the helper says mid fits within days, the answer is mid or smaller (`hi = mid`); otherwise it is larger (`lo = mid + 1`).",
+]
+
+[[view]]
+var = "weights"
+as = "array"
+
+[[view]]
+var = "lo"
+as = "value"
+
+[[view]]
+var = "mid"
+as = "value"
+
+[[view]]
+var = "hi"
+as = "value"
+
+[[view]]
+var = "trips"
+as = "value"

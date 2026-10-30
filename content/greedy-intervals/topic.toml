@@ -1,0 +1,7 @@
+id = "greedy-intervals"
+title = "Greedy and intervals"
+zone = "The Hall of Hours"
+summary = "A greedy algorithm commits to the choice that looks best right now and never revisits it. For intervals, sorting first is what makes those local choices safe: once the intervals arrive in order, each decision only has to look at the last one."
+prereqs = ["sorting", "heaps"]
+order = 16
+challenges = ["merge-walkthrough", "interval-scheduling", "meeting-rooms", "jump-game", "insert-interval"]

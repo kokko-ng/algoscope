@@ -1,0 +1,35 @@
+id = "linked-list"
+title = "Build a linked list"
+stage = "build"
+xp = 180
+kind = "class"
+entry = "LinkedList"
+complexity = "O(n)"
+forbid = ["append", "insert", "pop", "index", "deque"]
+statement = """
+Implement LinkedList on top of `ListNode` (imported from algoscope: each node has `val` and `next`). Keep the first node in `self.head`. Python lists are off limits: store values in nodes only.
+
+- push_front(value): add a value at the front
+- push_back(value): add a value at the end
+- pop_front(): remove and return the first value, or None when empty
+- find(value): the index of the first node holding value, or -1
+- remove(value): unlink the first node holding value; return True if one was removed, else False
+- __len__(): the number of values
+
+The suite runs thousands of pushes in a row. Walking to the end on every push_back makes n pushes cost O(n^2), so push_back, push_front, pop_front and __len__ must each take O(1).
+"""
+hints = [
+  "Keep `self.tail` pointing at the last node and `self.size` up to date. push_back then links after the tail without walking.",
+  "The tail is easy to leave stale. When pop_front or remove empties the list, or remove unlinks the last node, update self.tail too. In remove, walk with two pointers (prev and node) so you can splice prev.next past the removed node.",
+]
+
+[[view]]
+var = "self.head"
+as = "linked"
+label = "head"
+pointers = ["node", "prev", "self.tail"]
+
+[[view]]
+var = "self.size"
+as = "value"
+label = "size"

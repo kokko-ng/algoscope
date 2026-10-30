@@ -1,0 +1,29 @@
+id = "merge-k-sorted"
+title = "Merge k sorted lists"
+stage = "apply"
+xp = 130
+complexity = "O(n log k)"
+forbid = ["sort", "sorted", "merge"]
+sizes = [100, 200, 400, 800]
+statement = """
+lists holds k lists, each sorted in ascending order, with n values in total. Some lists may be empty. Return one ascending list of all the values.
+
+The next output is always the smallest of the k list heads. Scanning every head for each output costs O(nk), and the suite uses many short lists. Keep the heads in a heap instead, so each output costs O(log k). `heapq` is allowed; sorting and `heapq.merge` are not.
+"""
+hints = [
+  "Heap entries can be tuples: (value, which list, position in that list). Tuples compare by their first field, so the smallest value comes out first.",
+  "Start with each non-empty list's first element. After popping (value, r, c), append value to the result and push list r's next element (c + 1) if it has one.",
+]
+
+[[view]]
+var = "lists"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "frontier"
+as = "heap"
+
+[[view]]
+var = "merged"
+as = "array"

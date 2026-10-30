@@ -1,0 +1,28 @@
+id = "level-order"
+title = "Level by level"
+stage = "apply"
+xp = 110
+complexity = "O(n)"
+sizes = [100, 200, 400, 800]
+statement = """
+Return the values of a binary tree level by level: a list of lists, the root's level first, each level read left to right. An empty tree gives [].
+
+Recursion follows one branch all the way down before it touches the next, which is the wrong order here. Process the tree in waves instead, and visit each node exactly once.
+"""
+hints = [
+  "A queue hands nodes back in the order they were added. If you add children as you take their parents out, the nodes come out level by level.",
+  "Use `collections.deque` and `popleft()`. At the start of each level, `len(queue)` is exactly the number of nodes on that level: take that many, record their values, and queue their children.",
+]
+
+[[view]]
+var = "root"
+as = "tree"
+pointers = ["node"]
+
+[[view]]
+var = "level"
+as = "array"
+
+[[view]]
+var = "levels"
+as = "value"

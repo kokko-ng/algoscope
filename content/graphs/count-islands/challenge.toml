@@ -1,0 +1,26 @@
+id = "count-islands"
+title = "Count the islands"
+stage = "apply"
+xp = 120
+complexity = "O(n·m)"
+sizes = [10, 20, 30, 40]
+statement = """
+`grid` is a map of 1 (land) and 0 (water). An island is a group of land cells joined up, down, left or right; diagonal contact does not count. Return the number of islands. You may change `grid`.
+
+A grid is a graph in disguise: each cell is a node and its four neighbours are its edges. The suite measures n by n grids, so the work must be O(n·m): every cell handled a constant number of times. Starting a fresh search from every land cell repeats work on each big island.
+
+Scan the cells in order. When you meet land that no earlier search has reached, you have found a new island.
+"""
+hints = [
+  "When the scan finds a 1, count it, then flood the whole island so the scan never counts it again.",
+  "Flood by setting the cell to 0 and recursing (or pushing onto a stack) into its four neighbours. Stop at the edge of the grid and at water.",
+]
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "islands"
+as = "value"

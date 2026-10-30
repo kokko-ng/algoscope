@@ -1,0 +1,34 @@
+id = "memo-walkthrough"
+title = "Watch recursion with a memo"
+stage = "watch"
+xp = 40
+complexity = "O(n)"
+statement = """
+Fibonacci numbers are defined in terms of themselves: fib(k) = fib(k - 1) + fib(k - 2), with fib(0) = 0 and fib(1) = 1. Written directly as a recursive function, the definition recomputes the same values again and again.
+
+Watch the call stack grow down to the base case and unwind, and watch `memo` fill in. The plain version of fib(7) makes 41 calls. How many does this one make, and which calls return straight from the memo?
+"""
+
+[[view]]
+var = "k"
+as = "value"
+
+[[view]]
+var = "memo"
+as = "map"
+
+[[captions]]
+line = 6
+text = "Base case: fib(0) and fib(1) are answered directly. Without a case that stops, the calls would never end."
+
+[[captions]]
+line = 7
+text = "Only compute fib(k) if no earlier call has. The first call down the left side fills every entry on its way back up."
+
+[[captions]]
+line = 8
+text = "Trust the smaller calls. fib(k - 1) runs first and fills the memo, so fib(k - 2) is then a lookup, not a second recursion."
+
+[[captions]]
+line = 9
+text = "Return the stored value. Each k is computed once, so the work is O(n) instead of roughly O(1.6^n)."

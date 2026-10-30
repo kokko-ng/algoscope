@@ -1,0 +1,7 @@
+id = "graphs"
+title = "Graphs: traversal"
+zone = "The Crossroads"
+summary = "Nodes joined by edges, with no root and possibly cycles. Breadth-first and depth-first search visit every reachable node once, and a visited set is what keeps them from walking in circles."
+prereqs = ["trees", "stacks-queues"]
+order = 13
+challenges = ["bfs-walkthrough", "bfs-distances", "count-islands", "path-exists", "two-colouring"]

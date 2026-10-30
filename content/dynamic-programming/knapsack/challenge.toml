@@ -1,0 +1,31 @@
+id = "knapsack"
+title = "Packing for value"
+stage = "apply"
+xp = 160
+complexity = "O(n·w)"
+sizes = [20, 40, 80, 120]
+check_sizes = [0, 1, 2, 3, 5, 8, 12, 16]
+statement = """
+Item i weighs `weights[i]` and is worth `values[i]`. Choose a set of items, each at most once, whose total weight is at most `capacity`. Return the largest total value. Weights are positive integers.
+
+Trying every subset is 2^n, and the suite starts at n = 20. Grabbing the best value per weight first is fast but wrong. The suite expects O(n·w), where w is the capacity.
+
+Ask a smaller question: with only the items seen so far, what is the best value for every capacity from 0 up to `capacity`? Each new item either stays out or goes in on top of a smaller capacity.
+"""
+hints = [
+  "Let best[i][room] be the best value using only the first i items with `room` capacity left. Row 0 is all zeros: no items, no value.",
+  "Item i either stays out (best[i - 1][room]) or, if it fits, goes in (best[i - 1][room - weight] + value). Take the larger. The answer is the last cell. A single row filled from right to left also works.",
+]
+
+[[view]]
+var = "best"
+as = "grid"
+pointers = ["item", "room"]
+
+[[view]]
+var = "weights"
+as = "array"
+
+[[view]]
+var = "values"
+as = "array"

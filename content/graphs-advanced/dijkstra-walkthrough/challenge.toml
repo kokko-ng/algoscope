@@ -1,0 +1,48 @@
+id = "dijkstra-walkthrough"
+title = "Watch Dijkstra's algorithm"
+stage = "watch"
+xp = 40
+complexity = "O(E log V)"
+statement = """
+Now every edge has a length: `graph[node]` lists `(neighbour, weight)` pairs. Breadth-first search counts edges, so it no longer finds the shortest route. Dijkstra's algorithm keeps a min-heap of candidate distances and always settles the closest unsettled node next.
+
+Watch `heap`, `dist` and `done`. B is first offered a distance of 4, then a shorter one through C. Why is a node's distance final the moment it leaves the heap, and what would break if an edge could have a negative weight?
+"""
+
+[[view]]
+var = "graph"
+as = "graph"
+pointers = ["node", "done", "dist"]
+layout = { "A" = [0, 1], "B" = [1, 0], "C" = [1, 2], "D" = [2, 1], "E" = [3, 1], "F" = [4, 1] }
+
+[[view]]
+var = "heap"
+as = "heap"
+
+[[view]]
+var = "dist"
+as = "map"
+
+[[view]]
+var = "done"
+as = "set"
+
+[[captions]]
+line = 9
+text = "Pop the smallest candidate. Every other route would leave through a node that is at least as far away, and weights are never negative, so this distance cannot improve."
+
+[[captions]]
+line = 11
+text = "A stale entry: this node was already settled by a shorter route. Skipping it is cheaper than searching the heap to delete it."
+
+[[captions]]
+line = 15
+text = "Relax the edge: the route through `node` only counts if it beats the best distance known so far."
+
+[[captions]]
+line = 17
+text = "Push the better distance. The older, larger entry stays in the heap and is skipped when it surfaces."
+
+[[captions]]
+line = 18
+text = "Each edge pushes at most once and each push or pop costs O(log V): O(E log V) in total."

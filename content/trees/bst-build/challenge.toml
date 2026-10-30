@@ -1,0 +1,34 @@
+id = "bst-build"
+title = "Build a binary search tree"
+stage = "build"
+xp = 180
+kind = "class"
+entry = "BST"
+complexity = "O(n log n)"
+forbid = ["sorted", "sort", "bisect", "set"]
+sizes = [100, 200, 400, 800]
+statement = """
+Implement BST, a binary search tree of distinct integers. Build it from `TreeNode(val)` nodes (imported from algoscope) hanging off `self.root`, so the trace can draw it.
+
+- insert(value): add value. Inserting a value that is already present does nothing.
+- contains(value): return True or False.
+- delete(value): remove value if present. A leaf just disappears. A node with one child is replaced by that child. A node with two children takes the value of its in-order successor (the smallest value in its right subtree), and that successor is deleted from the right subtree instead.
+- inorder(): return every value in ascending order.
+
+The suite inserts values in random order, so the tree stays about O(log n) deep. Every operation should walk one path from the root, never the whole tree, so n operations cost O(n log n). inorder() is the one exception: it visits every node once.
+"""
+hints = [
+  "Every operation starts at the root and moves left when the value is smaller and right when it is larger. Write that walk once for contains, then adapt it for insert: stop at the empty spot where the value belongs.",
+  "For delete, a recursive helper `_delete(node, value)` that returns the new root of that subtree keeps the relinking simple: `node.left = self._delete(node.left, value)`. In the two-child case, copy the successor's value into the node, then delete the successor from node.right.",
+]
+
+[[view]]
+var = "self.root"
+label = "root"
+as = "tree"
+pointers = ["node", "successor"]
+
+[[view]]
+var = "values"
+label = "inorder"
+as = "array"

@@ -1,0 +1,31 @@
+id = "course-order"
+title = "Can the plan be finished?"
+stage = "apply"
+xp = 120
+complexity = "O(V + E)"
+sizes = [200, 400, 800, 1600]
+statement = """
+There are n courses, 0 .. n-1. Each pair [course, required] in `prerequisites` says `required` must be finished before `course`. Return True if there is an order that finishes every course, and False otherwise.
+
+The plan fails exactly when the requirements form a cycle. Following every chain of requirements from every course can take exponential time, and repeatedly scanning for a course with nothing left to wait for is O(V^2). The suite expects O(V + E).
+
+Build the graph from the pairs, then take courses as soon as nothing blocks them and count how many you manage.
+"""
+hints = [
+  "Turn the pairs into a map from each course to the courses it unlocks, plus a count of unfinished requirements per course.",
+  "Queue the courses with a count of zero. Each course you take lowers its dependants' counts; queue any that hit zero. All n taken means True.",
+]
+
+[[view]]
+var = "unlocks"
+as = "graph"
+pointers = ["course", "taken", "ready"]
+
+[[view]]
+var = "waiting"
+as = "array"
+pointers = ["course", "nxt"]
+
+[[view]]
+var = "ready"
+as = "queue"

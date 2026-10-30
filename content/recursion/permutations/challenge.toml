@@ -1,0 +1,37 @@
+id = "permutations"
+title = "Every ordering"
+stage = "apply"
+xp = 130
+complexity = "O(n·n!)"
+forbid = ["itertools", "permutations"]
+sizes = [4, 5, 6, 7]
+check_sizes = [0, 1, 2, 3, 4, 5, 6]
+statement = """
+Return every ordering (permutation) of nums. Values are distinct, so there are n! orderings. Each one is a list; the order in which you list them does not matter.
+
+Subsets made a yes/no choice per value. Here each position makes a choice among the values not placed yet. Build an ordering one position at a time, recurse, and undo the choice before trying the next value.
+"""
+hints = [
+  "Keep the partial ordering in a list and a parallel list of booleans `used`. When the ordering has n values, record a copy.",
+  "For each unused index i: mark it used, append nums[i], recurse, then pop and unmark. Undoing both changes is what lets the next loop iteration start from the same state.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "used"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "order"
+as = "array"
+label = "ordering so far"
+
+[[view]]
+var = "result"
+as = "set"
+label = "orderings found"

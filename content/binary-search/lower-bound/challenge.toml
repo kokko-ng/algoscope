@@ -1,0 +1,28 @@
+id = "lower-bound"
+title = "Build lower_bound"
+stage = "build"
+xp = 170
+complexity = "O(log n)"
+entry = "lower_bound"
+forbid = ["bisect", "index"]
+sizes = [1000, 4000, 16000, 64000]
+statement = """
+Implement `lower_bound(nums, target)`: nums is sorted ascending and may hold duplicates. Return the first index i with `nums[i] >= target`, or `len(nums)` when every element is smaller.
+
+This is the binary search everything else is built from. It also tells you where target would be inserted to keep nums sorted.
+
+The suite uses lists of up to 64,000 elements, and the answer is often near the end, so a scan from the left costs tens of thousands of steps. Halve a window instead. The work should grow like log n.
+"""
+hints = [
+  "Keep a half-open window `lo..hi` (hi excluded) that always contains the answer. Start with `lo = 0, hi = len(nums)`, so the answer len(nums) is reachable.",
+  "If `nums[mid] < target`, the answer is to the right of mid: `lo = mid + 1`. Otherwise mid itself might be the answer: `hi = mid`. Stop when lo == hi.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["lo", "mid", "hi"]
+
+[[view]]
+var = "target"
+as = "value"

@@ -1,0 +1,34 @@
+id = "running-median"
+title = "Running median"
+stage = "apply"
+xp = 150
+complexity = "O(n log n)"
+forbid = ["sort", "sorted", "bisect", "insort", "insert", "statistics", "median"]
+sizes = [100, 200, 400, 800]
+statement = """
+Values arrive one at a time. After each arrival, record the median of all values so far: the middle value for an odd count, or the mean of the two middle values (a float) for an even count. Return the list of medians.
+
+Keeping a sorted list costs O(n) per insertion, O(n^2) overall. You only ever need the middle, so split the values into a lower half and an upper half and keep each in a heap. `heapq` is allowed.
+"""
+hints = [
+  "The lower half needs its largest value on top and the upper half its smallest. heapq is a min-heap, so store the lower half negated: -low[0] is its maximum.",
+  "For each value: push it into low, then move low's largest into high; if high is now bigger than low, move high's smallest back. low then holds the extra value on odd counts, so the median is -low[0] or the mean of -low[0] and high[0].",
+]
+
+[[view]]
+var = "low"
+label = "low half (negated)"
+as = "heap"
+
+[[view]]
+var = "high"
+label = "high half"
+as = "heap"
+
+[[view]]
+var = "medians"
+as = "array"
+
+[[view]]
+var = "value"
+as = "value"

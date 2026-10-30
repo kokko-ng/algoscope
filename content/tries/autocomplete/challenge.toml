@@ -1,0 +1,29 @@
+id = "autocomplete"
+title = "Autocomplete"
+stage = "apply"
+xp = 140
+complexity = "O(n·L)"
+sizes = [100, 200, 400, 800]
+statement = """
+A text box suggests completions as you type. Given a list of words and a list of queries, return for each query the stored words that start with it, in alphabetical order, keeping only the first three. Repeated words are suggested once, and a query that matches a word exactly includes that word.
+
+There are as many queries as words, so scanning the whole word list for every query is O(n^2). Build a trie once. For each query, walk to its node, then explore below it in alphabetical order and stop as soon as you have three words.
+"""
+hints = [
+  "From the query's node, a depth-first search that tries children in sorted character order meets the words in alphabetical order. A word ending at a node comes before every longer word below it.",
+  "Write `collect(node, path, found)`: append path if node.end, then recurse into `sorted(node.children)`, returning as soon as `len(found) == 3`. Pass the query itself as the starting path.",
+]
+
+[[view]]
+var = "root"
+label = "trie"
+as = "trie"
+pointers = ["node"]
+
+[[view]]
+var = "found"
+as = "array"
+
+[[view]]
+var = "suggestions"
+as = "value"

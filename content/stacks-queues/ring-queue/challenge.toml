@@ -1,0 +1,41 @@
+id = "ring-queue"
+title = "Build a ring-buffer queue"
+stage = "build"
+xp = 180
+kind = "class"
+entry = "RingQueue"
+complexity = "O(n)"
+forbid = ["deque", "pop", "insert", "append", "extend", "remove", "copy", "list"]
+statement = """
+Implement a first-in, first-out queue on a fixed block of slots. `self.slots` may only be created as `[None] * k` and indexed: no list methods.
+
+- __init__(capacity=4): start with that many slots
+- enqueue(value): add at the back, growing the block when it is full
+- dequeue(): remove and return the front value, or None when empty
+- peek(): return the front value without removing it, or None when empty
+- __len__(): the number of stored values
+
+Removing from the front of a plain list shifts every remaining element, which makes n dequeues cost O(n^2). The suite keeps thousands of values queued, so every operation must be O(1) apart from the occasional grow.
+
+Instead of moving the values, move the front.
+"""
+hints = [
+  "Keep `self.front` (index of the oldest value) and `self.size`. The back slot is `(front + size) % len(slots)`, and dequeue advances front with the same wrap-around.",
+  "When growing, you cannot just copy slots in place, because the values may wrap past the end. Copy them in queue order, `slots[(front + i) % len(slots)]` for i in range(size), into the start of a block twice as large, and reset front to 0.",
+]
+
+[[view]]
+var = "self.slots"
+as = "array"
+label = "slots"
+pointers = ["self.front", "back"]
+
+[[view]]
+var = "bigger"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "self.size"
+as = "value"
+label = "size"

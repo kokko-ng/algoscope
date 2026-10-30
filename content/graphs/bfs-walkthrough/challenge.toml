@@ -1,0 +1,48 @@
+id = "bfs-walkthrough"
+title = "Watch breadth-first search"
+stage = "watch"
+xp = 40
+complexity = "O(V + E)"
+statement = """
+A graph is a set of nodes and the edges between them. `graph[node]` lists the neighbours of each node. Breadth-first search starts at one node and visits the rest in rings: first everything one edge away, then two edges away, and so on.
+
+Watch `queue`, `visited` and `order` as the search spreads from A. A node joins `visited` the moment it is queued, not when it is taken out. What would go wrong if it were marked only when it leaves the queue?
+"""
+
+[[view]]
+var = "graph"
+as = "graph"
+pointers = ["node", "order", "queue"]
+layout = { "A" = [0, 1], "B" = [1, 0], "C" = [1, 2], "D" = [2, 0], "E" = [2, 1], "F" = [2, 2], "G" = [3, 1] }
+
+[[view]]
+var = "queue"
+as = "queue"
+
+[[view]]
+var = "visited"
+as = "set"
+
+[[view]]
+var = "order"
+as = "array"
+
+[[captions]]
+line = 5
+text = "Mark the start as seen before the loop. No path can queue it a second time."
+
+[[captions]]
+line = 9
+text = "Take the oldest node in the queue. Nodes leave in the order they were found, so every node one edge from A comes out before any node two edges away."
+
+[[captions]]
+line = 13
+text = "Mark a neighbour as soon as it is queued. Marking it later would let the same node be queued once for every edge that reaches it."
+
+[[captions]]
+line = 14
+text = "New nodes join the back, behind the rest of the current ring. The first-in, first-out order is what makes the search spread in rings."
+
+[[captions]]
+line = 15
+text = "Each node was queued once and each edge was checked from both ends: O(V + E) work in total."

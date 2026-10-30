@@ -1,0 +1,7 @@
+id = "graphs-advanced"
+title = "Graphs: ordering and weights"
+zone = "The Toll Roads"
+summary = "Edges with a cost, edges with a direction, and groups that merge over time. Dijkstra's algorithm uses a heap to settle the nearest node first, Kahn's algorithm orders tasks so every dependency comes first, and union-find tracks merging groups in near-constant time."
+prereqs = ["graphs", "heaps"]
+order = 14
+challenges = ["dijkstra-walkthrough", "topo-sort", "union-find", "shortest-distances", "count-groups", "course-order"]

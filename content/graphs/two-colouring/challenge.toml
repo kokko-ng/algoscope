@@ -1,0 +1,30 @@
+id = "two-colouring"
+title = "Two sides"
+stage = "apply"
+xp = 140
+complexity = "O(V + E)"
+sizes = [200, 400, 800, 1600]
+statement = """
+`graph[node]` lists the neighbours of each node, and every edge appears in both directions. Return True if the nodes can be split into two sides so that every edge joins one side to the other, and False otherwise. The graph may be in several pieces.
+
+Trying every split of V nodes is 2^V. The suite expects O(V + E).
+
+Once one node is on a side, each neighbour is forced onto the other side, and their neighbours back again. Spread that choice with a search and look for an edge that disagrees.
+"""
+hints = [
+  "Give an uncoloured node colour 0, then run breadth-first search: every newly reached neighbour gets the opposite colour of the node that reached it.",
+  "If a neighbour already has the same colour as the current node, return False. Repeat from every node that is still uncoloured, because the graph can have several pieces.",
+]
+
+[[view]]
+var = "graph"
+as = "graph"
+pointers = ["node", "colour", "queue"]
+
+[[view]]
+var = "colour"
+as = "map"
+
+[[view]]
+var = "queue"
+as = "queue"

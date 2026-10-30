@@ -1,0 +1,39 @@
+id = "union-find"
+title = "Build union-find"
+stage = "build"
+xp = 180
+kind = "class"
+entry = "UnionFind"
+complexity = "O(n)"
+sizes = [200, 400, 800, 1600]
+statement = """
+Implement UnionFind over the items 0 .. n-1. Each item starts in its own group. Every group is a tree stored in `self.parent`, and the root of the tree names the group.
+
+- find(x): the root of x's group
+- union(a, b): merge the two groups; return True if they were separate, False if already joined
+- connected(a, b): True if a and b are in the same group
+- count(): the number of separate groups
+
+The suite runs n unions that build long chains, then n queries. Plain parent links let a chain grow n deep, and every query walks all of it: O(n^2) in total. Two tricks keep the trees flat and bring the whole run down to near O(n).
+"""
+hints = [
+  "Union by size: keep `self.size` for each root and hang the smaller tree under the larger, so no tree gets deeper than log n.",
+  "Path compression: once find(x) knows the root, walk the path again and point every node on it straight at the root.",
+]
+
+[[view]]
+var = "self.parent"
+label = "parent"
+as = "array"
+pointers = ["x", "root", "ra", "rb"]
+
+[[view]]
+var = "self.size"
+label = "size"
+as = "array"
+pointers = ["ra", "rb"]
+
+[[view]]
+var = "self.groups"
+label = "groups"
+as = "value"

@@ -1,0 +1,29 @@
+id = "flood-fill"
+title = "Flood fill"
+stage = "apply"
+xp = 120
+complexity = "O(n·m)"
+output = "arg0"
+sizes = [10, 20, 40, 80]
+check_sizes = [1, 2, 3, 5, 8, 13]
+statement = """
+grid is a list of rows of color numbers. Starting from cell (row, col), recolor every cell that has the start cell's original color and is connected to it through up, down, left or right neighbours. Change grid in place; whatever you return is ignored.
+
+Sweeping the whole grid repeatedly until nothing changes works, but a winding region can need one sweep per bend. Visit each cell of an n by m grid a constant number of times.
+
+A cell's region is itself plus the regions of its matching neighbours. Watch the call stack follow the region.
+"""
+hints = [
+  "Write fill(r, c) that returns at once if (r, c) is off the grid or does not hold the original color; otherwise it recolors the cell and calls itself on the four neighbours.",
+  "Recoloring before recursing is what stops cells being visited twice. That breaks if the new color equals the original color, so check that case first and return without doing anything.",
+]
+
+[[view]]
+var = "grid"
+as = "grid"
+pointers = ["r", "c"]
+
+[[view]]
+var = "old"
+as = "value"
+label = "original color"

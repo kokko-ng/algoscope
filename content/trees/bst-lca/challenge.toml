@@ -1,0 +1,28 @@
+id = "bst-lca"
+title = "Lowest common ancestor in a search tree"
+stage = "apply"
+xp = 120
+complexity = "O(log n)"
+sizes = [100, 200, 400, 800]
+statement = """
+p and q are two values stored in a binary search tree (they may be equal). Return the value of their lowest common ancestor: the deepest node that has both of them in its subtree. A node counts as its own ancestor.
+
+Collecting the path to each value, or searching the whole tree, costs O(n). The tree is ordered, so one walk down from the root is enough. The suite uses randomly built trees, which are about O(log n) deep.
+"""
+hints = [
+  "Compare p and q with the current node. If both are smaller, the answer is somewhere in the left subtree. If both are larger, it is in the right subtree.",
+  "The first node where p and q do not go the same way (or where one of them equals the node) is the answer. A single loop with `node = node.left` or `node = node.right` does it, with no recursion needed.",
+]
+
+[[view]]
+var = "root"
+as = "tree"
+pointers = ["node"]
+
+[[view]]
+var = "p"
+as = "value"
+
+[[view]]
+var = "q"
+as = "value"

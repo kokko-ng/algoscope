@@ -1,0 +1,28 @@
+id = "validate-bst"
+title = "Is it a search tree?"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+sizes = [100, 200, 400, 800]
+statement = """
+Return True when the tree is a valid binary search tree: for every node, every value in its left subtree is strictly smaller and every value in its right subtree is strictly larger. Duplicates make it invalid.
+
+Checking each node only against its two children is not enough: a value deep in the left subtree can still be larger than the root. Checking each node against its whole subtree is correct but repeats work. Find a way to visit every node once.
+"""
+hints = [
+  "As you walk down from the root, every turn tightens the range a value may take. Going left caps it from above; going right raises the floor.",
+  "Recurse with `(node, low, high)`, starting from minus and plus infinity. A node fails when it is not strictly between low and high; its left child gets `(low, node.val)` and its right child `(node.val, high)`.",
+]
+
+[[view]]
+var = "root"
+as = "tree"
+pointers = ["node"]
+
+[[view]]
+var = "low"
+as = "value"
+
+[[view]]
+var = "high"
+as = "value"

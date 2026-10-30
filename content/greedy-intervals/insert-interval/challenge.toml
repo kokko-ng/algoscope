@@ -1,0 +1,33 @@
+id = "insert-interval"
+title = "Insert an interval"
+stage = "apply"
+xp = 120
+complexity = "O(n)"
+forbid = ["sort", "sorted"]
+sizes = [100, 200, 400, 800]
+statement = """
+intervals is a list of closed intervals [start, end], sorted by start, with no two overlapping or touching. Insert `new`, merging it with every interval it overlaps or touches, and return the resulting sorted list.
+
+Appending and re-sorting throws away the order you were given and costs O(n log n). The list is already sorted, so one left-to-right pass is enough. Sorting is off limits here.
+"""
+hints = [
+  "The intervals fall into three runs: those ending before new starts, those that overlap new, and those starting after new ends.",
+  "Copy the first run as is. For the second, widen [start, end] with min of starts and max of ends. Then append the widened interval and copy the rest.",
+]
+
+[[view]]
+var = "intervals"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "result"
+as = "array"
+
+[[view]]
+var = "start"
+as = "value"
+
+[[view]]
+var = "end"
+as = "value"

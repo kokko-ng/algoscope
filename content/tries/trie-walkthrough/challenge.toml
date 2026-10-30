@@ -1,0 +1,34 @@
+id = "trie-walkthrough"
+title = "Watch words grow a trie"
+stage = "watch"
+xp = 40
+kind = "class"
+entry = "Trie"
+complexity = "O(L)"
+statement = """
+A trie node holds a dict from a character to the next node, plus a flag marking that a word ends there. A word is a path from the root, one character per edge.
+
+Watch `node` as "car", "cat", "cart", "dog" and "do" go in. Count the new nodes each word creates. Why does inserting "do" create nothing at all, and what makes it a word anyway?
+"""
+
+[[view]]
+var = "self.root"
+label = "trie"
+as = "trie"
+pointers = ["node"]
+
+[[captions]]
+line = 12
+text = "Every insert starts at the root and follows the word one character at a time."
+
+[[captions]]
+line = 15
+text = "No edge for this character yet: the shared prefix ends here, so a new node is created."
+
+[[captions]]
+line = 16
+text = "Step down one level. When the edge already exists, the prefix is shared with an earlier word and costs no new memory."
+
+[[captions]]
+line = 17
+text = "Mark the last node as the end of a word. Without the flag, a stored word and a mere prefix of a longer word would look the same."

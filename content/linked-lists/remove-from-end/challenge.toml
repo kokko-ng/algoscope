@@ -1,0 +1,26 @@
+id = "remove-from-end"
+title = "Remove the k-th node from the end"
+stage = "apply"
+xp = 100
+complexity = "O(n)"
+statement = """
+Remove the k-th node from the end of the list and return the head of the result. k = 1 means the last node, and 1 <= k <= length, so the head itself may be the one removed.
+
+Counting the nodes and then walking again works, but takes two passes. Do it in one: the suite removes nodes near the tail, where a second pass costs almost as much as the first.
+
+Two pointers that start k nodes apart stay k apart while they move together.
+"""
+hints = [
+  "Put a placeholder node in front of head so removing the head needs no special case. Advance a `lead` pointer k nodes from it before moving anything else.",
+  "Then move `lead` and `trail` together until lead is on the last node. trail now sits just before the node to remove: `trail.next = trail.next.next`.",
+]
+
+[[view]]
+var = "dummy"
+as = "linked"
+label = "placeholder + list"
+pointers = ["lead", "trail"]
+
+[[view]]
+var = "k"
+as = "value"

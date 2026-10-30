@@ -1,0 +1,7 @@
+id = "heaps"
+title = "Heaps"
+zone = "The Priority Spire"
+summary = "A binary heap stores a complete binary tree in a plain list, with every parent no larger than its children. The smallest value is always at index 0, and pushing or popping repairs the order along a single root-to-leaf path in O(log n)."
+prereqs = ["trees"]
+order = 11
+challenges = ["sift-up-walkthrough", "min-heap-build", "k-largest", "merge-k-sorted", "running-median"]

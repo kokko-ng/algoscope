@@ -1,0 +1,36 @@
+id = "brackets-walkthrough"
+title = "Watch brackets match"
+stage = "watch"
+xp = 40
+complexity = "O(n)"
+statement = """
+A string of brackets is balanced when every opener is closed by the matching closer, in the right order: `{[()]}` is balanced, `([)]` is not.
+
+The rule "the most recent unclosed opener must close first" is exactly what a stack gives you. Watch the stack as the scan runs. Why is a single counter of open brackets not enough here?
+"""
+
+[[view]]
+var = "chars"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "stack"
+as = "stack"
+label = "open brackets"
+
+[[captions]]
+line = 7
+text = "An opener: push it. It has to wait until everything opened after it is closed."
+
+[[captions]]
+line = 9
+text = "A closer must match the opener on top of the stack, the most recent one still open. Anything older is not allowed to close yet."
+
+[[captions]]
+line = 10
+text = "Mismatch, or nothing open to close. A counter could not tell `(]` from `()`; the stack can."
+
+[[captions]]
+line = 11
+text = "The scan is done. The string is balanced only if no opener is left waiting."

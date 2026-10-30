@@ -1,0 +1,7 @@
+id = "dynamic-programming"
+title = "Dynamic programming"
+zone = "The Ledger Halls"
+summary = "When a recursive answer keeps asking the same smaller questions, answer each one once and write it in a table. Choosing what one table entry means, and the order to fill it in, turns exponential searches into polynomial loops."
+prereqs = ["recursion", "hashing"]
+order = 15
+challenges = ["stairs-walkthrough", "min-path-sum", "knapsack", "common-subsequence", "coin-change", "longest-rising"]

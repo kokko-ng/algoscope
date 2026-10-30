@@ -1,0 +1,25 @@
+id = "k-largest"
+title = "The k largest"
+stage = "apply"
+xp = 110
+complexity = "O(n log k)"
+forbid = ["sort", "sorted", "nlargest", "nsmallest", "heapify"]
+sizes = [100, 200, 400, 800]
+statement = """
+Return the k largest values of nums, in any order. Duplicates count separately, and 0 <= k <= len(nums).
+
+Sorting everything costs O(n log n) even when k is tiny. Instead, scan once and keep only the k best values seen so far in a heap of size at most k, so each step costs O(log k). `heapq` is allowed here; sorting and heapq's ready-made selection helpers are not.
+"""
+hints = [
+  "Among the k values you are keeping, the one at risk of being pushed out is the smallest. A min-heap keeps that one at kept[0].",
+  "Push the first k values. After that, a new value only matters if it is larger than kept[0]; then `heapq.heapreplace(kept, value)` swaps it in for the smallest in one step.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "kept"
+as = "heap"

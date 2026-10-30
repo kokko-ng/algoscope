@@ -1,0 +1,24 @@
+id = "jump-game"
+title = "Can you reach the end?"
+stage = "apply"
+xp = 100
+complexity = "O(n)"
+sizes = [100, 200, 400, 800]
+statement = """
+You start at index 0 of jumps. From index i you may move forward any number of steps from 1 up to jumps[i]; a 0 means you cannot move from there. Return True if the last index can be reached.
+
+Marking every square each position can reach costs up to O(n^2) when jumps are long. You never need to know which squares are reachable, only how far the reachable region extends. Keep that one number up to date in a single pass.
+"""
+hints = [
+  "The squares you can reach always form one unbroken run starting at index 0. If you can reach index 7, you can reach every index before it too.",
+  "Track `reach`, the furthest index reachable so far. Scan left to right: if i is beyond reach you are stuck, otherwise set reach to max(reach, i + jumps[i]).",
+]
+
+[[view]]
+var = "jumps"
+as = "array"
+pointers = ["i", "reach"]
+
+[[view]]
+var = "reach"
+as = "value"

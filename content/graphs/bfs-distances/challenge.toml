@@ -1,0 +1,30 @@
+id = "bfs-distances"
+title = "Shortest hop counts"
+stage = "build"
+xp = 175
+complexity = "O(V + E)"
+sizes = [200, 400, 800, 1600]
+statement = """
+`graph[node]` lists the neighbours of each node. Every edge has the same length. Return a dict that maps every node in the graph to the number of edges on the shortest path from `start`, or -1 when no path exists.
+
+The suite uses graphs with thousands of nodes and edges, so the work must be O(V + E): look at each node and each edge a constant number of times. Searching for paths deeper first and then fixing up the distances does not get there.
+
+Breadth-first search finishes one ring before it starts the next. Use that order to fix each distance the first time you reach a node.
+"""
+hints = [
+  "The first time breadth-first search reaches a node, it has arrived along a shortest path. That distance never needs to change.",
+  "Store distances in a dict that doubles as the visited set. A neighbour not yet in it gets dist[node] + 1 and joins the back of a deque. Fill in -1 for missing nodes at the end.",
+]
+
+[[view]]
+var = "graph"
+as = "graph"
+pointers = ["node", "queue", "dist"]
+
+[[view]]
+var = "queue"
+as = "queue"
+
+[[view]]
+var = "dist"
+as = "map"

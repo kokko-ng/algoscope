@@ -1,0 +1,25 @@
+id = "longest-common-prefix"
+title = "Longest common prefix"
+stage = "apply"
+xp = 90
+complexity = "O(n·L)"
+sizes = [100, 200, 400, 800]
+statement = """
+Return the longest string that every word in the list starts with. An empty list, or one with nothing in common, gives "".
+
+Trying every candidate length and re-checking every word for each one repeats the same comparisons. Put the words in a trie: the common prefix is the stretch of path from the root where the trie never branches. The total work is the total number of characters, O(n·L).
+"""
+hints = [
+  "Insert every word, marking word ends. Then walk down from the root. Which two situations mean that not every word continues the same way?",
+  "Keep stepping while the current node has exactly one child and no word ends there, collecting the characters. `next(iter(node.children.items()))` gives the only (char, child) pair.",
+]
+
+[[view]]
+var = "root"
+label = "trie"
+as = "trie"
+pointers = ["node"]
+
+[[view]]
+var = "prefix"
+as = "array"

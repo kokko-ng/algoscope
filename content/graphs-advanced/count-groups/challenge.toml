@@ -1,0 +1,31 @@
+id = "count-groups"
+title = "Groups as links arrive"
+stage = "apply"
+xp = 130
+complexity = "O(n + m)"
+sizes = [200, 400, 800, 1600]
+statement = """
+There are n items, 0 .. n-1, each in its own group. `pairs` is a list of m links that arrive one at a time; each link (a, b) joins the groups of a and b. Return a list with one entry per link: the number of separate groups right after that link.
+
+Re-running a graph search after every link costs O(m·(n + m)). The suite expects close to O(n + m): each link should take near-constant time.
+
+Union-find answers "are these already together?" and merges groups without touching every member.
+"""
+hints = [
+  "Keep a running group count. It drops by one only when a link joins two different roots.",
+  "Store `parent` and `size` lists. find follows parents to the root and shortens the path as it goes; union hangs the smaller tree under the larger.",
+]
+
+[[view]]
+var = "parent"
+as = "array"
+pointers = ["x", "ra", "rb"]
+
+[[view]]
+var = "size"
+as = "array"
+pointers = ["ra", "rb"]
+
+[[view]]
+var = "counts"
+as = "array"

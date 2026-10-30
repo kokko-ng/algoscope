@@ -1,0 +1,7 @@
+id = "recursion"
+title = "Recursion and backtracking"
+zone = "The Echo Vaults"
+summary = "A recursive function solves a problem by handing a smaller copy of it to itself, trusting that copy to be right, and stopping at a case small enough to answer directly. Backtracking applies the same idea to search: make a choice, explore everything that follows from it, undo it, and try the next one."
+prereqs = ["foundations"]
+order = 9
+challenges = ["memo-walkthrough", "subsets", "permutations", "hanoi", "flood-fill"]

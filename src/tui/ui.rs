@@ -7,7 +7,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 use crate::app::{App, Focus, Screen, Workspace, version_string};
-use crate::content::{Library, Stage};
+use crate::content::Stage;
 use crate::progress::{KeymapKind, TopicState};
 use crate::scoring::{self, Grade};
 use crate::tui::editor::EditorView;
@@ -78,34 +78,6 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
 
 // ---- home ---------------------------------------------------------------
 
-/// Topics as a tree: each topic hangs under its deepest prerequisite.
-fn tree_order(lib: &Library) -> Vec<(usize, String)> {
-    let n = lib.topics.len();
-    let idx = |id: &str| lib.topics.iter().position(|t| t.meta.id == id);
-    let mut depth = vec![0usize; n];
-    for i in 0..n {
-        // topics are sorted by order, prerequisites come first
-        depth[i] = lib.topics[i].meta.prereqs.iter().filter_map(|p| idx(p)).map(|p| depth[p] + 1).max().unwrap_or(0);
-    }
-    let parent: Vec<Option<usize>> = (0..n)
-        .map(|i| lib.topics[i].meta.prereqs.iter().filter_map(|p| idx(p)).max_by_key(|p| (depth[*p], *p)))
-        .collect();
-    let mut out = Vec::new();
-    fn go(i: usize, prefix: &str, last: bool, root: bool, parent: &[Option<usize>], out: &mut Vec<(usize, String)>) {
-        let branch = if root { "" } else if last { "└─ " } else { "├─ " };
-        out.push((i, format!("{prefix}{branch}")));
-        let kids: Vec<usize> = (0..parent.len()).filter(|k| parent[*k] == Some(i)).collect();
-        let next_prefix = if root { String::new() } else { format!("{prefix}{}", if last { "   " } else { "│  " }) };
-        for (j, k) in kids.iter().enumerate() {
-            go(*k, &next_prefix, j + 1 == kids.len(), false, parent, out);
-        }
-    }
-    for root in (0..n).filter(|i| parent[*i].is_none()) {
-        go(root, "", true, true, &parent, &mut out);
-    }
-    out
-}
-
 fn state_icon(t: &Theme, s: TopicState) -> Span<'static> {
     let (stealth, game, color) = match s {
         TopicState::Locked => ("[-]", "x", t.dim),
@@ -121,7 +93,7 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
     let [left, right] = Layout::horizontal([Constraint::Percentage(48), Constraint::Percentage(52)]).areas(area);
 
     let mut lines = Vec::new();
-    for (i, prefix) in tree_order(&app.lib) {
+    for (i, prefix) in app.lib.tree_order() {
         let topic = &app.lib.topics[i];
         let state = app.topic_state(i);
         let selected = i == app.topic_idx;
@@ -142,7 +114,8 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
             Span::styled(if pct > 0 { format!("  {pct}%") } else { String::new() }, t.dim()),
         ]));
     }
-    let scroll = (app.topic_idx as u16).saturating_sub(left.height.saturating_sub(4));
+    let row = app.lib.tree_order().iter().position(|(i, _)| *i == app.topic_idx).unwrap_or(0) as u16;
+    let scroll = row.saturating_sub(left.height.saturating_sub(4));
     f.render_widget(
         Paragraph::new(lines).scroll((scroll, 0)).block(block(t, t.labels.tree, !app.home_focus_challenges)),
         left,

@@ -1,0 +1,27 @@
+id = "longest-rising"
+title = "Longest rising run"
+stage = "apply"
+xp = 110
+complexity = "O(n^2)"
+sizes = [50, 100, 200, 400]
+statement = """
+Return the length of the longest strictly increasing subsequence of `nums`. The elements do not need to be next to each other, only in their original order: in [3, 1, 4, 1, 5, 9, 2, 6] one answer is 1, 4, 5, 9, of length 4.
+
+Checking all 2^n subsequences fails long before the suite's n = 400. The suite expects O(n^2) or better.
+
+Let `length[i]` be the longest increasing subsequence that ends exactly at index i. It extends the best earlier one that ends on a smaller value.
+"""
+hints = [
+  "length[i] starts at 1 (nums[i] alone). For every j < i with nums[j] < nums[i], length[j] + 1 is a candidate.",
+  "The answer is the largest entry of `length`, not the last one: the best subsequence can end anywhere.",
+]
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["i", "j"]
+
+[[view]]
+var = "length"
+as = "array"
+pointers = ["i", "j"]

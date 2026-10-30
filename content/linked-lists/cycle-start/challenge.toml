@@ -1,0 +1,22 @@
+id = "cycle-start"
+title = "Where the loop begins"
+stage = "apply"
+xp = 150
+complexity = "O(n)"
+forbid = ["set", "dict", "id"]
+statement = """
+Following `next` from head either reaches None or enters a loop, because the last node links back to an earlier one. Return the value stored in the first node of the loop, or None if the list ends. Values are distinct, so the value identifies the node.
+
+Remembering every node you have visited would solve it, but use O(1) extra memory: no sets, dicts or visit marks on the nodes. Do not modify the list.
+
+Two pointers moving at different speeds can only meet if there is a loop. Where they meet holds a second clue.
+"""
+hints = [
+  "Move `slow` one node and `fast` two nodes per step. If fast reaches None there is no loop; otherwise they meet somewhere inside it.",
+  "When they meet, start a new pointer at head and step it and slow one node at a time. The distance from head to the loop entry equals the distance from the meeting point to the entry (going round the loop), so they meet exactly at the entry.",
+]
+
+[[view]]
+var = "head"
+as = "linked"
+pointers = ["slow", "fast", "seeker"]

@@ -1,0 +1,27 @@
+id = "postfix-eval"
+title = "Evaluate a postfix expression"
+stage = "apply"
+xp = 100
+complexity = "O(n)"
+forbid = ["eval", "exec"]
+statement = """
+tokens is an arithmetic expression in postfix order: each operator follows its two operands, so `["3", "4", "+", "2", "*"]` means (3 + 4) * 2. Numbers are integer strings, possibly negative. Operators are `+ - * /`, and division truncates toward zero (-7 / 2 is -3). The expression is always valid. Return its value.
+
+Postfix needs no brackets and no precedence rules. Repeatedly searching the list for the next operator and splicing in its result works, but costs O(n) per operator. One left-to-right pass is enough if you keep the right thing.
+"""
+hints = [
+  "Push every number onto a stack. An operator always applies to the two most recent values that have not been used yet: the top two.",
+  "Pop the right operand first, then the left, and push the result. For division, compute with absolute values and fix the sign, because Python's // rounds toward negative infinity.",
+]
+
+[[view]]
+var = "tokens"
+as = "array"
+
+[[view]]
+var = "token"
+as = "value"
+
+[[view]]
+var = "stack"
+as = "stack"

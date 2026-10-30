@@ -1,0 +1,36 @@
+id = "halving-walkthrough"
+title = "Watch a binary search"
+stage = "watch"
+xp = 40
+complexity = "O(log n)"
+statement = """
+nums is sorted. Instead of checking every element, binary search keeps a window `lo..hi` that must contain the target if it is present, and looks only at the middle of it.
+
+Watch the shaded window as the search runs. Ten elements take at most four looks. How many looks would a million elements need, and why does the sorted order make it safe to discard half the window each time?
+"""
+
+[[view]]
+var = "nums"
+as = "array"
+pointers = ["lo", "mid", "hi"]
+window = ["lo", "hi"]
+
+[[view]]
+var = "target"
+as = "value"
+
+[[captions]]
+line = 4
+text = "Look at the middle of the window. It is the one element that splits the remaining candidates into two equal halves."
+
+[[captions]]
+line = 6
+text = "Found it. The window never dropped the target because every discarded element was provably on the wrong side."
+
+[[captions]]
+line = 8
+text = "The middle is too small, and so is everything to its left. Move lo past mid: half the window is gone in one step."
+
+[[captions]]
+line = 10
+text = "The middle is too large, and so is everything to its right. Pull hi below mid."

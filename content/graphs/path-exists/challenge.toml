@@ -1,0 +1,30 @@
+id = "path-exists"
+title = "Is there a way through?"
+stage = "apply"
+xp = 100
+complexity = "O(V + E)"
+sizes = [200, 400, 800, 1600]
+statement = """
+Edges are one-way: `graph[node]` lists the nodes you can move to from `node`. Return True if some path leads from `source` to `target`, and False otherwise. A node always reaches itself.
+
+The graph can contain cycles, so a search that does not remember where it has been can loop forever or retrace the same paths again and again. The suite expects O(V + E): expand each node at most once.
+
+Depth-first search with an explicit stack goes as far as it can down one route before backing up to try the next.
+"""
+hints = [
+  "Keep a set of nodes you have already expanded. Popping a node that is already in it means another route got there first, so skip it.",
+  "Push `source` onto a list used as a stack. Pop, return True on `target`, skip seen nodes, otherwise mark the node and push its unseen neighbours.",
+]
+
+[[view]]
+var = "graph"
+as = "graph"
+pointers = ["node", "seen", "stack"]
+
+[[view]]
+var = "stack"
+as = "stack"
+
+[[view]]
+var = "seen"
+as = "set"
