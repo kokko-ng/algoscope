@@ -125,5 +125,14 @@ repos:
     hooks:
       - id: commitizen
         stages: [commit-msg]
-      - id: commitizen-branch
+
+  - repo: local
+    hooks:
+      - id: conventional-pushed-commits
+        name: every pushed commit follows Conventional Commits
+        language: python
+        additional_dependencies: [commitizen==4.19.3]
+        entry: scripts/check_pushed_commits.py
+        pass_filenames: false
+        always_run: true
         stages: [pre-push]
