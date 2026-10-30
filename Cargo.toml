@@ -2,6 +2,10 @@
 name = "algoscope"
 version = "0.1.0"
 edition = "2024"
+description = "A terminal workbench for data structures and algorithms: write Python, watch it run, profile it."
+license = "MIT"
+repository = "https://github.com/kokko-ng/algoscope"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.104"
