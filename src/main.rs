@@ -34,6 +34,9 @@ enum Command {
         /// Check topics in this directory on disk instead of the embedded content.
         #[arg(long)]
         dir: Option<std::path::PathBuf>,
+        /// Show the measured outcome of every alternative solution, not only failures.
+        #[arg(long, short)]
+        verbose: bool,
     },
     /// Delete saved progress, drafts and settings.
     Reset,
@@ -49,12 +52,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let lib = Library::load()?;
     match cli.command {
-        Some(Command::CheckContent { topic, dir }) => {
+        Some(Command::CheckContent { topic, dir, verbose }) => {
             let lib = match dir {
                 Some(d) => Library::from_fs(&d)?,
                 None => lib,
             };
-            check::run(&lib, topic.as_deref())
+            check::run(&lib, topic.as_deref(), verbose)
         }
         Some(Command::Reset) => {
             Store::new(data_dir()).reset()?;

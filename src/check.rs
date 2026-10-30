@@ -1,6 +1,8 @@
 //! `algoscope check-content`: verifies every challenge end to end through the real harness.
 
+use std::fmt::Write as _;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use anyhow::{Result, bail};
@@ -147,14 +149,23 @@ pub fn check_design(ch: &Challenge) -> Vec<String> {
     problems
 }
 
-/// Run an alternative solution and compare its outcome with the one it declares.
-fn check_alternative(ch: &Challenge, alt: &Alternative) -> Vec<String> {
+/// Print every alternative's measured outcome, not only the failures.
+static VERBOSE: AtomicBool = AtomicBool::new(false);
+
+/// Run an alternative solution and compare its outcome with the one it declares. Returns the problems and
+/// a one-line note of what it measured.
+fn check_alternative(ch: &Challenge, alt: &Alternative) -> (Vec<String>, String) {
     let outcome = match runner::run(ch, Mode::Score, &alt.code) {
         Ok(Outcome::Score(s)) => s,
-        Ok(_) => return vec![format!("{}: wrong outcome kind", alt.name)],
+        Ok(_) => return (vec![format!("{}: wrong outcome kind", alt.name)], String::new()),
         Err(e) => {
             // a timeout or crash is a failure, which is only right for `fail`
-            return if alt.expect == Expect::Fail { Vec::new() } else { vec![format!("{}: {e}", alt.name)] };
+            let note = format!("{} expects {:?}: crashed or timed out", short_name(alt), alt.expect);
+            return if alt.expect == Expect::Fail {
+                (Vec::new(), note)
+            } else {
+                (vec![format!("{}: {e}", alt.name)], note)
+            };
         }
     };
     let passed = outcome.error.is_none() && outcome.total > 0 && outcome.passed == outcome.total;
@@ -176,8 +187,9 @@ fn check_alternative(ch: &Challenge, alt: &Alternative) -> Vec<String> {
         Expect::Bronze => grade.as_ref().is_some_and(|r| r.grade == Grade::Bronze),
         Expect::Slow => grade.as_ref().is_some_and(|r| r.grade != Grade::Gold),
     };
+    let note = format!("{} {} expects {:?}: {got}", if ok { "ok  " } else { "FAIL" }, short_name(alt), alt.expect);
     if ok {
-        return Vec::new();
+        return (Vec::new(), note);
     }
     let detail = outcome
         .failures
@@ -188,14 +200,18 @@ fn check_alternative(ch: &Challenge, alt: &Alternative) -> Vec<String> {
         .as_ref()
         .map(|e| format!(" (error: {})", e.text.lines().last().unwrap_or("")))
         .unwrap_or_default();
-    vec![
-        format!("{}: expected {:?}, got {got}{}{err}", alt.name, alt.expect, detail.unwrap_or_default())
-            .replace("Expect::", ""),
-    ]
+    let problem = format!("{}: expected {:?}, got {got}{}{err}", alt.name, alt.expect, detail.unwrap_or_default());
+    (vec![problem], note)
 }
 
-fn check_one(ch: &Challenge) -> Vec<String> {
+fn short_name(alt: &Alternative) -> &str {
+    alt.name.rsplit('/').next().unwrap_or(&alt.name)
+}
+
+/// Problems with a code challenge, plus notes on what its alternatives measured.
+fn check_one(ch: &Challenge) -> (Vec<String>, Vec<String>) {
     let mut problems = Vec::new();
+    let mut notes = Vec::new();
     // the reference must trace cleanly on the visual example
     match runner::run(ch, Mode::Visual, &ch.reference) {
         Ok(Outcome::Visual(v)) => {
@@ -228,7 +244,7 @@ fn check_one(ch: &Challenge) -> Vec<String> {
         Err(e) => problems.push(format!("visual: {e}")),
     }
     if ch.meta.stage == Stage::Watch {
-        return problems;
+        return (problems, notes);
     }
     match runner::run(ch, Mode::Score, &ch.reference) {
         Ok(Outcome::Score(s)) => {
@@ -267,7 +283,9 @@ fn check_one(ch: &Challenge) -> Vec<String> {
         Err(e) => problems.push(format!("score: {e}")),
     }
     for alt in &ch.alternatives {
-        problems.extend(check_alternative(ch, alt));
+        let (p, note) = check_alternative(ch, alt);
+        problems.extend(p);
+        notes.push(note);
     }
     match runner::run(ch, Mode::Score, &ch.starter) {
         Ok(Outcome::Score(s)) => {
@@ -278,10 +296,11 @@ fn check_one(ch: &Challenge) -> Vec<String> {
         Ok(_) => {}
         Err(e) => problems.push(format!("starter: {e}")),
     }
-    problems
+    (problems, notes)
 }
 
-pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
+pub fn run(lib: &Library, topic_filter: Option<&str>, verbose: bool) -> Result<()> {
+    VERBOSE.store(verbose, Ordering::Relaxed);
     runner::check_python()?;
     let jobs: Vec<&Challenge> = lib
         .topics
@@ -330,9 +349,16 @@ pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
                     let next = queue.lock().unwrap().pop();
                     let Some((i, ch)) = next else { break };
                     let design = lib.topic(&ch.topic).is_some_and(|t| t.meta.track == Track::Design);
-                    let problems = if design { check_design(ch) } else { check_one(ch) };
+                    let (problems, notes) = if design { (check_design(ch), Vec::new()) } else { check_one(ch) };
                     let status = if problems.is_empty() { "ok  " } else { "FAIL" };
-                    println!("{status} {}", ch.key());
+                    // one print per challenge, so lines from parallel workers never interleave
+                    let mut block = format!("{status} {}", ch.key());
+                    if VERBOSE.load(Ordering::Relaxed) {
+                        for note in &notes {
+                            let _ = write!(block, "\n       {note}");
+                        }
+                    }
+                    println!("{block}");
                     results.lock().unwrap()[i] = problems;
                 }
             });
