@@ -1,14 +1,15 @@
 """Tests for the tracing harness: run it the way the Rust runner does, through a run directory."""
 
 import json
-import os
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
+from typing import Any
 
 import pytest
 
-HARNESS = os.path.join(os.path.dirname(__file__), "..", "harness.py")
+HARNESS = Path(__file__).resolve().parent.parent / "harness.py"
 
 CASES = """
 def visual():
@@ -31,14 +32,14 @@ def solve(nums):
 """
 
 
-def run(tmp_path, solution, mode, cases=CASES, reference=REFERENCE, **cfg):
+def run(tmp_path, solution, mode, cases=CASES, reference=REFERENCE, **cfg: Any):
     (tmp_path / "solution.py").write_text(textwrap.dedent(solution))
     (tmp_path / "reference.py").write_text(textwrap.dedent(reference))
     (tmp_path / "cases.py").write_text(textwrap.dedent(cases))
     config = {"kind": "function", "entry": "solve", "watch": ["nums", "i"], "sizes": [20, 40, 80], "max_frames": 500}
     config.update(cfg)
     (tmp_path / "config.json").write_text(json.dumps(config))
-    subprocess.run([sys.executable, "-I", HARNESS, str(tmp_path), mode], check=True, timeout=60)
+    subprocess.run([sys.executable, "-I", str(HARNESS), str(tmp_path), mode], check=True, timeout=60)
     return json.loads((tmp_path / "out.json").read_text())
 
 
@@ -102,7 +103,13 @@ def test_failures_and_errors_are_reported(tmp_path):
 def test_forbidden_names_are_rejected_but_self_methods_are_not(tmp_path):
     out = run(tmp_path, "def solve(nums):\n    return max(sorted(nums), default=None)\n", "score", forbid=["sorted"])
     assert "sorted" in out["error"]["text"]
-    cls_cases = "def visual():\n    return [('add', 1), ('add', 2)]\n\ndef cases(n, rng):\n    return [[('add', i) for i in range(n)]]\n"
+    cls_cases = (
+        "def visual():\n"
+        "    return [('add', 1), ('add', 2)]\n"
+        "\n"
+        "def cases(n, rng):\n"
+        "    return [[('add', i) for i in range(n)]]\n"
+    )
     cls = """
     class Box:
         def __init__(self):
@@ -115,7 +122,17 @@ def test_forbidden_names_are_rejected_but_self_methods_are_not(tmp_path):
             self.items[self.size] = x
             self.size += 1
     """
-    out = run(tmp_path, cls, "score", cases=cls_cases, reference=cls, kind="class", entry="Box", forbid=["append"], sizes=[8, 16, 32])
+    out = run(
+        tmp_path,
+        cls,
+        "score",
+        cases=cls_cases,
+        reference=cls,
+        kind="class",
+        entry="Box",
+        forbid=["append"],
+        sizes=[8, 16, 32],
+    )
     assert "error" not in out, out.get("error")
     assert out["passed"] == out["total"]
 
@@ -145,9 +162,9 @@ def test_user_output_is_captured(tmp_path):
     assert "hello" in out["stdout"]
 
 
-@pytest.mark.parametrize("value,kind", [([1, 2], "list"), ((1, 2), "tuple"), ({1: 2}, "dict"), ({3}, "set")])
+@pytest.mark.parametrize(("value", "kind"), [([1, 2], "list"), ((1, 2), "tuple"), ({1: 2}, "dict"), ({3}, "set")])
 def test_encoder_tags(value, kind):
-    sys.path.insert(0, os.path.dirname(HARNESS))
+    sys.path.insert(0, str(HARNESS.parent))
     import tracer
 
     enc = tracer.Encoder().encode(value, {})
@@ -164,9 +181,19 @@ def test_infinite_loop_in_suite_is_reported_quickly(tmp_path):
 
 
 def test_forbid_catches_literals_but_not_variables_named_like_builtins(tmp_path):
-    out = run(tmp_path, "def solve(nums):\n    seen = {}\n    return max(nums) if nums else None\n", "score", forbid=["dict"])
+    out = run(
+        tmp_path, "def solve(nums):\n    seen = {}\n    return max(nums) if nums else None\n", "score", forbid=["dict"]
+    )
     assert "dict literal" in out["error"]["text"]
-    ok = "def solve(nums):\n    index = 0\n    best = None\n    for x in nums:\n        if best is None or x > best:\n            best = x\n    return best\n"
+    ok = (
+        "def solve(nums):\n"
+        "    index = 0\n"
+        "    best = None\n"
+        "    for x in nums:\n"
+        "        if best is None or x > best:\n"
+        "            best = x\n"
+        "    return best\n"
+    )
     out = run(tmp_path, ok, "score", forbid=["index"])
     assert "error" not in out
 
@@ -197,7 +224,15 @@ def test_lists_the_solution_builds_are_charged(tmp_path):
 
 def test_sorted_and_heapq_are_charged_n_log_n(tmp_path):
     via_sort = "def solve(nums):\n    return sorted(nums)[-1] if nums else None\n"
-    via_heap = "import heapq\n\ndef solve(nums):\n    h = []\n    for x in nums:\n        heapq.heappush(h, -x)\n    return -h[0] if h else None\n"
+    via_heap = (
+        "import heapq\n"
+        "\n"
+        "def solve(nums):\n"
+        "    h = []\n"
+        "    for x in nums:\n"
+        "        heapq.heappush(h, -x)\n"
+        "    return -h[0] if h else None\n"
+    )
     for code in (via_sort, via_heap):
         out = run(tmp_path, code, "score", sizes=[64, 256, 1024])
         steps = [s for _, s in out["steps"]["user"]]
