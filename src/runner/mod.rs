@@ -61,7 +61,6 @@ pub struct Job {
 pub struct Done {
     pub id: u64,
     pub key: String,
-    pub mode: Mode,
     pub elapsed: Duration,
     pub result: Result<Outcome, String>,
 }
@@ -186,7 +185,7 @@ impl Worker {
             while let Ok(job) = job_rx.recv() {
                 let start = Instant::now();
                 let result = run(&job.challenge, job.mode, &job.solution);
-                let done = Done { id: job.id, key: job.challenge.key(), mode: job.mode, elapsed: start.elapsed(), result };
+                let done = Done { id: job.id, key: job.challenge.key(), elapsed: start.elapsed(), result };
                 if done_tx.send(done).is_err() {
                     break;
                 }

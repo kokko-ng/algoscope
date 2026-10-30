@@ -27,6 +27,9 @@ enum Command {
         /// Only check topics whose id contains this text.
         #[arg(long)]
         topic: Option<String>,
+        /// Check topics in this directory on disk instead of the embedded content.
+        #[arg(long)]
+        dir: Option<std::path::PathBuf>,
     },
     /// Delete saved progress, drafts and settings.
     Reset,
@@ -38,7 +41,13 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let lib = Library::load()?;
     match cli.command {
-        Some(Command::CheckContent { topic }) => check::run(&lib, topic.as_deref()),
+        Some(Command::CheckContent { topic, dir }) => {
+            let lib = match dir {
+                Some(d) => Library::from_fs(&d)?,
+                None => lib,
+            };
+            check::run(&lib, topic.as_deref())
+        }
         Some(Command::Reset) => {
             Store::new(data_dir()).reset()?;
             println!("progress, drafts and settings deleted from {}", data_dir().display());

@@ -1,6 +1,7 @@
 //! Curriculum content embedded at build time from `content/`.
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail};
 use include_dir::{Dir, include_dir};
@@ -14,16 +15,6 @@ pub enum Stage {
     Watch,
     Build,
     Apply,
-}
-
-impl Stage {
-    pub fn label(self) -> &'static str {
-        match self {
-            Stage::Watch => "watch",
-            Stage::Build => "build",
-            Stage::Apply => "apply",
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
@@ -177,10 +168,32 @@ pub struct Library {
     pub topics: Vec<Topic>,
 }
 
-fn read_text(dir: &Dir, name: &str) -> Option<String> {
-    dir.get_file(dir.path().join(name))
-        .and_then(|f| f.contents_utf8())
-        .map(str::to_owned)
+fn read_text(dir: &Dir, rel: &str) -> Option<String> {
+    dir.get_file(dir.path().join(rel)).and_then(|f| f.contents_utf8()).map(str::to_owned)
+}
+
+/// Parse one topic directory. `read` returns a file's text by path relative to the topic directory.
+fn parse_topic(path: &str, read: impl Fn(&str) -> Option<String>) -> Result<Topic> {
+    let raw = read("topic.toml").ok_or_else(|| anyhow!("{path} has no topic.toml"))?;
+    let meta: TopicMeta = toml::from_str(&raw).with_context(|| format!("parsing {path}/topic.toml"))?;
+    let mut challenges = Vec::new();
+    for cid in &meta.challenges {
+        let file = |name: &str| read(&format!("{cid}/{name}"));
+        let at = format!("{path}/{cid}");
+        let raw = file("challenge.toml").ok_or_else(|| anyhow!("{at} has no challenge.toml"))?;
+        let cm: ChallengeMeta = toml::from_str(&raw).with_context(|| format!("parsing {at}/challenge.toml"))?;
+        if cm.id != *cid {
+            bail!("{at}: id {} does not match its directory", cm.id);
+        }
+        let reference = file("reference.py").ok_or_else(|| anyhow!("{at} has no reference.py"))?;
+        let cases = file("cases.py").ok_or_else(|| anyhow!("{at} has no cases.py"))?;
+        let starter = match cm.stage {
+            Stage::Watch => reference.clone(),
+            _ => file("starter.py").ok_or_else(|| anyhow!("{at} has no starter.py"))?,
+        };
+        challenges.push(Challenge { meta: cm, topic: meta.id.clone(), starter, reference, cases });
+    }
+    Ok(Topic { meta, challenges })
 }
 
 impl Library {
@@ -191,35 +204,31 @@ impl Library {
     pub fn from_dir(root: &Dir) -> Result<Self> {
         let mut topics = Vec::new();
         for topic_dir in root.dirs() {
-            let raw = read_text(topic_dir, "topic.toml")
-                .ok_or_else(|| anyhow!("{} has no topic.toml", topic_dir.path().display()))?;
-            let meta: TopicMeta = toml::from_str(&raw)
-                .with_context(|| format!("parsing {}/topic.toml", topic_dir.path().display()))?;
-            let mut challenges = Vec::new();
-            for cid in &meta.challenges {
-                let dir = topic_dir
-                    .get_dir(topic_dir.path().join(cid))
-                    .ok_or_else(|| anyhow!("topic {} lists missing challenge {cid}", meta.id))?;
-                let path = dir.path().display().to_string();
-                let raw = read_text(dir, "challenge.toml").ok_or_else(|| anyhow!("{path} has no challenge.toml"))?;
-                let cm: ChallengeMeta = toml::from_str(&raw).with_context(|| format!("parsing {path}/challenge.toml"))?;
-                if cm.id != *cid {
-                    bail!("{path}: id {} does not match its directory", cm.id);
-                }
-                let reference = read_text(dir, "reference.py").ok_or_else(|| anyhow!("{path} has no reference.py"))?;
-                let cases = read_text(dir, "cases.py").ok_or_else(|| anyhow!("{path} has no cases.py"))?;
-                let starter = match cm.stage {
-                    Stage::Watch => reference.clone(),
-                    _ => read_text(dir, "starter.py").ok_or_else(|| anyhow!("{path} has no starter.py"))?,
-                };
-                challenges.push(Challenge { meta: cm, topic: meta.id.clone(), starter, reference, cases });
-            }
-            topics.push(Topic { meta, challenges });
+            let read = |rel: &str| read_text(topic_dir, rel);
+            topics.push(parse_topic(&topic_dir.path().display().to_string(), read)?);
         }
-        topics.sort_by_key(|t| t.meta.order);
-        let lib = Library { topics };
+        let lib = Library::assemble(topics);
         lib.validate()?;
         Ok(lib)
+    }
+
+    /// Load topics from a directory on disk (for authoring). Prerequisites outside it are not checked.
+    pub fn from_fs(root: &Path) -> Result<Self> {
+        let mut topics = Vec::new();
+        for entry in std::fs::read_dir(root).with_context(|| format!("reading {}", root.display()))? {
+            let dir = entry?.path();
+            if !dir.join("topic.toml").exists() {
+                continue;
+            }
+            let read = |rel: &str| std::fs::read_to_string(dir.join(rel)).ok();
+            topics.push(parse_topic(&dir.display().to_string(), read)?);
+        }
+        Ok(Library::assemble(topics))
+    }
+
+    fn assemble(mut topics: Vec<Topic>) -> Library {
+        topics.sort_by_key(|t| t.meta.order);
+        Library { topics }
     }
 
     fn validate(&self) -> Result<()> {

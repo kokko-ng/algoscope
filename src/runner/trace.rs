@@ -153,7 +153,6 @@ impl Obj {
 pub struct StackEntry {
     pub func: String,
     pub args: String,
-    pub line: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -178,13 +177,6 @@ impl Frame {
             .chain(self.locals.iter())
             .find(|(n, _)| n == name)
             .map(|(_, v)| v)
-    }
-
-    pub fn obj(&self, v: &V) -> Option<&Obj> {
-        match v {
-            V::Ref(id) => self.heap.get(id),
-            _ => None,
-        }
     }
 
     fn from_json(v: &Value) -> Frame {
@@ -447,8 +439,8 @@ mod tests {
         let f = Frame::from_json(&raw);
         assert_eq!(f.line, 4);
         assert_eq!(f.prev, Some(3));
-        let head = f.var("head").unwrap();
-        assert_eq!(f.obj(head).unwrap().field("val"), Some(&V::Int(7)));
+        assert_eq!(f.var("head"), Some(&V::Ref(1)));
+        assert_eq!(f.heap[&1].field("val"), Some(&V::Int(7)));
         assert_eq!(f.var("n"), Some(&V::Int(5)));
         assert_eq!(f.reads, vec![("nums".to_string(), 1)]);
         assert_eq!(f.writes, vec![("nums".to_string(), 2)]);

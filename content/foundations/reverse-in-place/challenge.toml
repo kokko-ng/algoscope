@@ -1,0 +1,21 @@
+id = "reverse-in-place"
+title = "Reverse in place"
+stage = "apply"
+xp = 80
+complexity = "O(n)"
+output = "arg0"
+forbid = ["reverse", "reversed"]
+statement = """
+Reverse the list `items` in place, without building a second list. Whatever you return is ignored: the suite checks `items` itself afterwards.
+
+Swap pairs from the outside in. Watch the swaps travel in the trace.
+"""
+hints = [
+  "Use two indices, one at each end, and swap with `items[a], items[b] = items[b], items[a]`.",
+  "Stop when the indices meet. The middle element of an odd-length list stays where it is.",
+]
+
+[[view]]
+var = "items"
+as = "array"
+pointers = ["a", "b", "i", "j", "left", "right"]

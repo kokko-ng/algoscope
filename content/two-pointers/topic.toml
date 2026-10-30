@@ -2,6 +2,6 @@ id = "two-pointers"
 title = "Two pointers"
 zone = "The Twin Rails"
 summary = "Two indices walking a sequence toward each other or in step. Each move throws away part of the search space, which turns many nested loops into a single pass."
-prereqs = []
+prereqs = ["foundations"]
 order = 2
 challenges = ["pair-sum"]

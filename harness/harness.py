@@ -67,7 +67,9 @@ def check_forbidden(path, forbid):
         if isinstance(node, ast.Name) and node.id in forbid:
             hit = node.id
         elif isinstance(node, ast.Attribute) and node.attr in forbid:
-            hit = node.attr
+            # calls to the solution's own methods (self.append) are fine
+            if not (isinstance(node.value, ast.Name) and node.value.id == "self"):
+                hit = node.attr
         elif isinstance(node, ast.Import):
             hit = next((a.name for a in node.names if a.name.split(".")[0] in forbid), None)
         elif isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] in forbid:

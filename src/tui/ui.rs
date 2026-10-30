@@ -68,8 +68,8 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
     if let Some((msg, _)) = &app.toast {
         line.spans.push(Span::styled(format!("  {msg}"), t.bold(t.warn)));
     }
-    f.render_widget(Paragraph::new(line), area);
     let rw = right.len() as u16;
+    f.render_widget(Paragraph::new(line), Rect { width: area.width.saturating_sub(rw + 1), ..area });
     if area.width > rw {
         let r = Rect { x: area.right() - rw, width: rw, ..area };
         f.render_widget(Paragraph::new(Span::styled(right, t.dim())), r);

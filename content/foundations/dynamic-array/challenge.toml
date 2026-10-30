@@ -1,0 +1,34 @@
+id = "dynamic-array"
+title = "Build a dynamic array"
+stage = "build"
+xp = 150
+kind = "class"
+entry = "DynArray"
+complexity = "O(n)"
+forbid = ["append", "insert", "extend", "pop", "copy", "list"]
+sizes = [100, 200, 400, 800]
+statement = """
+Implement DynArray on top of fixed-size storage. `self.slots` may only be created as `[None] * k` and indexed. No list methods.
+
+- append(value): add to the end, doubling capacity when full
+- get(i) / set(i, value): read or write index i
+- pop(): remove and return the last value
+- __len__(): the number of stored values
+
+Operations run in sequence. The suite scores n appends mixed with reads and pops, so the total work should be O(n).
+"""
+hints = [
+  "Keep two numbers: size (values stored) and capacity (slots allocated). append only copies when size == capacity.",
+  "Grow by doubling, not by adding a constant. Adding 1 slot each time makes n appends cost O(n^2) in copies.",
+]
+
+[[view]]
+var = "self.slots"
+label = "slots"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "self.size"
+label = "size"
+as = "value"

@@ -7,7 +7,6 @@ use ratatui::buffer::Buffer;
 use crate::app::{App, Screen};
 use crate::content::Library;
 use crate::progress::{Store, ThemeKind};
-use crate::runner::trace::{Frame, VisualResult};
 use crate::runner::{self, Mode, Outcome};
 use crate::tui::ui;
 
@@ -53,15 +52,17 @@ pub fn render_challenge(key: &str, step: usize, theme: ThemeKind, w: u16, h: u16
     text.lines().map(|l| if l.contains("help") && l.contains(':') { l.split("  ").next().unwrap_or("").to_string() } else { l.to_string() }).collect::<Vec<_>>().join("\n")
 }
 
-#[allow(dead_code)]
-pub fn frames(v: &VisualResult) -> &[Frame] {
-    &v.frames
-}
-
 #[test]
 fn pair_sum_workspace_renders() {
     let text = render_challenge("two-pointers/pair-sum", 6, ThemeKind::Stealth, 120, 34);
     println!("{text}");
     assert!(text.contains("nums"));
     assert!(text.contains("left"));
+}
+
+#[test]
+fn class_walkthrough_renders() {
+    let text = render_challenge("foundations/growth-walkthrough", 30, ThemeKind::Game, 110, 30);
+    println!("{text}");
+    assert!(text.contains("slots"));
 }

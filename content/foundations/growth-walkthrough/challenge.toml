@@ -1,0 +1,45 @@
+id = "growth-walkthrough"
+title = "Watch a dynamic array grow"
+stage = "watch"
+xp = 40
+kind = "class"
+entry = "DynArray"
+complexity = "amortized O(1)"
+statement = """
+A Python list looks unbounded, but underneath it is a fixed block of slots. When the block fills up, a bigger block is allocated and every element is copied across.
+
+Watch `slots`, `size` and `capacity` as values are appended. Copying is expensive, so why does doubling the capacity keep each append cheap on average?
+"""
+
+[[view]]
+var = "self.slots"
+label = "slots"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "bigger"
+as = "array"
+pointers = ["i"]
+
+[[view]]
+var = "self.size"
+label = "size"
+as = "value"
+
+[[view]]
+var = "self.capacity"
+label = "capacity"
+as = "value"
+
+[[captions]]
+line = 9
+text = "Room left: write into the next free slot. One step, no copying."
+
+[[captions]]
+line = 12
+text = "Full. Allocate a block twice as large..."
+
+[[captions]]
+line = 14
+text = "...and copy every element across. This costs `size` steps, but it happens less and less often."

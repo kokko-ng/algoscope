@@ -144,7 +144,7 @@ impl VizView<'_> {
             let h = view_height(spec, ctx, main.width).min(main.bottom().saturating_sub(locals_h) - y);
             let r = Rect { x: main.x + 1, y, width: main.width.saturating_sub(2), height: h };
             render_view(spec, ctx, r, buf);
-            y += h + 1;
+            y += h + u16::from(h > 1);
         }
 
         // locals strip on the last line

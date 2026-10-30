@@ -1,0 +1,7 @@
+id = "foundations"
+title = "Foundations: arrays and cost"
+zone = "The Proving Grounds"
+summary = "How a growable array really works on top of fixed-size storage, and how to count the work a piece of code does. Every later topic is measured in these steps."
+prereqs = []
+order = 1
+challenges = ["growth-walkthrough", "dynamic-array", "max-gain", "reverse-in-place"]

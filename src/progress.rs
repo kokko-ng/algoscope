@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -161,10 +161,6 @@ pub struct Store {
 impl Store {
     pub fn new(dir: PathBuf) -> Store {
         Store { dir }
-    }
-
-    pub fn dir(&self) -> &Path {
-        &self.dir
     }
 
     fn read<T: for<'de> Deserialize<'de> + Default>(&self, name: &str, parse: fn(&str) -> Result<T>) -> T {

@@ -1,0 +1,27 @@
+id = "max-gain"
+title = "Largest rise"
+stage = "apply"
+xp = 100
+complexity = "O(n)"
+statement = """
+Given readings, return the largest value of readings[j] - readings[i] with i < j. Return 0 if the readings never rise.
+
+Comparing every pair is O(n^2). Work out what you need to remember as you scan from left to right so that one pass is enough.
+"""
+hints = [
+  "For each j, the best i is wherever the smallest reading so far was.",
+  "Keep `low` (the smallest value seen) and `best` (the best rise seen), and update both in one loop.",
+]
+
+[[view]]
+var = "readings"
+as = "array"
+pointers = ["j", "i"]
+
+[[view]]
+var = "low"
+as = "value"
+
+[[view]]
+var = "best"
+as = "value"
