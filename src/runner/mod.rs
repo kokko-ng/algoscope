@@ -15,8 +15,9 @@ use serde_json::{Value, json};
 use crate::content::{Challenge, Kind};
 use trace::{ScoreResult, VisualResult};
 
-const HARNESS_FILES: [(&str, &str); 4] = [
+const HARNESS_FILES: [(&str, &str); 5] = [
     ("harness.py", include_str!("../../harness/harness.py")),
+    ("guard.py", include_str!("../../harness/guard.py")),
     ("tracer.py", include_str!("../../harness/tracer.py")),
     ("traced.py", include_str!("../../harness/traced.py")),
     ("algoscope.py", include_str!("../../harness/algoscope.py")),
@@ -88,9 +89,12 @@ pub fn config(ch: &Challenge, mode: Mode) -> Value {
     cfg
 }
 
+/// Environment variables the harness keeps: enough for Python to start on every platform.
+const PASS_ENV: [&str; 8] = ["PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL"];
+
 /// Python interpreter to use: $`ALGOSCOPE_PYTHON` or python3.
 pub fn python() -> String {
-    std::env::var("ALGOSCOPE_PYTHON").unwrap_or_else(|_| "python3".into())
+    std::env::var("ALGOSCOPE_PYTHON").unwrap_or_else(|_| if cfg!(windows) { "python" } else { "python3" }.into())
 }
 
 /// Returns the Python version, or an error explaining why it cannot be used.
@@ -153,6 +157,9 @@ fn run_inner(ch: &Challenge, mode: Mode, solution: &str, python: &str, timeout: 
         .arg(dir.path())
         .arg(mode.arg())
         .current_dir(dir.path())
+        // solutions see a minimal environment: no tokens or credentials from the user's shell
+        .env_clear()
+        .envs(std::env::vars_os().filter(|(k, _)| PASS_ENV.iter().any(|p| k.eq_ignore_ascii_case(p))))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(fs::File::create(&stderr_path)?))

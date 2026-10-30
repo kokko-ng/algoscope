@@ -16,6 +16,7 @@ import importlib.util
 import inspect
 import io
 import json
+import os
 import random
 import sys
 import traceback
@@ -28,6 +29,7 @@ sys.path.insert(0, str(HERE))
 
 # path setup must run before importing sibling harness modules
 import algoscope  # noqa: E402
+import guard  # noqa: E402
 
 # path setup must run before importing sibling harness modules
 import traced  # noqa: E402
@@ -510,6 +512,9 @@ def main() -> None:
     sys.setrecursionlimit(20_000)
     cfg = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
     out: Out = {"mode": mode}
+    # solutions run inside their exercise folder, whatever the caller's working directory
+    os.chdir(run_dir)
+    guard.install(run_dir)
     try:
         if mode == "visual":
             run_visual(cfg, run_dir, out)
@@ -525,6 +530,8 @@ def main() -> None:
         out["error"] = {"text": "RecursionError: maximum recursion depth exceeded", "line": None}
     except (SystemExit, KeyboardInterrupt) as exc:
         out["error"] = user_traceback(exc, run_dir / "solution.py")
+    except MemoryError:
+        out["error"] = {"text": "MemoryError: the solution used more memory than allowed", "line": None}
     # errors in the solution's module code land here and are reported
     except Exception as exc:  # noqa: BLE001
         out["error"] = user_traceback(exc, run_dir / "solution.py")

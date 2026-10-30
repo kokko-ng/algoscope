@@ -36,7 +36,7 @@ convention = "google"
 python_version = "3.10"
 strict = true
 warn_unreachable = true
-files = ["harness/harness.py", "harness/tracer.py", "harness/traced.py", "harness/algoscope.py"]
+files = ["harness/harness.py", "harness/tracer.py", "harness/traced.py", "harness/algoscope.py", "harness/guard.py"]
 mypy_path = "harness"
 
 [tool.commitizen]
