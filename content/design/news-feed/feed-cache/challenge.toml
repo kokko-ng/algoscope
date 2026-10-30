@@ -67,7 +67,7 @@ prompt = "How much memory would the feeds need if each entry held the full 1 KB 
 answer = 150
 tolerance = 0.25
 unit = "TB"
-explanation = "300,000,000 x 500 x 1,000 bytes = 150,000,000,000,000 bytes = 150 TB. That is over 60 times more, because each post is copied into hundreds of feeds."
+explanation = "300,000,000 x 500 x 1,000 bytes = 150,000,000,000,000 bytes = 150 TB. That is 62.5 times more: 1,000 bytes per entry instead of 16. Fan-out copies each post into hundreds of feeds, so storing full posts multiplies every post's size by the fan-out."
 
 [[questions.steps]]
 flow = ["workers", "cache38"]

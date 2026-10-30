@@ -51,7 +51,7 @@ choices = [
   "Every redirect must hash the long URL again",
 ]
 answer = 2
-explanation = "Cutting a hash to 7 characters maps many possible URLs onto 3.5 trillion keys, so different URLs can share a key. The write must check whether the key is taken, and retry with a salt or counter added to the input. That is an extra read on every write. A redirect only looks up the key, so it never hashes."
+explanation = "Cutting a hash to 7 characters maps many possible URLs onto 3.5 trillion keys, so different URLs can share a key. The write must check whether the key is taken, and retry with a salt or counter added to the input. That is an extra read on every write. A redirect only looks up the key, so it never hashes the long URL."
 
 [[questions.steps]]
 flow = ["web", "hash", "store"]

@@ -65,7 +65,7 @@ answer = 69444
 tolerance = 0.25
 unit = "events per second"
 hint = "Each message makes three events: the message, a delivered receipt and a read receipt."
-explanation = "2,000,000,000 / 86,400 = about 23,100 messages per second. Each makes 3 events, so 23,148 x 3 = about 69,400 events per second. Receipts double the traffic of the messages themselves, which is why many services batch them, for example by sending one read receipt for the newest message read."
+explanation = "2,000,000,000 / 86,400 = about 23,100 messages per second. Each makes 3 events, so 23,148 x 3 = about 69,400 events per second. Receipts add two events per message, so they triple the traffic of the messages themselves, which is why many services batch them, for example by sending one read receipt for the newest message read."
 
 [[questions.steps]]
 flow = ["receiver", "gwb", "chat", "gwa", "sender"]

@@ -73,7 +73,7 @@ caption = "Polling sends a request every interval from every client."
 [[questions]]
 prompt = "What percent of those polls return no new message?"
 answer = 95.8
-tolerance = 0.1
+tolerance = 0.01
 unit = "percent"
 hint = "How many messages does a user receive, on average, in one 5-second interval?"
 explanation = "A user receives one message per 120 seconds, so one 5-second poll finds 5 / 120 = 0.042 messages on average. About 4% of polls find something, and about 96% come back empty. Shorter intervals give faster delivery but even more empty polls. A pushed message needs no request at all."

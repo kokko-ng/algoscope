@@ -66,7 +66,7 @@ caption = "Parallel copies multiply failure probabilities, which shrinks them fa
 [[questions]]
 prompt = "With the two app servers, how many hours a year is the whole chain down?"
 answer = 45.5
-tolerance = 0.1
+tolerance = 0.02
 unit = "hours per year"
 explanation = "App tier: 1 - 0.01^2 = 0.9999. Chain: 0.9999 x 0.9999 x 0.995 = 0.99480. Down: 0.00520 x 8,760 = about 45.5 hours a year. Most of it, 43.8 hours, now comes from the database."
 

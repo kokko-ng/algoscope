@@ -10,7 +10,7 @@ sizes = [100, 200, 400, 800]
 statement = """
 Implement BST, a binary search tree of distinct integers. Build it from `TreeNode(val)` nodes (imported from algoscope) hanging off `self.root`, so the trace can draw it.
 
-- insert(value): add value. Inserting a value that is already present does nothing.
+- insert(value): add value. Inserting a value that is already present does nothing. insert and delete return nothing.
 - contains(value): return True or False.
 - delete(value): remove value if present. A leaf just disappears. A node with one child is replaced by that child. A node with two children takes the value of its in-order successor (the smallest value in its right subtree), and that successor is deleted from the right subtree instead.
 - inorder(): return every value in ascending order.

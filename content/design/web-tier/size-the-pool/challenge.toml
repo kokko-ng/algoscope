@@ -51,7 +51,7 @@ caption = "16 servers x 1,500 = 24,000 requests per second, with nothing to spar
 [[questions]]
 prompt = "How many servers does the peak need at the 75% CPU target?"
 answer = 22
-tolerance = 0.1
+tolerance = 0.04
 unit = "servers"
 hint = "At 75%, one server takes 0.75 x 1,500 requests per second."
 explanation = "At 75%, one server takes 0.75 x 1,500 = 1,125 requests per second. 24,000 / 1,125 = 21.3, so round up to 22 servers. The spare 25% absorbs bursts and keeps queues short."
@@ -66,7 +66,7 @@ caption = "Each server stops at 75% of its capacity: 22 x 1,125 = 24,750 request
 [[questions]]
 prompt = "The pool must still serve the peak at 75% CPU after a whole zone fails. How many servers do you need in total?"
 answer = 33
-tolerance = 0.1
+tolerance = 0.04
 unit = "servers"
 hint = "After a failure, 2 of the 3 zones must hold the 22 servers from the last question."
 explanation = "The 2 zones that survive must run 22 servers between them, so each zone needs 11. 3 zones x 11 = 33 servers. On a normal day each server runs at about 50% CPU (24,000 / 33 = 727 requests per second). That spare capacity is the price of surviving a zone loss."

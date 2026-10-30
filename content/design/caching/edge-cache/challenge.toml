@@ -57,7 +57,7 @@ caption = "Only the 5% of misses travel back to the origin."
 [[questions]]
 prompt = "What is the average round trip for a far user's file request through the CDN? A miss costs the edge round trip plus the origin round trip."
 answer = 27.5
-tolerance = 0.1
+tolerance = 0.02
 unit = "ms"
 hint = "A miss costs 20 + 150 ms. Weight the hit and the miss by how often each happens."
 explanation = "Hit: 20 ms. Miss: 20 + 150 = 170 ms. Average: 0.95 x 20 + 0.05 x 170 = 19 + 8.5 = 27.5 ms, against 150 ms without a CDN. The edge wins because it is closer, and no faster server can beat distance."

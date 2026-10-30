@@ -9,7 +9,7 @@ check_sizes = [0, 1, 2, 3, 4, 5, 6, 8]
 statement = """
 Return every subset of nums, including the empty one and nums itself. Values are distinct. Each subset is a list; the order of the subsets and of values within a subset does not matter.
 
-There are 2^n subsets, so no method can beat O(2^n) output, and this is the template for every search that follows: walk the values in order and, for each one, make a yes/no choice.
+There are 2^n subsets, so the output alone has 2^n entries and no method can be faster than that, and this is the template for every search that follows: walk the values in order and, for each one, make a yes/no choice.
 
 Write a recursive helper that decides on one value, explores everything after it, then undoes the decision.
 """

@@ -76,7 +76,7 @@ caption = "Decide after the request ends, when you know whether it failed."
 [[questions]]
 prompt = "The collector keeps every failed trace plus 1% of the successful ones. How many traces per second does it keep?"
 answer = 525
-tolerance = 0.1
+tolerance = 0.03
 unit = "traces per second"
 hint = "Count the failed requests first, then 1% of the rest."
 explanation = "Failed: 50,000 x 0.05% = 25 traces per second, all kept. Successful: 49,975 x 1% = 499.75 per second. Total: about 525 traces per second. Storage grows by only 5%, and every error is kept."

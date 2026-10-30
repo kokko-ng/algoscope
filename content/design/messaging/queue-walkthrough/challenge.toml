@@ -61,7 +61,7 @@ caption = "A spike adds 250 jobs per second, but the workers finish only 150. Th
 flow = ["queue", "w2"]
 packets = 5
 highlight = ["queue"]
-labels = { queue = "6,000 waiting", w2 = "150 jobs/s" }
+labels = { queue = "6,000 waiting", w1 = "pool: 150 jobs/s" }
 caption = "The spike ends with 6,000 jobs waiting and 100 new jobs per second. Time to drain = backlog / (consume - produce) = 6,000 / (150 - 100) = 120 s."
 
 [[diagram.steps]]

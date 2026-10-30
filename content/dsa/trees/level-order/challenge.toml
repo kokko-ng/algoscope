@@ -7,7 +7,7 @@ sizes = [100, 200, 400, 800]
 statement = """
 Return the values of a binary tree level by level: a list of lists, the root's level first, each level read left to right. An empty tree gives [].
 
-Recursion follows one branch all the way down before it touches the next, which is the wrong order here. Process the tree in waves instead, and visit each node exactly once.
+A plain recursive walk follows one branch all the way down before it touches the next, so it visits nodes in the wrong order. A queue gives level order directly. Process the tree in waves instead, and visit each node exactly once.
 """
 hints = [
   "A queue hands nodes back in the order they were added. If you add children as you take their parents out, the nodes come out level by level.",

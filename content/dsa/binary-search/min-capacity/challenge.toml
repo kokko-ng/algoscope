@@ -9,7 +9,7 @@ Packages with the given weights must ship in order, one run of consecutive packa
 
 You can check one capacity in a single pass. Trying capacities one by one from the heaviest package upwards can take thousands of passes, because with few days the answer is far above that.
 
-Notice that if a capacity works, every larger capacity works too. The answer is the point where "too small" flips to "enough", and you can binary search for it over capacities rather than over the list. Each probe costs a pass of n, and the number of probes grows like the log of the total weight.
+Notice that if a capacity works, every larger capacity works too. The answer is the point where "too small" flips to "enough", and you can binary search for it over capacities rather than over the list. Each probe costs a pass of n, and the number of probes grows like the log of the total weight S, so the cost is O(n log S). The weights here are at most 100, so log S grows like log n and the suite measures O(n log n).
 """
 hints = [
   "Write a helper that, for a given capacity, greedily fills each day as much as possible and counts the days used. Every capacity from max(weights) to sum(weights) is a candidate.",

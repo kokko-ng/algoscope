@@ -7,7 +7,7 @@ forbid = ["sorted", "sort", "heapq", "bisect"]
 statement = """
 Every value is an integer from 0 to max_value. Return a new list with the values in ascending order.
 
-Any sort that works by comparing pairs needs O(n log n) comparisons. When the values come from a small range you can skip comparisons entirely: tally how often each value occurs, then write the values back out in order. That costs O(n + k), where k is max_value.
+Any sort that works by comparing pairs needs on the order of n log n comparisons in the worst case. When the values come from a small range you can skip comparisons entirely: tally how often each value occurs, then write the values back out in order. That costs O(n + k), where k is max_value.
 """
 hints = [
   "Make a list of max_value + 1 zeros and use each value as an index into it.",

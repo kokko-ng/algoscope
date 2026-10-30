@@ -24,7 +24,7 @@ text = "Sort by start. This is the O(n log n) step; everything after it is a sin
 
 [[captions]]
 line = 6
-text = "Starts only grow from here on. If this interval starts before the last merged one ends, they overlap."
+text = "Starts only grow from here on. If this interval starts at or before the point where the last merged one ends, they overlap."
 
 [[captions]]
 line = 7

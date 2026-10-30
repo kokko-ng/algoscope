@@ -13,7 +13,7 @@ Two pointers moving at different speeds can only meet if there is a loop. Where 
 """
 hints = [
   "Move `slow` one node and `fast` two nodes per step. If fast reaches None there is no loop; otherwise they meet somewhere inside it.",
-  "When they meet, start a new pointer at head and step it and slow one node at a time. The distance from head to the loop entry equals the distance from the meeting point to the entry (going round the loop), so they meet exactly at the entry.",
+  "When they meet, start a new pointer at head and step it and slow one node at a time. The distance from head to the loop entry equals the distance from the meeting point to the entry plus some whole number of laps, so stepping both one node at a time makes them meet exactly at the entry.",
 ]
 
 [[view]]

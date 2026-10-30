@@ -3,7 +3,7 @@ title = "Serve redirects fast"
 stage = "quiz"
 xp = 130
 statement = """
-The shortener serves 4,000 redirects per second at peak.
+The shortener serves about 4,000 redirects per second on average and 8,000 at peak.
 
 - A cache in front of the link store answers 90% of lookups.
 - Each day, about 20 million different links are clicked. A cache entry is 500 bytes.
@@ -48,14 +48,14 @@ caption = "Every click comes back to the service, so every click can be counted.
 
 [[questions]]
 prompt = "How many lookups per second reach the link store at peak?"
-answer = 400
+answer = 800
 tolerance = 0.1
 unit = "reads per second"
-explanation = "Misses are 100% - 90% = 10% of lookups. 4,000 x 10% = 400 reads per second. If the hit ratio rose to 99%, only 40 would reach the store: going from 90% to 99% cuts store load by 10 times."
+explanation = "Misses are 100% - 90% = 10% of lookups. 8,000 x 10% = 800 reads per second. If the hit ratio rose to 99%, only 80 would reach the store: going from 90% to 99% cuts store load by 10 times."
 
 [[questions.steps]]
 flow = ["web", "shard1"]
-labels = { cache = "hit 90%", shard1 = "400 reads/s" }
+labels = { cache = "hit 90%", shard1 = "800 reads/s" }
 caption = "Only misses reach the store, so the miss rate sets its load."
 
 [[questions]]

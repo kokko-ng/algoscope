@@ -94,7 +94,7 @@ prompt = "Which retry policy avoids the amplification?"
 choices = [
   "Retry at a single layer with a retry budget, and let the other layers fail fast",
   "Retry 3 times at every layer, but with shorter timeouts",
-  "Retry only at the database layer",
+  "Keep 3 attempts at every layer, but add jitter",
   "Retry without backoff, so that requests finish sooner",
 ]
 answer = 1

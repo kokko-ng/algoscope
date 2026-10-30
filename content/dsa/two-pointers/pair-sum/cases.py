@@ -18,9 +18,13 @@ def cases(n, rng):
 
 def check(case, got, expected):
     nums, target = case
-    if expected == [-1, -1]:
-        return got == [-1, -1]
-    i, j = got
+    try:
+        got = list(got)
+        if expected == [-1, -1]:
+            return got == [-1, -1]
+        i, j = got
+    except (TypeError, ValueError):
+        return False
     return 0 <= i < j < len(nums) and nums[i] + nums[j] == target
 
 

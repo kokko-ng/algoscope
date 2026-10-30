@@ -14,6 +14,8 @@ Delivery guarantees:
 - At-most-once: a message is never processed twice, but it can be lost.
 - At-least-once: a message is never lost, but it can be processed more than once.
 - Effectively-once: at-least-once delivery plus processing that ignores duplicates.
+
+The card provider accepts an idempotency key and rejects a repeat charge with the same key.
 """
 
 [diagram]

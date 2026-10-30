@@ -61,7 +61,7 @@ caption = "Applying the writes uses part of every follower's capacity."
 [[questions]]
 prompt = "How many followers do the reads need? Round up to a whole follower."
 answer = 6
-tolerance = 0.1
+tolerance = 0.05
 unit = "followers"
 explanation = "27,000 / 5,000 = 5.4, so round up to 6 followers. If you forget the replicated writes, you get 27,000 / 8,000 = 3.4, so 4 followers. Those 4 can serve only 20,000 reads per second, and the peak would be 35% over their capacity."
 

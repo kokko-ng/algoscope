@@ -1312,7 +1312,7 @@ A request for the short code returns a redirect to the long URL.
 
 - Make a short code for a long URL.
 - Redirect a short code to its long URL quickly.
-- Keep each link for 5 years.
+- Keep each link for 10 years.
 - Reads are many more than writes, about 100 to 1.
 - A redirect must have a low latency and high availability.
 
@@ -1323,9 +1323,9 @@ A request for the short code returns a redirect to the long URL.
 | New URLs a month | Given | 100 million |
 | Writes a second | 100,000,000 / (30 x 86,400) | About 40 |
 | Reads a second | 40 x 100 | About 4,000. About 8,000 at peak |
-| Records in 5 years | 100 million x 12 x 5 | 6 billion |
-| Storage | 6 billion x 500 bytes | 3 TB |
-| Length of a base62 code | 62^6 = 56.8 billion, more than 6 billion | 6 characters, or 7 for headroom |
+| Records in 10 years | 100 million x 12 x 10 | 12 billion |
+| Storage | 12 billion x 500 bytes | 6 TB |
+| Length of a base62 code | 62^6 = 56.8 billion, more than 12 billion | 6 characters, or 7 for headroom |
 
 ### Shortener API and data model
 
@@ -1424,8 +1424,8 @@ assert encode(61) == "Z"
 assert encode(62) == "10"
 assert all(decode(encode(n)) == n for n in range(0, 10**6, 997))
 
-assert BASE**6 > 6_000_000_000  # 6 characters hold 5 years of links
-assert len(encode(6_000_000_000)) == 6
+assert BASE**6 > 12_000_000_000  # 6 characters hold 10 years of links
+assert len(encode(12_000_000_000)) == 6
 assert BASE**7 == 3_521_614_606_208
 
 counter = IdBlocks(block_size=1_000)

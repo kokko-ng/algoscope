@@ -3,7 +3,7 @@ title = "The k largest"
 stage = "apply"
 xp = 110
 complexity = "O(n log k)"
-forbid = ["sort", "sorted", "nlargest", "nsmallest", "heapify"]
+forbid = ["sort", "sorted", "nlargest", "nsmallest"]
 sizes = [100, 200, 400, 800]
 statement = """
 Return the k largest values of nums, in any order. Duplicates count separately, and 0 <= k <= len(nums).

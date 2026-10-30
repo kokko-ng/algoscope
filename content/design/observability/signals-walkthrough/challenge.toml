@@ -5,7 +5,7 @@ xp = 40
 statement = """
 You cannot fix what you cannot see. Watch how one slow call hides inside an average, how fan-out makes it common, and which signal shows it.
 
-Remember the terms. The p99 latency is the value that 99% of requests are faster than. The p50 is the median. Metrics are cheap numbers over time, logs are one record per event, and traces follow one request through every service.
+Remember the terms. The p99 latency is the value that 99% of requests do not exceed. The p50 is the median. Metrics are cheap numbers over time, logs are one record per event, and traces follow one request through every service.
 """
 
 [diagram]

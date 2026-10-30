@@ -34,7 +34,7 @@ flow = ["app", "router", "n5"]
 [[questions]]
 prompt = "With modulo hashing, N changes from 4 to 5. How many keys move to a different node?"
 answer = 80000000
-tolerance = 0.1
+tolerance = 0.05
 unit = "keys"
 hint = "A key stays only when hash % 4 equals hash % 5. List hash % 20 from 0 to 19 and count the matches."
 explanation = "hash % 20 is spread evenly over 0 to 19. hash % 4 equals hash % 5 only for 0, 1, 2 and 3: 4 values in 20, so 1 key in 5 stays. The other 4 in 5 move: 80 million keys. For a cache that is close to a full flush, and the database takes all those misses."
@@ -47,7 +47,7 @@ labels = { router = "hash % 5", n1 = "4/5 move", n2 = "4/5 move", n34 = "4/5 mov
 caption = "A new modulus reshuffles almost every key."
 
 [[questions]]
-prompt = "With consistent hashing and even spacing, how many keys move?"
+prompt = "With consistent hashing, how many keys move? Assume the new node ends up with its fair share of the keys."
 answer = 20000000
 tolerance = 0.1
 unit = "keys"

@@ -5,7 +5,7 @@ xp = 180
 kind = "class"
 entry = "MinHeap"
 complexity = "O(n log n)"
-forbid = ["heapq", "sort", "sorted", "min", "bisect", "insert"]
+forbid = ["heapq", "sort", "sorted", "bisect", "insert"]
 sizes = [100, 200, 400, 800]
 statement = """
 Implement MinHeap on the list `self.items`, stored as a binary heap: the children of index i are at 2i + 1 and 2i + 2, and no parent is larger than its children.

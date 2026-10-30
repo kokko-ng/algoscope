@@ -5,7 +5,7 @@ xp = 120
 complexity = "O(n·m)"
 sizes = [10, 20, 30, 40]
 statement = """
-`grid` is a map of 1 (land) and 0 (water). An island is a group of land cells joined up, down, left or right; diagonal contact does not count. Return the number of islands. You may change `grid`.
+`grid` is a map of 1 (land) and 0 (water). An island is a group of land cells joined up, down, left or right; diagonal contact does not count. Return the number of islands. The grid may be empty (`[]`), which has 0 islands. You may change `grid`.
 
 A grid is a graph in disguise: each cell is a node and its four neighbours are its edges. The suite measures n by n grids, so the work must be O(n·m): every cell handled a constant number of times. Starting a fresh search from every land cell repeats work on each big island.
 

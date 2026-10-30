@@ -2,9 +2,9 @@ id = "group-anagrams"
 title = "Group anagrams"
 stage = "apply"
 xp = 120
-complexity = "O(n)"
+complexity = "O(n·L)"
 statement = """
-Two words are anagrams when one is a rearrangement of the other's letters. Return the words of `words` split into groups of anagrams. Every word appears in exactly one group; the order of groups and of words inside a group does not matter.
+Two words are anagrams when one is a rearrangement of the other's letters. Return the words of `words` split into groups of anagrams. Every word appears in exactly one group; the order of groups and of words inside a group does not matter. With n words of length up to L, aim for O(n·L): one key per word, built in time proportional to its length.
 
 Words are short, but there are many of them. Comparing every pair of words is O(n^2). Instead give each word a canonical form that all of its anagrams share, and use it as a dict key.
 """

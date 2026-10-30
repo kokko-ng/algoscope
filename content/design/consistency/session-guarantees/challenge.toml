@@ -90,7 +90,7 @@ labels = { leader = "500/s", f1 = "9,500/s shared" }
 caption = "Only reads that need fresh data go to the leader."
 
 [[questions]]
-prompt = "A user refreshes a thread twice. The first read hits Follower 1 and shows a new comment. The second read hits Follower 2 and the comment is gone. Which guarantee broke, and what is a common fix?"
+prompt = "A user refreshes a thread twice. The first read hits Follower 1 and shows a new comment from another user. The second read hits Follower 2 and the comment is gone. Which guarantee broke, and what is a common fix?"
 choices = [
   "Read-your-writes: fix it by writing to every follower at once",
   "Monotonic reads: fix it by sending each user's reads to the same follower",
