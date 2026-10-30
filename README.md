@@ -1,8 +1,15 @@
 # algoscope
 
-A terminal workbench for data structures and algorithms. You write Python in an editor inside the
-terminal. algoscope runs your code, animates it step by step in ASCII, and profiles how its cost
-grows compared with a reference solution.
+A terminal workbench for data structures, algorithms and system design. You write Python in an
+editor inside the terminal. algoscope runs your code, animates it step by step in ASCII, and
+profiles how its cost grows compared with a reference solution. For system design, it animates
+requests through an architecture and quizzes you on estimates and trade-offs.
+
+## Tracks
+
+There are two tracks. Switch between them with `1` and `2` on the home screen.
+
+### Data structures and algorithms
 
 It is built for focused 20-30 minute sessions. Every topic goes through three stages:
 
@@ -13,6 +20,21 @@ It is built for focused 20-30 minute sessions. Every topic goes through three st
 Topics unlock along a dependency tree, from arrays and two pointers through hashing, sorting, linked
 lists, trees, heaps, tries, graphs and dynamic programming. Correct solutions earn points scaled by
 an efficiency grade.
+
+### System design
+
+The second track teaches system design through capacity estimation and trade-off questions. Each
+topic starts with an animated walkthrough: boxes for clients, load balancers, caches, queues and
+databases, with requests that travel between them. Quizzes follow. They set a scenario with real
+numbers and ask for estimates or choices. You type answers like `12k` or `1.5M`; each estimate is
+accepted within a stated tolerance. Each answer reveals a worked explanation with its own animation.
+Grades come from first-try accuracy.
+
+The 13 topics run from back-of-the-envelope estimation through caching, replication, sharding,
+quorums, queues, resilience and availability, to case studies of a URL shortener, a news feed and a
+chat service.
+
+### Themes
 
 The default look is a plain dev tool: a spec pane, an editor, a trace viewer and a results pane,
 with progress shown as a version number. Press F2 for the game theme, with zones, XP, medals and
@@ -25,7 +47,9 @@ different interpreter.
 
 ```sh
 cargo install --path .
-algoscope
+algoscope            # resumes where you left off
+algoscope design     # opens on the system design track
+algoscope dsa        # opens on the data structures and algorithms track
 ```
 
 Nothing goes over the network. Progress, drafts and settings are stored in the platform data
@@ -46,7 +70,11 @@ directory (`algoscope where` prints it). `algoscope reset` deletes them.
 | q | back to the tree (drafts autosave) |
 | F2 / t | stealth or game theme |
 | v | standard or vim keys (outside the editor) |
+| 1 / 2 | home: data structures and algorithms or system design |
 | F1 | help |
+
+In a system design quiz, choose with the arrow keys or `a`-`d`, or type a number, then press Enter.
+A wrong answer gives one more try; after that the answer and its explanation appear.
 
 The standard keymap uses arrows, shift-select and Ctrl+C/X/V/Z/Y. The vim keymap supports
 normal, insert, visual and visual-line modes, common motions and operators, counts, and the
@@ -90,8 +118,11 @@ CI runs the same suite and checks the harness and content against Python 3.10 to
 
 The Rust side (`src/`) handles the TUI, editor, runner and scoring. The Python harness
 (`harness/`) runs solutions, records trace frames and counts steps. It is embedded in the binary
-and written to a temp directory for each run. Curriculum content is in `content/`; see
+and written to a temp directory for each run. Curriculum content is in `content/dsa/` and `content/design/`; see
 [docs/content.md](docs/content.md) to add topics or challenges.
 
-[docs/dsa-guide.md](docs/dsa-guide.md) is a reference guide to every topic in the curriculum, with
-Python samples. It is written in ASD-STE100 Simplified Technical English.
+Two reference guides cover every topic in the curriculum, with tested Python samples. Both are
+written in ASD-STE100 Simplified Technical English:
+
+- [docs/dsa-guide.md](docs/dsa-guide.md): data structures and algorithms
+- [docs/system-design-guide.md](docs/system-design-guide.md): system design
