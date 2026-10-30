@@ -1,0 +1,106 @@
+id = "fanout-math"
+title = "Count the fan-out"
+stage = "quiz"
+xp = 120
+statement = """
+A social app has these numbers:
+
+- 300 million daily active users.
+- 30 million posts are made each day.
+- Each user follows 200 accounts on average, so the average account has 200 followers.
+- Each user opens the feed 10 times a day.
+- One very large account has 40 million followers.
+
+Use 86,400 seconds in a day. The feed is built with fan-out on write unless a question says otherwise.
+"""
+
+[diagram]
+nodes = [
+  { id = "author", label = "Author", at = [0, 0] },
+  { id = "posts", label = "Post service", at = [1, 0] },
+  { id = "workers", label = "Fan-out workers", at = [2, 0] },
+  { id = "readers", label = "Readers", at = [0, 1] },
+  { id = "feeds", label = "Feed cache", at = [2, 1] },
+]
+links = [["author", "posts"], ["posts", "workers"], ["workers", "feeds"], ["readers", "feeds"]]
+
+[[diagram.steps]]
+flow = ["author", "posts", "workers", "feeds"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["readers", "feeds"]
+packets = 5
+
+[[questions]]
+prompt = "How many posts are made per second, on average?"
+answer = 347
+tolerance = 0.25
+unit = "posts per second"
+explanation = "30,000,000 / 86,400 = about 347 posts per second."
+
+[[questions.steps]]
+flow = ["author", "posts"]
+packets = 3
+labels = { posts = "~350 posts/s" }
+caption = "Daily posts divided by seconds in a day."
+
+[[questions]]
+prompt = "How many feed-cache writes per second does fan-out on write create?"
+answer = 69444
+tolerance = 0.25
+unit = "writes per second"
+hint = "Each post is written once into the feed of each follower."
+explanation = "347 posts per second x 200 followers = about 69,400 feed writes per second. One post becomes 200 writes, so the fan-out multiplies the write load by the average follower count."
+
+[[questions.steps]]
+flow = ["posts", "workers", "feeds"]
+packets = 7
+highlight = ["feeds"]
+labels = { feeds = "~69,000 writes/s" }
+caption = "Posts times followers gives the fan-out writes."
+
+[[questions]]
+prompt = "How many feed reads per second does the app serve, on average?"
+answer = 34722
+tolerance = 0.25
+unit = "reads per second"
+explanation = "300,000,000 x 10 = 3,000,000,000 feed opens a day. 3,000,000,000 / 86,400 = about 34,700 reads per second. With fan-out on write, each read is one cache lookup."
+
+[[questions.steps]]
+flow = ["readers", "feeds"]
+packets = 5
+labels = { feeds = "~35,000 reads/s" }
+caption = "Reads are frequent, so making each read cheap pays off."
+
+[[questions]]
+prompt = "With fan-out on read instead, what does each feed read cost?"
+choices = [
+  "One cache lookup",
+  "Fetching recent posts from about 200 followed accounts, then merging and sorting them",
+  "One write for each follower",
+  "Nothing, because feeds never change",
+]
+answer = 2
+explanation = "Fan-out on read does no work at post time. Each feed open must collect the newest posts of all 200 followed accounts and merge them. At 34,700 reads per second that is about 7 million post lookups per second, which is 100 times the 69,400 writes of fan-out on write. It is the better choice only for accounts whose followers are too many to push to."
+
+[[questions.steps]]
+flow = ["readers", "feeds"]
+packets = 5
+highlight = ["feeds"]
+labels = { feeds = "merge 200 lists" }
+caption = "Fan-out on read moves the work from the post to every read."
+
+[[questions]]
+prompt = "The 40-million-follower account posts. The workers can spare 100,000 feed writes per second for it. How many minutes until the last follower's feed has the post?"
+answer = 6.67
+tolerance = 0.1
+unit = "minutes"
+explanation = "40,000,000 / 100,000 = 400 seconds. 400 / 60 = about 6.7 minutes. During that time the post also competes with normal fan-out. The hybrid approach skips the push for such accounts and pulls their posts at read time instead."
+
+[[questions.steps]]
+flow = ["posts", "workers", "feeds"]
+packets = 7
+highlight = ["author"]
+labels = { author = "40M followers", workers = "400 s backlog" }
+caption = "One post from a very large account can flood the fan-out workers."

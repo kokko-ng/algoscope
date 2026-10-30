@@ -1,0 +1,93 @@
+id = "shortener-capacity"
+title = "Size the shortener"
+stage = "quiz"
+xp = 120
+statement = """
+A URL shortener has these numbers:
+
+- Users create 100 million short links each month.
+- Reads (redirects) outnumber writes 100 to 1.
+- A stored record (key, long URL, owner, dates) is 500 bytes.
+- Links are kept for 10 years.
+
+Use 30 days in a month and 86,400 seconds in a day. Keys use base 62: each character has 62 possible values.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Clients", at = [0, 0] },
+  { id = "web", label = "Web servers", at = [1, 0] },
+  { id = "store", label = "Link store", at = [2, 0] },
+]
+links = [["client", "web"], ["web", "store"]]
+
+[[diagram.steps]]
+flow = ["client", "web", "store"]
+
+[[diagram.steps]]
+flow = ["client", "web"]
+packets = 7
+
+[[questions]]
+prompt = "How many new links are created per second, on average?"
+answer = 38.6
+tolerance = 0.25
+unit = "writes per second"
+hint = "Divide the monthly links by the seconds in 30 days."
+explanation = "30 x 86,400 = 2,592,000 seconds in a month. 100,000,000 / 2,592,000 = about 38.6 writes per second. That is a small write load: one database can take it."
+
+[[questions.steps]]
+flow = ["client", "web", "store"]
+labels = { store = "~39 writes/s" }
+caption = "Monthly volume divided by seconds in a month gives the write rate."
+
+[[questions]]
+prompt = "How many redirects per second does the service serve, on average?"
+answer = 3858
+tolerance = 0.25
+unit = "reads per second"
+explanation = "Reads are 100 times the writes: 38.6 x 100 = about 3,860 redirects per second. At two times the average at peak, plan for about 7,700. The read path, not the write path, sets the size of the system."
+
+[[questions.steps]]
+flow = ["client", "web"]
+packets = 7
+highlight = ["web"]
+labels = { web = "~3,900 reads/s" }
+caption = "The read-to-write ratio turns a small write rate into a large read rate."
+
+[[questions]]
+prompt = "How many links exist after 10 years? Give the answer in billions."
+answer = 12
+tolerance = 0.1
+unit = "billion links"
+explanation = "100 million x 12 months x 10 years = 12,000 million = 12 billion links."
+
+[[questions.steps]]
+flow = ["web", "store"]
+packets = 3
+labels = { store = "12B links" }
+caption = "Writes add up: every link stays for the full retention period."
+
+[[questions]]
+prompt = "How much storage do 10 years of links need, before replication? Give the answer in TB."
+answer = 6
+tolerance = 0.25
+unit = "TB"
+explanation = "12,000,000,000 x 500 bytes = 6,000,000,000,000 bytes = 6 TB. With 3 copies that is 18 TB. It fits on a few machines but not in the memory of one, so a cache holds only the popular links."
+
+[[questions.steps]]
+flow = ["web", "store"]
+highlight = ["store"]
+labels = { store = "6 TB" }
+caption = "Count of records times record size gives the storage."
+
+[[questions]]
+prompt = "What is the shortest base-62 key length that can give every link from 10 years its own key?"
+choices = ["5 characters", "6 characters", "7 characters", "8 characters"]
+answer = 2
+explanation = "62^5 = about 916 million, which is fewer than 12 billion. 62^6 = about 56.8 billion, which is enough. Many designs still choose 7 characters (about 3.5 trillion keys) to leave room for growth and to make keys hard to guess."
+
+[[questions.steps]]
+highlight = ["store"]
+labels = { store = "62^6 = 56.8B" }
+caption = "Each extra character multiplies the key space by 62."

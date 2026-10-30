@@ -1,0 +1,7 @@
+id = "partitioning"
+title = "Partitioning and sharding"
+zone = "The Divided Vaults"
+summary = "When one node cannot hold the data or take the writes, split the data into shards. Map keys to shards so that load stays even, hot keys do not sink one shard, and adding a shard moves few keys."
+prereqs = ["databases"]
+order = 5
+challenges = ["hash-ring", "shard-count", "hot-keys", "rebalance"]

@@ -1,0 +1,56 @@
+id = "scale-out"
+title = "From one server to many"
+stage = "watch"
+xp = 40
+statement = """
+One server can only grow so far. Watch the two ways to scale, and what changes when a request can land on any server.
+
+Vertical scaling moves the service to a bigger machine. Horizontal scaling adds more machines and puts a load balancer in front of them.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Clients", at = [0, 1] },
+  { id = "lb", label = "Load balancer", at = [1, 1] },
+  { id = "app1", label = "App 1", at = [2, 0] },
+  { id = "store", label = "Session store", at = [2, 1] },
+  { id = "app2", label = "App 2", at = [2, 2] },
+]
+links = [["client", "lb"], ["lb", "app1"], ["lb", "app2"], ["app1", "store"], ["app2", "store"]]
+
+[[diagram.steps]]
+flow = ["client", "lb", "app1"]
+packets = 5
+highlight = ["app1"]
+labels = { app1 = "CPU 100%" }
+caption = "Start with one server. At the peak, App 1 runs at full CPU and requests start to queue."
+
+[[diagram.steps]]
+highlight = ["app1"]
+labels = { app1 = "4x CPU, 4x RAM" }
+caption = "Vertical scaling moves App 1 to a bigger machine. No code changes, but machine size has a ceiling, and one machine is still one point of failure."
+
+[[diagram.steps]]
+flow = ["client", "lb", "app2"]
+packets = 3
+highlight = ["lb"]
+labels = { lb = "round robin" }
+caption = "Horizontal scaling adds servers. The load balancer spreads requests: round robin sends each new request to the next server in turn."
+
+[[diagram.steps]]
+flow = ["app2", "store"]
+highlight = ["store"]
+labels = { store = "user 42: cart" }
+caption = "Keep the servers stateless. Session data, such as a login or a cart, goes to a shared store, so any server can take a user's next request."
+
+[[diagram.steps]]
+flow = ["client", "lb", "app1"]
+packets = 3
+down = ["app2"]
+labels = { app2 = "health: failed" }
+caption = "The load balancer sends each server a health check every few seconds. App 2 fails its checks, so it gets no traffic until it passes again."
+
+[[diagram.steps]]
+highlight = ["app1", "app2"]
+labels = { lb = "peak 4,000/s", app1 = "max 2,000/s", app2 = "max 2,000/s" }
+caption = "Size the pool from the peak: 4,000 / 2,000 = 2 servers at full load. If one fails, the other gets twice its capacity, so add a spare server."

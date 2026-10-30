@@ -1,0 +1,59 @@
+id = "protect-a-service"
+title = "Bend, do not break"
+stage = "watch"
+xp = 40
+statement = """
+A shop's Orders service depends on Payments and on Recommendations. Watch the tools that keep a burst of traffic or one slow dependency from taking the whole shop down.
+
+The tools, from the edge inward: rate limits, timeouts, retries with backoff and jitter, circuit breakers, bulkheads and graceful degradation.
+"""
+
+[diagram]
+nodes = [
+  { id = "clients", label = "Clients", at = [0, 0] },
+  { id = "gateway", label = "API gateway", at = [1, 0] },
+  { id = "orders", label = "Orders", at = [1, 1] },
+  { id = "payments", label = "Payments", at = [2, 1] },
+  { id = "recs", label = "Recommendations", at = [1, 2] },
+]
+links = [["clients", "gateway"], ["gateway", "orders"], ["orders", "payments"], ["orders", "recs"]]
+
+[[diagram.steps]]
+flow = ["clients", "gateway"]
+packets = 7
+highlight = ["gateway"]
+labels = { gateway = "limit 100/s" }
+caption = "A rate limiter at the gateway caps each client. Requests over the limit get HTTP 429 (Too Many Requests) instead of overloading Orders."
+
+[[diagram.steps]]
+flow = ["gateway", "orders", "payments"]
+packets = 2
+down = ["payments"]
+labels = { payments = "slow: 30 s" }
+caption = "Payments slows down. Without a timeout, each call holds an Orders thread for 30 seconds, and soon Orders has no threads left for anything."
+
+[[diagram.steps]]
+flow = ["orders", "payments"]
+packets = 3
+highlight = ["orders"]
+labels = { orders = "timeout 2 s" }
+caption = "A timeout bounds each wait. Retries back off exponentially, with random jitter, so that callers do not all retry at the same moment."
+
+[[diagram.steps]]
+down = ["payments"]
+highlight = ["orders"]
+labels = { orders = "breaker open", payments = "recovering" }
+caption = "After many failures the circuit breaker opens: calls fail at once, and Payments gets room to recover. After a cool-down, a few trial calls test it (half-open)."
+
+[[diagram.steps]]
+flow = ["gateway", "orders", "recs"]
+down = ["recs"]
+highlight = ["orders"]
+labels = { recs = "failed", orders = "top-10 fallback" }
+caption = "Recommendations fails. Orders shows a fixed list of popular items instead. The page is less personal, but people can still buy."
+
+[[diagram.steps]]
+flow = ["orders", "payments"]
+highlight = ["orders"]
+labels = { payments = "pool: 20", recs = "pool: 10" }
+caption = "Bulkheads give each dependency its own pool of threads or connections. A slow dependency fills its own pool, not the whole server."

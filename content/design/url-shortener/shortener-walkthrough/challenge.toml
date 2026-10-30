@@ -1,0 +1,53 @@
+id = "shortener-walkthrough"
+title = "How a short link works"
+stage = "watch"
+xp = 40
+statement = """
+A URL shortener has two paths. The write path turns a long URL into a short key. The read path turns the key back into a redirect.
+
+Reads far outnumber writes: a link is made once and clicked many times. A key written in base 62 (0-9, a-z, A-Z) with 7 characters has 62^7, about 3.5 trillion, possible values.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 1] },
+  { id = "web", label = "Web servers", at = [1, 1] },
+  { id = "cache", label = "Cache", at = [2, 0] },
+  { id = "store", label = "Link store", at = [2, 1] },
+  { id = "ids", label = "ID service", at = [1, 2] },
+]
+links = [["client", "web"], ["web", "cache"], ["web", "store"], ["web", "ids"]]
+
+[[diagram.steps]]
+flow = ["client", "web"]
+labels = { client = "long URL" }
+caption = "A user sends a long URL to shorten. Writes are rare: about 1 for every 100 reads."
+
+[[diagram.steps]]
+flow = ["web", "ids"]
+highlight = ["ids"]
+labels = { ids = "block of 1M IDs" }
+caption = "Each web server reserves a block of 1 million numbers from the ID service, then hands them out from memory. No two servers get the same number, so keys never collide."
+
+[[diagram.steps]]
+flow = ["web", "store"]
+labels = { web = "id -> base62", store = "key -> URL" }
+caption = "The server writes the number in base 62 and stores the pair: key to long URL. Seven characters give about 3.5 trillion keys."
+
+[[diagram.steps]]
+flow = ["client", "web", "cache"]
+packets = 5
+highlight = ["cache"]
+labels = { cache = "hit 90%" }
+caption = "A click looks up the key. A few popular links get most clicks, so a cache in front of the store answers most lookups."
+
+[[diagram.steps]]
+flow = ["web", "store"]
+labels = { store = "miss 10%" }
+caption = "Misses go to the link store. It is partitioned by a hash of the key, so it can grow past one machine and spread the load."
+
+[[diagram.steps]]
+flow = ["web", "client"]
+highlight = ["client"]
+labels = { client = "302 + Location" }
+caption = "The server answers with a redirect. A 301 lets browsers cache it, which saves load but hides later clicks. A 302 sends every click back, so you can count them."

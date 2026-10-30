@@ -1,0 +1,110 @@
+id = "feed-reads"
+title = "Rank and page the feed"
+stage = "quiz"
+xp = 130
+statement = """
+The feed is ranked: each entry has a score, and the feed shows the highest scores first. Pages hold 20 entries.
+
+Fan-out runs through a queue:
+
+- Fan-out creates 70,000 feed writes per second.
+- One worker does 2,000 feed writes per second.
+"""
+
+[diagram]
+nodes = [
+  { id = "postsvc", label = "Post service", at = [0, 0] },
+  { id = "queue", label = "Fan-out queue", at = [1, 0] },
+  { id = "workers", label = "Workers", at = [2, 0] },
+  { id = "client", label = "Client", at = [0, 1] },
+  { id = "api", label = "Feed API", at = [1, 1] },
+  { id = "feeds", label = "Feed cache", at = [2, 1] },
+]
+links = [["postsvc", "queue"], ["queue", "workers"], ["workers", "feeds"], ["feeds", "api"], ["api", "client"]]
+
+[[diagram.steps]]
+flow = ["postsvc", "queue", "workers", "feeds"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["client", "api", "feeds"]
+
+[[questions]]
+prompt = "The client reads page 1, then asks for page 2 with offset 20. Meanwhile 5 new entries arrive at the top of the feed. What does page 2 show?"
+choices = [
+  "Exactly the next 20 entries after page 1",
+  "The last 5 entries of page 1 again, then 15 unseen entries, because every entry moved down by 5",
+  "Only the 5 new entries",
+  "An empty page",
+]
+answer = 2
+explanation = "An offset counts positions from the top. The 5 new entries push everything down, so positions 21 to 25 now hold entries the user already saw. With deletions the opposite happens and entries are skipped. An offset is only safe when the list does not change."
+
+[[questions.steps]]
+flow = ["client", "api", "feeds"]
+highlight = ["feeds"]
+labels = { feeds = "+5 at the top" }
+caption = "Offsets point at positions, and positions move when the list changes."
+
+[[questions]]
+prompt = "What should the cursor for the next page hold?"
+choices = [
+  "The page number",
+  "The score and post ID of the last entry returned, so the next page starts strictly after that entry",
+  "The total number of entries in the feed",
+  "A copy of every entry the user has seen",
+]
+answer = 2
+explanation = "A cursor marks a place in the order, not a position. The next query asks for entries ranked after (score, post ID) of the last entry. The post ID breaks ties between equal scores, so no entry is shown twice or skipped. New entries at the top do not move that place."
+
+[[questions.steps]]
+flow = ["feeds", "api", "client"]
+packets = 3
+labels = { client = "after (s, id)" }
+caption = "The cursor marks the last entry seen, so new entries cannot shift the next page."
+
+[[questions]]
+prompt = "How many workers does the fan-out need at the normal rate?"
+answer = 35
+tolerance = 0.1
+unit = "workers"
+explanation = "70,000 / 2,000 = 35 workers. Run more than that, so the queue drains after a spike instead of growing."
+
+[[questions.steps]]
+flow = ["queue", "workers", "feeds"]
+packets = 5
+labels = { workers = "35 x 2,000/s" }
+caption = "Arrival rate divided by the rate of one worker gives the worker count."
+
+[[questions]]
+prompt = "After an incident, 36 million feed writes are waiting in the queue. The fleet now runs 45 workers, and 70,000 new writes per second keep arriving. How many minutes until the backlog is gone?"
+answer = 30
+tolerance = 0.1
+unit = "minutes"
+hint = "The backlog shrinks by the difference between the work done and the work arriving."
+explanation = "45 x 2,000 = 90,000 writes per second done. 90,000 - 70,000 = 20,000 per second of net progress. 36,000,000 / 20,000 = 1,800 seconds = 30 minutes. During that time, new posts reach feeds late, but nothing is lost."
+
+[[questions.steps]]
+flow = ["postsvc", "queue", "workers"]
+packets = 7
+highlight = ["queue"]
+labels = { queue = "36M waiting", workers = "net 20,000/s" }
+caption = "A backlog drains only as fast as the spare capacity."
+
+[[questions]]
+prompt = "Why does fan-out go through a queue, and not run inside the request that saves the post?"
+choices = [
+  "The post request returns once the post is saved. The queue absorbs spikes, and workers retry failed writes.",
+  "A queue makes each feed write free",
+  "A queue makes every feed show the post at the same moment",
+  "A queue removes the need for a feed cache",
+]
+answer = 1
+explanation = "Writing to hundreds of feeds inside the request would make the author wait, and a spike of posts would overload the cache. The queue separates the two: the author gets a fast reply, workers process at a steady rate, and a failed write is retried from the queue. The writes still cost the same, and followers see the post at slightly different times."
+
+[[questions.steps]]
+flow = ["postsvc", "queue"]
+packets = 5
+highlight = ["queue"]
+labels = { postsvc = "reply at once" }
+caption = "The queue lets the post request finish before the fan-out does."

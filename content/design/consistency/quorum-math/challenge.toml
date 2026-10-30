@@ -1,0 +1,116 @@
+id = "quorum-math"
+title = "Size a quorum"
+stage = "quiz"
+xp = 120
+statement = """
+A key-value store keeps N = 5 replicas of each key.
+
+- A write succeeds when W replicas confirm it.
+- A read asks R replicas and returns the newest version among their answers.
+- If R + W > N, every read set shares at least one replica with every write set, so a read always sees the latest successful write.
+
+Two sets of sizes R and W, taken from N replicas, share at least R + W - N replicas.
+"""
+
+[diagram]
+nodes = [
+  { id = "ra", label = "Replica A", at = [0, 0] },
+  { id = "rb", label = "Replica B", at = [1, 0] },
+  { id = "rc", label = "Replica C", at = [2, 0] },
+  { id = "coord", label = "Coordinator", at = [1, 1] },
+  { id = "rd", label = "Replica D", at = [0, 2] },
+  { id = "client", label = "Client", at = [1, 2] },
+  { id = "re", label = "Replica E", at = [2, 2] },
+]
+links = [
+  ["client", "coord"],
+  ["coord", "ra"],
+  ["coord", "rb"],
+  ["coord", "rc"],
+  ["coord", "rd"],
+  ["coord", "re"],
+]
+
+[[diagram.steps]]
+flow = ["client", "coord", "ra"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["client", "coord", "re"]
+packets = 2
+
+[[questions]]
+prompt = "Reads use R = 2. What is the smallest W that makes every read see the latest successful write?"
+answer = 4
+tolerance = 0.1
+unit = "replicas"
+hint = "You need R + W > N. Solve for W."
+explanation = "R + W > N means W > N - R = 5 - 2 = 3. The smallest whole number above 3 is 4. Check: 2 + 4 = 6 > 5. With W = 3, the write could land on A, B and C while the read asks D and E, and the read would miss it."
+
+[[questions.steps]]
+flow = ["client", "coord", "rc"]
+packets = 4
+highlight = ["ra", "rb", "rc", "rd"]
+labels = { coord = "W = 4", re = "missed" }
+caption = "A write on 4 of 5 replicas leaves only 1 without it. Any 2 replicas a read picks include at least one with the write."
+
+[[questions]]
+prompt = "The store uses majority quorums: R = 3 and W = 3. How many replicas can be down while both reads and writes still succeed?"
+answer = 2
+tolerance = 0.1
+unit = "replicas"
+explanation = "Reads and writes each need 3 live replicas. With 5 replicas, 5 - 3 = 2 can be down. Majority quorums are a common default because they overlap (3 + 3 = 6 > 5) and tolerate the most failures for both reads and writes."
+
+[[questions.steps]]
+flow = ["client", "coord", "rb"]
+down = ["rd", "re"]
+highlight = ["ra", "rb", "rc"]
+labels = { coord = "3 of 5 up" }
+caption = "Two replicas are down. The other three are still a majority, so reads and writes continue."
+
+[[questions]]
+prompt = "With W = 4 and R = 3, at least how many replicas are in both the write set and the read set?"
+answer = 2
+tolerance = 0.1
+unit = "replicas"
+explanation = "Overlap is at least R + W - N = 3 + 4 - 5 = 2. Even if the read picks the one replica the write missed, its other 2 replicas both hold the write."
+
+[[questions.steps]]
+flow = ["client", "coord", "re"]
+highlight = ["rc", "rd"]
+labels = { ra = "write", rb = "write", rc = "write + read", rd = "write + read", re = "read" }
+caption = "The write missed only E. Even a read that asks E also asks 2 other replicas, and both hold the write."
+
+[[questions]]
+prompt = "The store uses W = 5 and R = 1, for fast reads. One replica fails. What happens?"
+choices = [
+  "Reads and writes both continue",
+  "Writes continue, but reads fail",
+  "Reads continue, but writes fail until the replica returns",
+  "Both reads and writes fail",
+]
+answer = 3
+explanation = "A write needs all 5 confirmations, so it cannot finish with 4 replicas. A read needs any 1 replica, so reads go on. R = 1 and W = N give the fastest reads and the most fragile writes."
+
+[[questions.steps]]
+flow = ["client", "coord", "rc"]
+down = ["rc"]
+labels = { coord = "W = 5: blocked" }
+caption = "One lost replica blocks every write when W equals N."
+
+[[questions]]
+prompt = "The store uses W = 2 and R = 2. Is every read sure to see the latest successful write?"
+choices = [
+  "Yes: 2 replicas are a majority of those that answer",
+  "Yes, as long as the coordinator picks the fastest replicas",
+  "No: a read never sees a write until every replica has it",
+  "No: 2 + 2 = 4 is not more than 5, so the two sets can miss each other",
+]
+answer = 4
+explanation = "R + W = 4 is not more than N = 5. The write can land on A and B while the read asks D and E, with no replica in common, so the read returns the old value. This setting gives low latency and eventual consistency."
+
+[[questions.steps]]
+flow = ["client", "coord", "re"]
+highlight = ["rd", "re"]
+labels = { ra = "write", rb = "write", rd = "read", re = "read" }
+caption = "The write went to A and B. The read asked D and E. No overlap, so the read misses the write."

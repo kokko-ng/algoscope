@@ -1,0 +1,61 @@
+id = "chat-walkthrough"
+title = "Delivering a message"
+stage = "watch"
+xp = 40
+statement = """
+A chat client keeps one connection open to a gateway server, so the server can push a message the moment it arrives. With polling, the client would ask "anything new?" again and again, and most answers would be empty.
+
+Watch one message travel from the sender to the receiver, with its sequence number, its receipts and the presence heartbeats around it.
+"""
+
+[diagram]
+nodes = [
+  { id = "sender", label = "Sender", at = [0, 0] },
+  { id = "gwa", label = "Gateway A", at = [1, 0] },
+  { id = "presence", label = "Presence", at = [2, 0] },
+  { id = "chat", label = "Chat service", at = [1, 1] },
+  { id = "store", label = "Message store", at = [2, 1] },
+  { id = "receiver", label = "Receiver", at = [0, 2] },
+  { id = "gwb", label = "Gateway B", at = [1, 2] },
+]
+links = [["sender", "gwa"], ["gwa", "presence"], ["gwa", "chat"], ["chat", "store"], ["chat", "gwb"], ["gwb", "receiver"]]
+
+[[diagram.steps]]
+flow = ["sender", "gwa"]
+labels = { gwa = "WebSocket open" }
+caption = "Each client holds one WebSocket connection to a gateway. The connection stays open, so data can flow both ways at any time."
+
+[[diagram.steps]]
+flow = ["sender", "gwa", "chat", "store"]
+highlight = ["chat"]
+labels = { store = "seq 42" }
+caption = "The chat service gives the message the next sequence number of its conversation, then stores it. The sequence number, not a clock, sets the order."
+
+[[diagram.steps]]
+flow = ["chat", "gwa", "sender"]
+labels = { sender = "sent" }
+caption = "Once the message is stored, the sender gets an ack and shows it as sent. Before that, the app retries with the same message ID."
+
+[[diagram.steps]]
+flow = ["chat", "gwb", "receiver"]
+labels = { receiver = "seq 42" }
+caption = "The service looks up which gateway holds the receiver's connection and pushes the message there."
+
+[[diagram.steps]]
+flow = ["receiver", "gwb", "chat"]
+packets = 2
+labels = { chat = "delivered, read" }
+caption = "The receiver's app acks delivery at once, and sends a read receipt when the user opens the chat. Both go back to the sender as small events."
+
+[[diagram.steps]]
+flow = ["sender", "gwa", "presence"]
+packets = 3
+highlight = ["presence"]
+labels = { presence = "beat every 30 s" }
+caption = "Presence: each client sends a heartbeat every 30 seconds. Missed beats mark it offline. 10 million online users make 10M / 30 = 333,000 beats per second."
+
+[[diagram.steps]]
+flow = ["chat", "store"]
+down = ["gwb", "receiver"]
+labels = { store = "waits at seq 43" }
+caption = "If the receiver is offline, the message waits in the store. On reconnect, the client asks for every message after the last sequence number it has."

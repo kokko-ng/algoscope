@@ -1,0 +1,60 @@
+id = "hash-ring"
+title = "Spread keys over shards"
+stage = "watch"
+xp = 40
+statement = """
+Replication copies all the data to every node, so it cannot help when the data or the writes outgrow one node. Partitioning, also called sharding, splits the data: each shard holds part of the keys and takes their writes.
+
+A router, or a library in the app, decides which shard holds each key.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [1, 0] },
+  { id = "router", label = "Router", at = [1, 1] },
+  { id = "a", label = "Shard A", at = [0, 2] },
+  { id = "b", label = "Shard B", at = [1, 2] },
+  { id = "c", label = "Shard C", at = [2, 2] },
+  { id = "d", label = "Shard D", at = [2, 0] },
+]
+links = [["app", "router"], ["router", "a"], ["router", "b"], ["router", "c"], ["router", "d"]]
+
+[[diagram.steps]]
+flow = ["app", "router", "a"]
+labels = { a = "keys a-h", b = "keys i-q", c = "keys r-z" }
+caption = "Range partitioning gives each shard a range of keys. A scan over a range stays on one shard, but a popular range makes its shard hot."
+
+[[diagram.steps]]
+flow = ["app", "router", "b"]
+packets = 3
+labels = { router = "hash(key) % 3" }
+caption = "Hash partitioning hashes each key and picks a shard from the hash. Similar keys land on different shards, so the load spreads evenly."
+
+[[diagram.steps]]
+highlight = ["d"]
+labels = { router = "hash % 4", a = "3/4 move", b = "3/4 move", c = "3/4 move" }
+caption = "Add Shard D, and the modulus changes from 3 to 4. A key stays only if hash % 3 equals hash % 4, so about 3 of every 4 keys move."
+
+[[diagram.steps]]
+flow = ["router", "d"]
+highlight = ["d"]
+labels = { router = "hash ring", d = "takes 1/4" }
+caption = "Consistent hashing puts shards and keys on a ring, and a key belongs to the next shard clockwise. A new shard takes only the keys just before it: about 1/4."
+
+[[diagram.steps]]
+highlight = ["a", "b", "c", "d"]
+labels = { a = "100 vnodes", b = "100 vnodes", c = "100 vnodes", d = "100 vnodes" }
+caption = "With one point each, the arcs differ in size. Virtual nodes give each shard many points on the ring, so loads even out and D takes a little from every shard."
+
+[[diagram.steps]]
+flow = ["app", "router", "c"]
+packets = 5
+highlight = ["c"]
+labels = { c = "celebrity: hot" }
+caption = "Hashing spreads keys, not traffic. One celebrity account can overload its shard. Copy the hot key to several shards, or cache it."
+
+[[diagram.steps]]
+flow = ["app", "router"]
+highlight = ["a", "b", "c", "d"]
+labels = { router = "ask all shards" }
+caption = "A query that does not use the shard key must ask every shard and merge the answers. It is only as fast as the slowest shard."

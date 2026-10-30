@@ -1,0 +1,103 @@
+id = "short-keys"
+title = "Generate short keys"
+stage = "quiz"
+xp = 120
+statement = """
+Keys are 7 characters of base 62 (0-9, a-z, A-Z). Two ways to make them are on the table:
+
+- Hashing: hash the long URL and keep the first 7 base-62 characters.
+- Counter ranges: an ID service hands each web server a block of 1 million numbers. The server encodes each number in base 62.
+
+The store already holds 12 billion links. The fleet creates 40 links per second.
+"""
+
+[diagram]
+nodes = [
+  { id = "web", label = "Web server", at = [0, 1] },
+  { id = "ids", label = "ID service", at = [1, 0] },
+  { id = "hash", label = "Hash + check", at = [1, 2] },
+  { id = "store", label = "Link store", at = [2, 1] },
+]
+links = [["web", "ids"], ["web", "hash"], ["web", "store"], ["hash", "store"]]
+
+[[diagram.steps]]
+flow = ["web", "ids"]
+
+[[diagram.steps]]
+flow = ["web", "store"]
+
+[[diagram.steps]]
+flow = ["web", "hash", "store"]
+
+[[questions]]
+prompt = "How many different 7-character base-62 keys exist? Give the answer in trillions."
+answer = 3.52
+tolerance = 0.1
+unit = "trillion keys"
+hint = "62 choices for each of 7 positions: 62^7."
+explanation = "62^7 = 3,521,614,606,208, about 3.5 trillion. At 40 new links per second, that lasts about 2,800 years."
+
+[[questions.steps]]
+highlight = ["store"]
+labels = { store = "62^7 = 3.5T" }
+caption = "The key space grows by a factor of 62 for each character."
+
+[[questions]]
+prompt = "With hashing, what must the write path handle?"
+choices = [
+  "Nothing: a hash never gives two inputs the same output",
+  "Two different URLs can get the same 7 characters, so check the store and, on a match, hash again with a changed input",
+  "The key space runs out after 62 links",
+  "Every redirect must hash the long URL again",
+]
+answer = 2
+explanation = "Cutting a hash to 7 characters maps many possible URLs onto 3.5 trillion keys, so different URLs can share a key. The write must check whether the key is taken, and retry with a salt or counter added to the input. That is an extra read on every write. A redirect only looks up the key, so it never hashes."
+
+[[questions.steps]]
+flow = ["web", "hash", "store"]
+highlight = ["hash"]
+labels = { hash = "taken? retry" }
+caption = "Hashing needs a check against the store before each new key is used."
+
+[[questions]]
+prompt = "With hashing and 12 billion keys in use, what percent of new keys collide with an existing key?"
+answer = 0.341
+tolerance = 0.1
+unit = "percent"
+hint = "Keys in use divided by all possible keys."
+explanation = "A good hash spreads keys evenly, so a new key lands on a used one with probability 12,000,000,000 / 3,521,614,606,208 = 0.0034, which is 0.34%. That is about 1 write in 300 needing a retry, and the rate grows as the store fills."
+
+[[questions.steps]]
+flow = ["web", "hash", "store"]
+packets = 3
+labels = { store = "12B / 3.5T" }
+caption = "The fuller the key space, the more often a new key is already taken."
+
+[[questions]]
+prompt = "With counter ranges, how many blocks of 1 million does the ID service hand out per day?"
+answer = 3.46
+tolerance = 0.1
+unit = "blocks per day"
+explanation = "40 x 86,400 = 3,456,000 links per day. 3,456,000 / 1,000,000 = about 3.5 blocks per day. The ID service is called a few times a day, so it is never a bottleneck. If a server crashes, the unused numbers in its block are skipped, which costs nothing."
+
+[[questions.steps]]
+flow = ["web", "ids"]
+highlight = ["ids"]
+labels = { ids = "~3.5 blocks/day" }
+caption = "Handing out ranges keeps the shared counter off the request path."
+
+[[questions]]
+prompt = "What is the main weakness of keys from counter ranges, and how do you remove it?"
+choices = [
+  "Keys are predictable, so anyone can walk through every link. Scramble each number with a reversible permutation before encoding it.",
+  "Counters collide often. Check the store on every write.",
+  "Base 62 cannot encode large numbers. Use base 10.",
+  "Every redirect must call the ID service. Cache the ID service.",
+]
+answer = 1
+explanation = "Consecutive numbers give consecutive keys, so one key reveals its neighbours and a script can list every link. A reversible permutation of the number (for example, a block cipher over the ID range) keeps keys unique and makes them look random. Counter ranges never collide, base 62 encodes any number, and redirects never call the ID service."
+
+[[questions.steps]]
+flow = ["web", "ids"]
+labels = { web = "scramble, encode" }
+caption = "A one-to-one scramble keeps uniqueness and hides the order."

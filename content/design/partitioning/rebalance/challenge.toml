@@ -1,0 +1,107 @@
+id = "rebalance"
+title = "Move fewer keys"
+stage = "quiz"
+xp = 120
+statement = """
+A cache cluster has 4 nodes that hold 100 million keys, spread evenly. A 5th node is added.
+
+- Modulo hashing: node = hash(key) % N, where N is the number of nodes.
+- Consistent hashing: nodes and keys sit on a ring, and a key belongs to the next node clockwise.
+
+A key that moves to a new node is a cache miss until it is loaded again.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [1, 0] },
+  { id = "router", label = "Router", at = [1, 1] },
+  { id = "n1", label = "Node 1", at = [0, 2] },
+  { id = "n2", label = "Node 2", at = [1, 2] },
+  { id = "n34", label = "Nodes 3-4", at = [2, 2] },
+  { id = "n5", label = "Node 5 (new)", at = [2, 0] },
+]
+links = [["app", "router"], ["router", "n1"], ["router", "n2"], ["router", "n34"], ["router", "n5"]]
+
+[[diagram.steps]]
+flow = ["app", "router", "n1"]
+
+[[diagram.steps]]
+flow = ["app", "router", "n34"]
+
+[[diagram.steps]]
+flow = ["app", "router", "n5"]
+
+[[questions]]
+prompt = "With modulo hashing, N changes from 4 to 5. How many keys move to a different node?"
+answer = 80000000
+tolerance = 0.1
+unit = "keys"
+hint = "A key stays only when hash % 4 equals hash % 5. List hash % 20 from 0 to 19 and count the matches."
+explanation = "hash % 20 is spread evenly over 0 to 19. hash % 4 equals hash % 5 only for 0, 1, 2 and 3: 4 values in 20, so 1 key in 5 stays. The other 4 in 5 move: 80 million keys. For a cache that is close to a full flush, and the database takes all those misses."
+
+[[questions.steps]]
+flow = ["router", "n5"]
+packets = 4
+highlight = ["router"]
+labels = { router = "hash % 5", n1 = "4/5 move", n2 = "4/5 move", n34 = "4/5 move" }
+caption = "A new modulus reshuffles almost every key."
+
+[[questions]]
+prompt = "With consistent hashing and even spacing, how many keys move?"
+answer = 20000000
+tolerance = 0.1
+unit = "keys"
+explanation = "The new node takes its fair share, 1/5 of the keys: 20 million. Every other key keeps its node, so only the moved keys miss in the cache."
+
+[[questions.steps]]
+flow = ["router", "n5"]
+highlight = ["n5"]
+labels = { router = "hash ring", n5 = "20M keys" }
+caption = "Only the keys that the new node takes over move."
+
+[[questions]]
+prompt = "Each node has one point on the ring. Where do the new node's keys come from?"
+choices = [
+  "Evenly from all 4 old nodes",
+  "From the old node that comes next after it, clockwise",
+  "From the node with the most keys",
+  "From a random node for each key",
+]
+answer = 2
+explanation = "Node 5 takes the keys between the point before it and its own point. Those keys belonged to the next node clockwise, which loses them. The other nodes are untouched. One neighbour carries the whole move, and the arcs, and so the loads, stay uneven."
+
+[[questions.steps]]
+flow = ["n2", "router", "n5"]
+highlight = ["n2", "n5"]
+labels = { n2 = "gives keys", n5 = "takes keys" }
+caption = "With one point per node, a single neighbour gives up all the moved keys."
+
+[[questions]]
+prompt = "Each node now gets 100 virtual nodes: 100 points spread around the ring. What does this change?"
+choices = [
+  "Each node owns many small arcs, so key counts even out, and a new node takes a little from every node",
+  "Fewer than 1/5 of the keys move when a node joins",
+  "Keys no longer need to be hashed",
+  "Each key is stored on 100 nodes",
+]
+answer = 1
+explanation = "With many small arcs per node, the random gaps average out, so each node holds close to its fair share. A new node's points land all around the ring, so it takes keys from every old node and the move spreads out. About 1/5 of the keys still move: virtual nodes balance the move, they do not shrink it."
+
+[[questions.steps]]
+flow = ["router", "n5"]
+highlight = ["n1", "n2", "n34", "n5"]
+labels = { n1 = "gives 1/5", n2 = "gives 1/5", n34 = "give 1/5 each", n5 = "100 vnodes" }
+caption = "Every old node gives a little to the new one."
+
+[[questions]]
+prompt = "Later, with 5 nodes and virtual nodes, Node 2 fails. Its 20 million keys go to the other nodes. About how many extra keys does each of the 4 remaining nodes take?"
+answer = 5000000
+tolerance = 0.1
+unit = "keys"
+explanation = "Node 2's points are spread around the ring, so its keys go to many different neighbours: 20 million / 4 = 5 million each. With one point per node, all 20 million would go to the single next node, which would double its load."
+
+[[questions.steps]]
+flow = ["router", "n1"]
+down = ["n2"]
+labels = { n1 = "+5M", n34 = "+5M each", n5 = "+5M" }
+caption = "Virtual nodes spread a failed node's keys over all the survivors."

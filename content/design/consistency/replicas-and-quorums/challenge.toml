@@ -1,0 +1,59 @@
+id = "replicas-and-quorums"
+title = "Replicas, partitions and quorums"
+stage = "watch"
+xp = 40
+statement = """
+A store keeps several copies of each value, so it survives the loss of a machine. Copies can disagree for a while. Watch how a quorum makes a read see the latest write, and what a network partition forces you to choose.
+
+Three numbers describe a quorum system:
+
+- N: the number of replicas that hold a value.
+- W: how many replicas must confirm a write before it succeeds.
+- R: how many replicas a read asks. The read returns the newest version among the answers.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 1] },
+  { id = "coord", label = "Coordinator", at = [1, 1] },
+  { id = "ra", label = "Replica A", at = [2, 0] },
+  { id = "rb", label = "Replica B", at = [2, 1] },
+  { id = "rc", label = "Replica C", at = [2, 2] },
+]
+links = [["client", "coord"], ["coord", "ra"], ["coord", "rb"], ["coord", "rc"]]
+
+[[diagram.steps]]
+highlight = ["ra", "rb", "rc"]
+labels = { ra = "x = 1", rb = "x = 1", rc = "x = 1" }
+caption = "The value x has N = 3 copies, one on each replica. All three copies hold x = 1."
+
+[[diagram.steps]]
+flow = ["client", "coord", "rb"]
+packets = 2
+highlight = ["ra", "rb"]
+labels = { ra = "x = 2", rb = "x = 2", rc = "x = 1" }
+caption = "A client writes x = 2. With W = 2, the write succeeds when A and B confirm it. Replica C missed the write and still holds x = 1."
+
+[[diagram.steps]]
+flow = ["client", "coord", "rc"]
+highlight = ["rc"]
+labels = { rc = "stale: x = 1" }
+caption = "With R = 1, a read can ask only Replica C and get the old value. R + W = 3 is not more than N = 3, so the read set can miss the write set."
+
+[[diagram.steps]]
+flow = ["client", "coord", "rb"]
+highlight = ["rb", "coord"]
+labels = { coord = "newest: x = 2", rb = "x = 2", rc = "x = 1" }
+caption = "With R = 2, any 2 replicas include at least one that has the write. R + W = 4 > N = 3, so the sets overlap and the read returns x = 2."
+
+[[diagram.steps]]
+flow = ["client", "coord", "ra"]
+down = ["rb", "rc"]
+labels = { coord = "1 of 3 reachable" }
+caption = "A network partition cuts off B and C. A write with W = 2 cannot finish. The store must choose: refuse the write (consistency) or accept it on A alone (availability)."
+
+[[diagram.steps]]
+flow = ["client", "coord", "ra"]
+highlight = ["coord"]
+labels = { coord = "wait or answer?" }
+caption = "Without a partition there is still a trade. Waiting for more replicas costs latency. PACELC: on a Partition choose A or C, Else choose Latency or Consistency."

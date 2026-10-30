@@ -1,0 +1,103 @@
+id = "backlog-math"
+title = "Drain a backlog"
+stage = "quiz"
+xp = 120
+statement = """
+An order service publishes one message per order to a queue. A pool of workers processes the messages.
+
+- Normal rate: 400 messages per second.
+- One worker processes 50 messages per second.
+- A sale brings 1,000 messages per second for 10 minutes, then the rate returns to normal.
+
+Useful rules:
+
+- While messages arrive faster than workers finish them, the backlog grows by (produce rate - consume rate) each second.
+- Time to drain a backlog = backlog / (consume rate - produce rate).
+- Little's law: L = lambda x W. L is the average number of messages in the system, lambda is the arrival rate and W is the average time a message spends in the system.
+"""
+
+[diagram]
+nodes = [
+  { id = "orders", label = "Order service", at = [0, 0] },
+  { id = "queue", label = "Queue", at = [1, 0] },
+  { id = "workers", label = "Workers", at = [2, 0] },
+]
+links = [["orders", "queue"], ["queue", "workers"]]
+
+[[diagram.steps]]
+flow = ["orders", "queue", "workers"]
+packets = 3
+
+[[questions]]
+prompt = "How many workers are needed to keep up with the normal rate?"
+answer = 8
+tolerance = 0.1
+unit = "workers"
+hint = "Divide the arrival rate by the rate of one worker."
+explanation = "400 / 50 = 8 workers. With exactly 8, the workers have no spare capacity, so any spike or slow message starts a backlog. In practice you run more than the minimum."
+
+[[questions.steps]]
+flow = ["orders", "queue", "workers"]
+packets = 4
+labels = { orders = "400/s", workers = "8 x 50/s" }
+caption = "Consume rate must at least match produce rate, or the queue grows without end."
+
+[[questions]]
+prompt = "The pool has 12 workers. How many messages are waiting when the 10-minute sale ends?"
+answer = 240000
+tolerance = 0.1
+unit = "messages"
+hint = "Find how fast the backlog grows each second, then multiply by the seconds in 10 minutes."
+explanation = "12 workers consume 12 x 50 = 600 messages per second. The backlog grows by 1,000 - 600 = 400 per second. Over 10 minutes: 400 x 600 s = 240,000 messages. The queue keeps every order; nothing is dropped."
+
+[[questions.steps]]
+flow = ["orders", "queue"]
+packets = 8
+highlight = ["queue"]
+labels = { orders = "1,000/s", queue = "+400/s", workers = "600/s" }
+caption = "The queue absorbs the gap between produce and consume rates."
+
+[[questions]]
+prompt = "After the sale, the rate returns to 400 per second. How many minutes do the 12 workers need to drain the backlog?"
+answer = 20
+tolerance = 0.1
+unit = "minutes"
+hint = "Backlog / (consume rate - produce rate)."
+explanation = "Net drain rate: 600 - 400 = 200 messages per second. Time: 240,000 / 200 = 1,200 s = 20 minutes. Spare capacity sets the drain time: with 9 workers the net rate would be only 50 per second, and draining would take 80 minutes."
+
+[[questions.steps]]
+flow = ["queue", "workers"]
+packets = 6
+highlight = ["workers"]
+labels = { queue = "240,000", workers = "net 200/s" }
+caption = "Only the spare capacity drains the backlog, because new orders keep arriving."
+
+[[questions]]
+prompt = "To drain the same backlog in 5 minutes instead of 20, how many workers does the pool need?"
+answer = 24
+tolerance = 0.1
+unit = "workers"
+hint = "Find the net drain rate for 5 minutes, then add the arrival rate back."
+explanation = "Net rate needed: 240,000 / 300 s = 800 messages per second. The workers must also handle the 400 new ones each second: 800 + 400 = 1,200 per second. 1,200 / 50 = 24 workers. Four times as fast needs two times the workers here, because the arrival rate does not change."
+
+[[questions.steps]]
+flow = ["queue", "workers"]
+packets = 9
+highlight = ["workers"]
+labels = { workers = "24 x 50/s" }
+caption = "Required consume rate = net drain rate + arrival rate."
+
+[[questions]]
+prompt = "On a normal day, the system holds 2,000 messages on average (waiting or in progress), and messages arrive at 400 per second. On average, how many seconds does a message spend in the system?"
+answer = 5
+tolerance = 0.1
+unit = "seconds"
+hint = "Rearrange Little's law: W = L / lambda."
+explanation = "W = L / lambda = 2,000 / 400 = 5 seconds. Little's law holds for any stable system, so it turns a queue length you can measure into a delay you care about."
+
+[[questions.steps]]
+flow = ["orders", "queue", "workers"]
+packets = 4
+highlight = ["queue"]
+labels = { orders = "lambda = 400/s", queue = "L = 2,000", workers = "W = 5 s" }
+caption = "Number in the system = arrival rate x time in the system."

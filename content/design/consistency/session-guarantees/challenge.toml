@@ -1,0 +1,118 @@
+id = "session-guarantees"
+title = "Read your own writes"
+stage = "quiz"
+xp = 110
+statement = """
+A profile service has one leader and two followers. All writes go to the leader. The leader copies each change to the followers asynchronously, so a follower can be behind.
+
+- Follower 1 is usually up to date.
+- Follower 2 can be up to 2 seconds behind.
+- The app server sends each read to any follower, to spread the load.
+
+Two guarantees that users notice:
+
+- Read-your-writes: after you write, your own reads show that write.
+- Monotonic reads: once you have seen a value, later reads never show an older one.
+"""
+
+[diagram]
+nodes = [
+  { id = "user", label = "User", at = [0, 1] },
+  { id = "app", label = "App server", at = [1, 1] },
+  { id = "leader", label = "Leader", at = [2, 0] },
+  { id = "f1", label = "Follower 1", at = [2, 1] },
+  { id = "f2", label = "Follower 2", at = [2, 2] },
+]
+links = [
+  ["user", "app"],
+  ["app", "leader"],
+  ["app", "f1"],
+  ["app", "f2"],
+  ["leader", "f1"],
+  ["f1", "f2"],
+]
+
+[[diagram.steps]]
+flow = ["user", "app", "leader"]
+
+[[diagram.steps]]
+flow = ["leader", "f1", "f2"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["user", "app", "f2"]
+
+[[questions]]
+prompt = "A user changes their bio. The write goes to the leader and succeeds. The next page load reads from Follower 2, which is 2 seconds behind. What does the user see?"
+choices = [
+  "The new bio, because the write succeeded on the leader",
+  "An error, because the replicas disagree",
+  "The old bio, because Follower 2 has not applied the write yet",
+  "A mix of the old and the new bio",
+]
+answer = 3
+explanation = "The write is safe on the leader, but Follower 2 has not received it yet. The read returns the old bio, and the user thinks the save failed. The replicas will agree later: that is eventual consistency, and it breaks read-your-writes."
+
+[[questions.steps]]
+flow = ["user", "app", "f2"]
+highlight = ["f2"]
+labels = { leader = "new bio", f2 = "old bio" }
+caption = "The write reached the leader, but the read went to a follower that is behind."
+
+[[questions]]
+prompt = "Which change gives read-your-writes without sending every read to the leader?"
+choices = [
+  "Send each read to a random follower, to spread the load evenly",
+  "Cache every profile for longer, so reads skip the followers",
+  "Add a third follower, so each follower carries less load",
+  "For a short time after a user writes, send that user's reads to the leader",
+]
+answer = 4
+explanation = "Only the user who just wrote needs the newest data. Route that user's reads to the leader for a window longer than the worst lag, here more than 2 seconds. A finer version records the write's log position and reads from any follower that has reached it. Everyone else keeps reading from the followers."
+
+[[questions.steps]]
+flow = ["user", "app", "leader"]
+highlight = ["leader"]
+labels = { leader = "recent writers" }
+caption = "Recent writers read from the leader. All other reads still go to the followers."
+
+[[questions]]
+prompt = "The service handles 10,000 reads per second. 5% of reads come from users who wrote in the last 10 seconds, and the app sends those reads to the leader. How many reads per second reach the leader?"
+answer = 500
+tolerance = 0.1
+unit = "reads per second"
+explanation = "10,000 x 0.05 = 500 reads per second. The leader carries a small slice of the reads, and the followers still serve the other 9,500. Read-your-writes costs a little leader capacity, not all of it."
+
+[[questions.steps]]
+flow = ["user", "app", "leader"]
+packets = 2
+labels = { leader = "500/s", f1 = "9,500/s shared" }
+caption = "Only reads that need fresh data go to the leader."
+
+[[questions]]
+prompt = "A user refreshes a thread twice. The first read hits Follower 1 and shows a new comment. The second read hits Follower 2 and the comment is gone. Which guarantee broke, and what is a common fix?"
+choices = [
+  "Read-your-writes: fix it by writing to every follower at once",
+  "Monotonic reads: fix it by sending each user's reads to the same follower",
+  "Strong consistency: fix it with a larger leader",
+  "Durability: fix it with a write-ahead log",
+]
+answer = 2
+explanation = "The user did not write the comment, so read-your-writes does not apply. The user saw a newer state and then an older one: time went backwards. Pinning each user to one follower means their reads only move forward. If that follower fails, the user moves to another and may see a short jump."
+
+[[questions.steps]]
+flow = ["user", "app", "f1"]
+highlight = ["f1"]
+labels = { f1 = "pinned user", f2 = "2 s behind" }
+caption = "Pin the user to one follower, so each read is at least as new as the last."
+
+[[questions]]
+prompt = "Two replicas accept writes during a partition. Replica A sets a field to red at 10:00:05 by its clock. Replica B sets it to blue at 10:00:03 by its clock, but B's clock runs 4 seconds slow, so blue was really written later. After the partition heals, last-write-wins (keep the largest timestamp) keeps which value?"
+choices = [
+  "Blue, because it was written later in real time",
+  "Red, because it has the larger timestamp; the later write is lost",
+  "Both, kept as two versions for the app to merge",
+  "Neither, because the merge fails",
+]
+answer = 2
+explanation = "Last-write-wins compares timestamps, not real time. Blue was written at 10:00:07 real time, but its timestamp says 10:00:03, so red at 10:00:05 wins and blue disappears without an error. Clock skew makes last-write-wins lose data. Version vectors keep both versions so that the app can merge them."

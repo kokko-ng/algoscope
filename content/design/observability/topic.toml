@@ -1,0 +1,7 @@
+id = "observability"
+title = "Performance and observability"
+zone = "The Watchtower"
+summary = "Averages hide the slow requests that users remember. Learn to read percentiles, see how fan-out turns a rare slow call into a common slow request, and choose metrics, logs, traces and alerts that show a problem before users report it."
+prereqs = ["reliability"]
+order = 10
+challenges = ["signals-walkthrough", "tail-latency", "slo-alerts", "trace-sampling"]

@@ -1,0 +1,100 @@
+id = "token-bucket"
+title = "Fill a token bucket"
+stage = "quiz"
+xp = 110
+statement = """
+A token bucket limits each API key.
+
+- The bucket holds at most B tokens. Tokens are added at a steady rate r per second, until the bucket is full.
+- Each request takes one token. A request that finds the bucket empty is rejected with HTTP 429.
+- The bucket starts full.
+
+This API key has B = 50 tokens and r = 10 tokens per second. B sets the largest burst, and r sets the long-run rate.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 0] },
+  { id = "bucket", label = "Token bucket", at = [1, 0] },
+  { id = "api", label = "API", at = [2, 0] },
+]
+links = [["client", "bucket"], ["bucket", "api"]]
+
+[[diagram.steps]]
+flow = ["client", "bucket", "api"]
+packets = 3
+labels = { bucket = "B = 50, r = 10/s" }
+
+[[questions]]
+prompt = "The client has been idle for a minute, then sends 80 requests at the same instant. How many are accepted?"
+answer = 50
+tolerance = 0.1
+unit = "requests"
+explanation = "After a minute idle the bucket is full, at its cap of 50 tokens; it does not keep filling past B. The first 50 requests take the 50 tokens. The other 30 find it empty and are rejected. B is the burst allowance."
+
+[[questions.steps]]
+flow = ["client", "bucket", "api"]
+packets = 5
+highlight = ["bucket"]
+labels = { client = "80 at once", bucket = "50 tokens", api = "50 accepted" }
+caption = "A full bucket lets a burst through, up to its size."
+
+[[questions]]
+prompt = "Instead, starting with a full bucket, the client sends a steady 30 requests per second. After how many seconds is the bucket empty?"
+answer = 2.5
+tolerance = 0.1
+unit = "seconds"
+hint = "The bucket loses tokens at the request rate minus the refill rate."
+explanation = "Each second, 30 tokens leave and 10 arrive, so the bucket drains at 20 tokens per second. 50 / 20 = 2.5 seconds."
+
+[[questions.steps]]
+flow = ["client", "bucket"]
+packets = 6
+highlight = ["bucket"]
+labels = { client = "30/s", bucket = "net -20/s" }
+caption = "Drain rate = request rate - refill rate."
+
+[[questions]]
+prompt = "Once the bucket is empty and the client keeps sending 30 requests per second, how many requests per second are rejected?"
+answer = 20
+tolerance = 0.1
+unit = "requests per second"
+explanation = "With an empty bucket, only the 10 new tokens each second can be spent. 30 - 10 = 20 requests per second are rejected. In the long run a client gets r per second, whatever it sends."
+
+[[questions.steps]]
+flow = ["client", "bucket", "api"]
+packets = 3
+labels = { bucket = "10/s refill", api = "10/s accepted" }
+caption = "An empty bucket passes exactly the refill rate."
+
+[[questions]]
+prompt = "Starting full, the client sends as fast as it can. What is the most requests it can get accepted in the first 10 seconds?"
+answer = 150
+tolerance = 0.1
+unit = "requests"
+explanation = "The 50 tokens already in the bucket, plus 10 x 10 = 100 tokens added during the 10 seconds: 150 requests. The average over these 10 seconds is 15 per second, more than r, because the burst comes on top of the refill."
+
+[[questions.steps]]
+flow = ["client", "bucket", "api"]
+packets = 6
+highlight = ["api"]
+labels = { bucket = "50 + 10 x 10", api = "150 accepted" }
+caption = "Accepted in a window = bucket size + refill rate x window length."
+
+[[questions]]
+prompt = "Another API uses a fixed window: at most 100 requests per calendar minute. A client sends 100 requests at 12:00:59 and 100 more at 12:01:00. What happens?"
+choices = [
+  "Only the first 100 are accepted",
+  "Only 50 of each batch are accepted",
+  "All 200 are accepted, within about one second",
+  "None are accepted",
+]
+answer = 3
+explanation = "The two batches fall in different calendar minutes, so each one fits its own window. The service takes 200 requests in about one second, two times the intended limit. A sliding window counts the last 60 seconds at any moment, so it would reject the second batch. A token bucket bounds the burst by its size."
+
+[[questions.steps]]
+flow = ["client", "bucket", "api"]
+packets = 8
+highlight = ["api"]
+labels = { client = "100 + 100", api = "200 in ~1 s" }
+caption = "Fixed windows reset on the clock edge, so a burst on each side of the edge gets double."

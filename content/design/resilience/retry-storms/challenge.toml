@@ -1,0 +1,108 @@
+id = "retry-storms"
+title = "Stop a retry storm"
+stage = "quiz"
+xp = 120
+statement = """
+A user action goes from the mobile app to the web tier, then to the API tier, then to the database.
+
+- The app, the web tier and the API tier each try a failed call up to 3 times in total: 1 attempt plus 2 retries.
+- Normal load is 2,000 user actions per second.
+
+Exponential backoff waits longer before each retry: here the wait before retry k is 100 ms x 2^(k - 1). Jitter adds a random part to each wait.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "Mobile app", at = [0, 0] },
+  { id = "web", label = "Web tier", at = [1, 0] },
+  { id = "api", label = "API tier", at = [2, 0] },
+  { id = "db", label = "Database", at = [2, 1] },
+]
+links = [["app", "web"], ["web", "api"], ["api", "db"]]
+
+[[diagram.steps]]
+flow = ["app", "web", "api", "db"]
+
+[[diagram.steps]]
+flow = ["app", "web", "api", "db"]
+packets = 3
+down = ["db"]
+
+[[questions]]
+prompt = "The database is down. One user action fails at every layer. How many calls reach the database?"
+answer = 27
+tolerance = 0.1
+unit = "calls"
+hint = "Each attempt from one layer causes a full set of attempts in the layer below."
+explanation = "The app makes 3 attempts to the web tier. Each causes 3 attempts to the API tier: 9. Each of those causes 3 attempts to the database: 27. Retries multiply across layers: 3 x 3 x 3 = 27."
+
+[[questions.steps]]
+flow = ["api", "db"]
+packets = 9
+down = ["db"]
+labels = { app = "3", web = "9", api = "27 calls" }
+caption = "3 attempts at each of 3 layers multiply to 27 calls at the bottom."
+
+[[questions]]
+prompt = "If every retry fires at once, how many calls per second hit the failing database during the outage?"
+answer = 54000
+tolerance = 0.1
+unit = "calls per second"
+explanation = "2,000 actions per second x 27 calls each = 54,000 calls per second, 27 times the normal load. A database that is trying to recover gets hit far harder than usual. Retries that were meant to hide a blip turn it into an outage."
+
+[[questions.steps]]
+flow = ["app", "web", "api", "db"]
+packets = 9
+down = ["db"]
+labels = { app = "2,000/s", db = "54,000/s" }
+caption = "Retry amplification turns a short failure into a flood."
+
+[[questions]]
+prompt = "One client retries up to 4 times, with the backoff in the statement and no jitter. What is the total time it spends waiting between attempts, in ms?"
+answer = 1500
+tolerance = 0.1
+unit = "ms"
+hint = "Add the waits before retries 1, 2, 3 and 4."
+explanation = "The waits are 100, 200, 400 and 800 ms. Total: 1,500 ms. Each wait doubles, so the client backs off quickly and gives the server time to recover."
+
+[[questions.steps]]
+flow = ["app", "web"]
+packets = 4
+labels = { app = "100+200+400+800" }
+caption = "Exponential backoff doubles each wait."
+
+[[questions]]
+prompt = "10,000 clients fail at the same moment and use this backoff with no jitter. What happens?"
+choices = [
+  "Their retries spread out evenly over time",
+  "Backoff alone prevents any spike",
+  "Only the first retry reaches the server",
+  "They retry together in waves, at about 100, 300, 700 and 1,500 ms",
+]
+answer = 4
+explanation = "Identical schedules keep the clients in step, so every retry arrives as a wave of 10,000 calls. Random jitter, for example a wait chosen between 0 and the backoff value, spreads each wave over the whole interval and flattens the spikes."
+
+[[questions.steps]]
+flow = ["app", "web"]
+packets = 8
+highlight = ["web"]
+labels = { web = "waves of 10,000" }
+caption = "Without jitter, synchronized clients retry in synchronized waves."
+
+[[questions]]
+prompt = "Which retry policy avoids the amplification?"
+choices = [
+  "Retry at a single layer with a retry budget, and let the other layers fail fast",
+  "Retry 3 times at every layer, but with shorter timeouts",
+  "Retry only at the database layer",
+  "Retry without backoff, so that requests finish sooner",
+]
+answer = 1
+explanation = "One retrying layer bounds the load at 3 times or less, not 27 times. A retry budget, for example retries at most 10% of requests, caps retries further during a wide outage. Inner layers return the error quickly so that the one retrying layer decides."
+
+[[questions.steps]]
+flow = ["web", "api", "db"]
+packets = 3
+highlight = ["web"]
+labels = { web = "retries here", api = "fails fast" }
+caption = "One layer retries, under a budget. The others pass the error up."

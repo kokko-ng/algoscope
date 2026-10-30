@@ -1,0 +1,7 @@
+id = "web-tier"
+title = "Scaling the web tier"
+zone = "The Gatehouse"
+summary = "One server runs out of room. Put more servers behind a load balancer, keep them stateless, and size the pool for the peak with room to lose a server."
+prereqs = ["estimation"]
+order = 2
+challenges = ["scale-out", "size-the-pool", "balance-and-state"]

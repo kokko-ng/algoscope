@@ -1,0 +1,107 @@
+id = "balance-and-state"
+title = "Balance load and keep state out"
+stage = "quiz"
+xp = 120
+statement = """
+Three app servers, A, B and C, sit behind a load balancer. Traffic is 3,000 requests per second.
+
+- Most requests take 10 ms. Report exports take 2 seconds.
+- Round robin sends each new request to the next server in turn. Least connections sends it to the server with the fewest open requests.
+- The app keeps each user's session (login and cart) in the memory of the server that created it.
+- The load balancer sends a health check to each server every 5 seconds. It removes a server after 3 failed checks in a row.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Clients", at = [0, 1] },
+  { id = "lb", label = "Load balancer", at = [1, 1] },
+  { id = "a", label = "Server A", at = [2, 0] },
+  { id = "b", label = "Server B", at = [2, 1] },
+  { id = "c", label = "Server C", at = [2, 2] },
+]
+links = [["client", "lb"], ["lb", "a"], ["lb", "b"], ["lb", "c"]]
+
+[[diagram.steps]]
+flow = ["client", "lb", "a"]
+
+[[diagram.steps]]
+flow = ["client", "lb", "b"]
+
+[[diagram.steps]]
+flow = ["client", "lb", "c"]
+
+[[questions]]
+prompt = "Server A has 12 open requests, B has 4 and C has 9. A is busy with three slow exports. Where does least connections send the next request?"
+choices = ["Server A", "Server B", "Server C", "To whichever server is next in turn"]
+answer = 2
+explanation = "Least connections picks the server with the fewest open requests: B, with 4. Round robin ignores load, so it keeps giving A a full share while A is stuck on 2-second exports. When request costs vary a lot, least connections spreads the work more evenly."
+
+[[questions.steps]]
+flow = ["client", "lb", "b"]
+highlight = ["b"]
+labels = { a = "12 open", b = "4 open", c = "9 open" }
+caption = "Least connections looks at the current load, not at the turn order."
+
+[[questions]]
+prompt = "Server B crashes. What happens to users whose sessions were in B's memory?"
+choices = [
+  "Nothing: the load balancer copies their sessions to A and C",
+  "They lose their sessions: they must log in again, and their carts are empty",
+  "Their requests wait until B restarts",
+  "They keep their sessions, because the load balancer stores them",
+]
+answer = 2
+explanation = "The sessions lived only in B's memory, so they are gone with B. The load balancer sends these users to A or C, which have never seen them. State in a server's memory ties a user to that server, and a crash or a deploy loses it."
+
+[[questions.steps]]
+flow = ["client", "lb", "c"]
+down = ["b"]
+labels = { b = "sessions lost", c = "who is user 42?" }
+caption = "The user's next request lands on C, which has no record of their session."
+
+[[questions]]
+prompt = "Where should sessions go, so that any server can handle any request?"
+choices = [
+  "A shared store that every server reads, such as an in-memory key-value store or the database",
+  "The local disk of each app server",
+  "Sticky sessions: the load balancer always sends a user to the same server",
+  "More memory on each app server",
+]
+answer = 1
+explanation = "With sessions in a shared store, the app servers are stateless. Any server can handle any request, so the load balancer spreads load freely, and a crash loses no sessions. Sticky sessions keep the state on one server: a crash still loses it, and load can become uneven."
+
+[[questions.steps]]
+flow = ["client", "lb", "a"]
+highlight = ["a", "b", "c"]
+labels = { a = "stateless", b = "stateless", c = "stateless" }
+caption = "Stateless servers are interchangeable: add, remove or replace them at any time."
+
+[[questions]]
+prompt = "Server C crashes just after it passes a health check. At most how many seconds pass before the load balancer removes it?"
+answer = 15
+tolerance = 0.1
+unit = "seconds"
+hint = "Count the checks until 3 in a row have failed."
+explanation = "The checks fail at 5, 10 and 15 seconds after the crash. The third failure removes C, so C stays in the pool for up to 15 seconds. Shorter intervals or fewer failures detect a crash faster, but they can also remove a healthy server after one slow response."
+
+[[questions.steps]]
+flow = ["lb", "c"]
+packets = 3
+down = ["c"]
+labels = { c = "3 fails = 15 s" }
+caption = "Three failed checks, 5 seconds apart, before C leaves the pool."
+
+[[questions]]
+prompt = "The 3,000 requests per second are split evenly over A, B and C. About how many requests go to C during those 15 seconds?"
+answer = 15000
+tolerance = 0.1
+unit = "requests"
+hint = "Find C's share per second, then multiply by the time."
+explanation = "C gets 3,000 / 3 = 1,000 requests per second. 1,000 x 15 = 15,000 requests fail or time out. That is why clients or the load balancer retry a failed request on another server."
+
+[[questions.steps]]
+flow = ["client", "lb", "c"]
+packets = 5
+down = ["c"]
+labels = { c = "1,000/s x 15 s" }
+caption = "Until the health check removes it, C keeps getting its share of the traffic."

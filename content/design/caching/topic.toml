@@ -1,0 +1,7 @@
+id = "caching"
+title = "Caching"
+zone = "The Pantry"
+summary = "Keep hot data close. A cache answers from memory what the database answers from disk, so it cuts both latency and load. Know when the cached copy goes stale, and what happens when the cache is empty."
+prereqs = ["web-tier"]
+order = 3
+challenges = ["cache-aside", "hit-ratio", "write-policies", "edge-cache"]

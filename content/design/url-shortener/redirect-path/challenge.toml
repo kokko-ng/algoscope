@@ -1,0 +1,102 @@
+id = "redirect-path"
+title = "Serve redirects fast"
+stage = "quiz"
+xp = 130
+statement = """
+The shortener serves 4,000 redirects per second at peak.
+
+- A cache in front of the link store answers 90% of lookups.
+- Each day, about 20 million different links are clicked. A cache entry is 500 bytes.
+- The link store holds 6 TB. Each partition should hold at most 500 GB.
+- The product needs a click count for every link.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 1] },
+  { id = "web", label = "Web servers", at = [1, 1] },
+  { id = "cache", label = "Cache", at = [1, 0] },
+  { id = "shard1", label = "Partition 1", at = [2, 1] },
+  { id = "shard12", label = "Partition 12", at = [2, 2] },
+]
+links = [["client", "web"], ["web", "cache"], ["web", "shard1"], ["web", "shard12"]]
+
+[[diagram.steps]]
+flow = ["client", "web", "cache"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["web", "shard1"]
+
+[[questions]]
+prompt = "Which redirect status lets the service count every click?"
+choices = [
+  "301 Moved Permanently",
+  "302 Found",
+  "200 OK with the long URL in the page",
+  "404 Not Found",
+]
+answer = 2
+explanation = "A 302 is temporary, so the browser asks the service again on every click and each click can be counted. A 301 is permanent: browsers may cache it and skip the service, which saves load but loses clicks. A 200 page adds a slow extra step for the user. A 404 is an error."
+
+[[questions.steps]]
+flow = ["client", "web"]
+packets = 3
+highlight = ["web"]
+labels = { client = "302 + Location", web = "count click" }
+caption = "Every click comes back to the service, so every click can be counted."
+
+[[questions]]
+prompt = "How many lookups per second reach the link store at peak?"
+answer = 400
+tolerance = 0.1
+unit = "reads per second"
+explanation = "Misses are 100% - 90% = 10% of lookups. 4,000 x 10% = 400 reads per second. If the hit ratio rose to 99%, only 40 would reach the store: going from 90% to 99% cuts store load by 10 times."
+
+[[questions.steps]]
+flow = ["web", "shard1"]
+labels = { cache = "hit 90%", shard1 = "400 reads/s" }
+caption = "Only misses reach the store, so the miss rate sets its load."
+
+[[questions]]
+prompt = "How much cache memory holds every link clicked in a day? Give the answer in GB."
+answer = 10
+tolerance = 0.25
+unit = "GB"
+explanation = "20,000,000 x 500 bytes = 10,000,000,000 bytes = 10 GB. That fits in the memory of one cache server, so the cache can hold the whole daily working set, not only the top links."
+
+[[questions.steps]]
+flow = ["web", "cache"]
+highlight = ["cache"]
+labels = { cache = "20M x 500 B" }
+caption = "The working set, not the whole store, decides the cache size."
+
+[[questions]]
+prompt = "How many partitions does the link store need?"
+answer = 12
+tolerance = 0.1
+unit = "partitions"
+explanation = "6 TB / 500 GB = 6,000 GB / 500 GB = 12 partitions. Each one is then copied to replicas for safety."
+
+[[questions.steps]]
+flow = ["web", "shard12"]
+highlight = ["shard1", "shard12"]
+labels = { shard1 = "500 GB", shard12 = "500 GB" }
+caption = "Total size divided by the size per partition gives the count."
+
+[[questions]]
+prompt = "Which partition key spreads the load evenly?"
+choices = [
+  "A hash of the short key",
+  "The creation date of the link",
+  "The first letter of the long URL's domain",
+  "The ID of the user who made the link",
+]
+answer = 1
+explanation = "Every redirect knows the short key, and a hash spreads keys evenly across partitions. By creation date, all new links and most clicks land on the newest partition. By domain letter or by user, a few popular domains or heavy users make hot partitions."
+
+[[questions.steps]]
+flow = ["web", "shard12"]
+packets = 3
+labels = { web = "hash(key)" }
+caption = "A hash of the key sends each lookup to exactly one partition."

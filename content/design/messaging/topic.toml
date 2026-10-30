@@ -1,0 +1,7 @@
+id = "messaging"
+title = "Queues and asynchronous work"
+zone = "The Sorting Office"
+summary = "Put a queue between the work and the request. Absorb spikes, size the workers, drain backlogs and make redelivered messages safe to process twice."
+prereqs = ["web-tier"]
+order = 7
+challenges = ["queue-walkthrough", "backlog-math", "delivery-guarantees", "pubsub-fanout"]

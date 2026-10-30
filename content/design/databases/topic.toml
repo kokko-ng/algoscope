@@ -1,0 +1,7 @@
+id = "databases"
+title = "Databases and replication"
+zone = "The Scriptorium"
+summary = "Choose a data model, index the queries you run, and copy the data to followers. Copies add read capacity and survive a failure, but they lag behind the leader."
+prereqs = ["web-tier"]
+order = 4
+challenges = ["leader-follower", "read-replicas", "indexes-and-lag"]

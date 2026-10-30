@@ -1,0 +1,7 @@
+id = "resilience"
+title = "Rate limits and resilience"
+zone = "The Floodgates"
+summary = "Keep one overload or one slow dependency from taking everything down. Limit rates, bound waits, retry with care, trip breakers and degrade on purpose."
+prereqs = ["messaging"]
+order = 8
+challenges = ["protect-a-service", "token-bucket", "retry-storms", "circuit-breaker"]

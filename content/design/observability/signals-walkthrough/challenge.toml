@@ -1,0 +1,64 @@
+id = "signals-walkthrough"
+title = "Reading latency and signals"
+stage = "watch"
+xp = 40
+statement = """
+You cannot fix what you cannot see. Watch how one slow call hides inside an average, how fan-out makes it common, and which signal shows it.
+
+Remember the terms. The p99 latency is the value that 99% of requests are faster than. The p50 is the median. Metrics are cheap numbers over time, logs are one record per event, and traces follow one request through every service.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 0] },
+  { id = "api", label = "API server", at = [1, 0] },
+  { id = "leafa", label = "Leaf A", at = [2, 0] },
+  { id = "leafb", label = "Leaf B", at = [2, 1] },
+  { id = "leafc", label = "Leaf C", at = [2, 2] },
+  { id = "telemetry", label = "Telemetry", at = [0, 2] },
+]
+links = [["client", "api"], ["api", "leafa"], ["api", "leafb"], ["api", "leafc"], ["api", "telemetry"]]
+
+[[diagram.steps]]
+flow = ["client", "api"]
+packets = 5
+labels = { api = "avg 59 ms" }
+caption = "Of 1,000 requests, 980 take 40 ms and 20 take 1,000 ms. The average is 59 ms, which looks healthy."
+
+[[diagram.steps]]
+flow = ["client", "api"]
+packets = 5
+highlight = ["api"]
+labels = { api = "p50 40, p99 1000" }
+caption = "Sort the latencies. The p50 is 40 ms, but the p99 is 1,000 ms: 1 user in 50 waits a full second. Percentiles show what the average hides."
+
+[[diagram.steps]]
+flow = ["api", "leafc"]
+highlight = ["leafc"]
+labels = { leafc = "slow 1%" }
+caption = "The API server calls many leaves in parallel and waits for all of them. Each leaf is slow only 1% of the time."
+
+[[diagram.steps]]
+flow = ["api", "leafb"]
+packets = 3
+highlight = ["api"]
+labels = { api = "63% slow" }
+caption = "With 100 leaves, a request is slow if any call is slow: 1 - 0.99^100, about 63% of requests. Fan-out turns the tail of one service into the median of the whole."
+
+[[diagram.steps]]
+flow = ["api", "telemetry"]
+packets = 3
+highlight = ["telemetry"]
+labels = { telemetry = "RED + USE" }
+caption = "Metrics: for each service, track Rate, Errors and Duration (RED). For each resource, track Utilization, Saturation (work waiting in line) and Errors (USE)."
+
+[[diagram.steps]]
+flow = ["client", "api", "leafc"]
+highlight = ["telemetry"]
+labels = { telemetry = "trace: 101 spans" }
+caption = "Logs record each event in detail. A trace links the spans of one request across services, so you see which call made it slow. At high volume you keep only a sample."
+
+[[diagram.steps]]
+highlight = ["telemetry"]
+labels = { telemetry = "burn rate 10" }
+caption = "Alert on the error budget: page someone when failures use it up much faster than the SLO allows, not on every short spike."

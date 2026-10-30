@@ -1,0 +1,116 @@
+id = "delivery-guarantees"
+title = "Deliver once, in effect"
+stage = "quiz"
+xp = 110
+statement = """
+A payment worker takes charge-card messages from a queue. Each message has an order id.
+
+- The worker acknowledges (acks) a message to remove it from the queue.
+- If the queue gets no ack within 30 seconds, it delivers the message again, possibly to another worker.
+- The queue delivers 500,000 messages a day.
+
+Delivery guarantees:
+
+- At-most-once: a message is never processed twice, but it can be lost.
+- At-least-once: a message is never lost, but it can be processed more than once.
+- Effectively-once: at-least-once delivery plus processing that ignores duplicates.
+"""
+
+[diagram]
+nodes = [
+  { id = "queue", label = "Queue", at = [0, 0] },
+  { id = "worker", label = "Payment worker", at = [1, 0] },
+  { id = "card", label = "Card provider", at = [2, 0] },
+  { id = "dlq", label = "Dead letters", at = [0, 1] },
+  { id = "keys", label = "Processed keys", at = [1, 1] },
+]
+links = [["queue", "worker"], ["worker", "card"], ["worker", "keys"], ["queue", "dlq"]]
+
+[[diagram.steps]]
+flow = ["queue", "worker", "card"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["queue", "worker", "keys"]
+
+[[questions]]
+prompt = "The worker acks each message as soon as it receives it, before it charges the card. Which guarantee does this give?"
+choices = [
+  "At-least-once: the charge always happens, maybe twice",
+  "Exactly-once: the ack makes the charge happen once",
+  "Effectively-once: the queue removes duplicates",
+  "At-most-once: a crash after the ack loses the charge",
+]
+answer = 4
+explanation = "Once the queue has the ack, it forgets the message. A crash between the ack and the charge loses the order for good. Ack early and you get at-most-once."
+
+[[questions.steps]]
+flow = ["queue", "worker"]
+down = ["worker"]
+labels = { queue = "acked: gone", worker = "crashed" }
+caption = "The message left the queue before the work was done. The crash loses it."
+
+[[questions]]
+prompt = "The worker now acks after it charges the card. It charges a card and then crashes before the ack. What happens?"
+choices = [
+  "The message is lost for good",
+  "The queue sees that the charge happened and drops the message",
+  "After 30 seconds the queue redelivers it, and the card is charged again",
+  "The card provider refuses every later charge for that card",
+]
+answer = 3
+explanation = "The queue never got the ack, so it assumes the work failed and redelivers. Ack after the work gives at-least-once delivery: nothing is lost, but a crash at the wrong moment repeats the work."
+
+[[questions.steps]]
+flow = ["queue", "worker", "card"]
+packets = 2
+highlight = ["card"]
+labels = { card = "charged twice" }
+caption = "No ack means the queue redelivers, and the card is charged again."
+
+[[questions]]
+prompt = "Workers crash between the charge and the ack for 0.2% of messages. Without any protection, about how many duplicate charges happen each day?"
+answer = 1000
+tolerance = 0.1
+unit = "duplicate charges per day"
+explanation = "500,000 x 0.002 = 1,000 duplicate charges a day. A rare failure becomes a daily stream at scale, so the duplicates must be handled by design."
+
+[[questions.steps]]
+flow = ["queue", "worker", "card"]
+packets = 3
+labels = { queue = "500,000/day", card = "1,000 twice" }
+caption = "A small failure rate times a large volume is a steady flow of duplicates."
+
+[[questions]]
+prompt = "How does the worker make redelivery safe?"
+choices = [
+  "Use the order id as an idempotency key, and skip keys already processed",
+  "Raise the ack timeout to one hour, so redelivery is rare",
+  "Send each message to two workers and compare the results",
+  "Retry each charge faster, before the timeout expires",
+]
+answer = 1
+explanation = "An idempotency key turns processing twice into processing once in effect. The worker checks the key before it charges, and the card provider also rejects a second charge with the same key. That covers a crash at any point. A longer timeout only makes redelivery slower, not safe."
+
+[[questions.steps]]
+flow = ["queue", "worker", "keys"]
+highlight = ["keys"]
+labels = { keys = "order 812: done", card = "skipped" }
+caption = "The redelivered message finds its key already recorded and is skipped."
+
+[[questions]]
+prompt = "One message has a malformed card number, so every attempt fails. What should happen to it?"
+choices = [
+  "Retry it forever, in case the input fixes itself",
+  "After a set number of attempts, move it to a dead-letter queue and alert someone",
+  "Delete it without keeping a record",
+  "Stop all workers until someone fixes it",
+]
+answer = 2
+explanation = "A poison message never succeeds. Retried forever, it wastes worker time and can block the messages behind it. A dead-letter queue sets it aside with its error, keeps the other messages moving, and gives a person something to inspect and replay."
+
+[[questions.steps]]
+flow = ["queue", "dlq"]
+highlight = ["dlq"]
+labels = { queue = "5 failed tries", dlq = "held for review" }
+caption = "The poison message moves aside, and the queue keeps flowing."

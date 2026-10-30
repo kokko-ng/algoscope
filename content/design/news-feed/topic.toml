@@ -1,0 +1,7 @@
+id = "news-feed"
+title = "Case study: news feed"
+zone = "The Herald's Square"
+summary = "A home feed shows the newest posts from the accounts a user follows. Decide when to do the work, at write time or at read time, size the per-user feed cache, and page through a ranked feed that keeps changing."
+prereqs = ["caching", "messaging"]
+order = 12
+challenges = ["feed-walkthrough", "fanout-math", "feed-cache", "feed-reads"]

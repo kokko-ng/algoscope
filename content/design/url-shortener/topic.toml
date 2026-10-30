@@ -1,0 +1,7 @@
+id = "url-shortener"
+title = "Case study: URL shortener"
+zone = "The Signpost Office"
+summary = "A short link maps a few characters to a long URL. Size the traffic and storage, choose how keys are made, and serve billions of redirects with a cache and a partitioned store."
+prereqs = ["caching", "partitioning"]
+order = 11
+challenges = ["shortener-walkthrough", "shortener-capacity", "short-keys", "redirect-path"]

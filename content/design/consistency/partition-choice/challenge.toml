@@ -1,0 +1,103 @@
+id = "partition-choice"
+title = "Choose during a partition"
+stage = "quiz"
+xp = 100
+statement = """
+A store keeps 3 replicas of each value, one in each of 3 data centers. Clients write through the data center nearest to them.
+
+- CAP: when a network partition splits the replicas, a system must either refuse some requests (it stays consistent, CP) or answer them with data that may be stale or conflicting (it stays available, AP).
+- PACELC: if there is a Partition, choose Availability or Consistency; Else, choose Latency or Consistency.
+
+Round trips from Data center 1 to each replica: 2 ms to its own replica, 40 ms to Data center 2 and 80 ms to Data center 3. Requests to replicas go out in parallel.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 1] },
+  { id = "dc1", label = "Data center 1", at = [0, 0] },
+  { id = "dc2", label = "Data center 2", at = [1, 0] },
+  { id = "dc3", label = "Data center 3", at = [2, 0] },
+]
+links = [["client", "dc1"], ["dc1", "dc2"], ["dc2", "dc3"]]
+
+[[diagram.steps]]
+flow = ["client", "dc1", "dc2", "dc3"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["client", "dc1"]
+down = ["dc2", "dc3"]
+labels = { dc1 = "partitioned" }
+
+[[questions]]
+prompt = "A partition cuts Data center 1 off from the other two. A client in Data center 1 sends a write. What does a system that chooses consistency (CP) do?"
+choices = [
+  "It accepts the write locally and copies it to the others later",
+  "It accepts the write and overwrites the other replicas when the partition heals",
+  "It refuses the write or times out, because it cannot reach a majority",
+  "It stores the write in a cache until the network returns",
+]
+answer = 3
+explanation = "A CP system needs a majority, 2 of 3 replicas, to agree. Data center 1 can reach only 1 replica, so it returns an error or times out. The other side has 2 of 3 replicas, so it can keep serving. No client ever reads a value that a majority does not hold."
+
+[[questions.steps]]
+flow = ["client", "dc1"]
+down = ["dc2", "dc3"]
+highlight = ["dc1"]
+labels = { dc1 = "1 of 3: refuse" }
+caption = "One replica is not a majority. A CP system rejects the write rather than risk two different histories."
+
+[[questions]]
+prompt = "Which of these services is the better fit for availability (AP) with eventual consistency?"
+choices = [
+  "A shopping cart, where both sides can be merged after the partition heals",
+  "An account balance, which must never go below zero",
+  "A lock service, which must give each lock to one holder only",
+  "A username registry, where each name must be unique",
+]
+answer = 1
+explanation = "A cart can accept additions on both sides of a partition and merge them later. The worst case is an item that reappears, which the user can remove. The other three need one agreed answer: two holders of a lock, two owners of a name or a negative balance is a real error, so they choose consistency."
+
+[[questions.steps]]
+flow = ["client", "dc1"]
+down = ["dc2", "dc3"]
+labels = { dc1 = "accept, merge" }
+caption = "An AP system keeps taking writes on each side and reconciles them when the network returns."
+
+[[questions]]
+prompt = "There is no partition. A write must be confirmed by all 3 replicas before it succeeds. How long does the write wait, in ms?"
+answer = 80
+tolerance = 0.1
+unit = "ms"
+hint = "The requests go out in parallel. The write finishes when the last confirmation arrives."
+explanation = "The three requests run in parallel, so the write waits for the slowest replica: max(2, 40, 80) = 80 ms. Waiting for every replica gives the strongest guarantee, at the price of the slowest round trip."
+
+[[questions.steps]]
+flow = ["dc1", "dc2", "dc3"]
+highlight = ["dc3"]
+labels = { dc1 = "2 ms", dc2 = "40 ms", dc3 = "80 ms" }
+caption = "Waiting for all replicas means waiting for the farthest one: 80 ms."
+
+[[questions]]
+prompt = "The write now needs only W = 2 confirmations, and the local replica is one of them. How long does the write wait, in ms?"
+answer = 40
+tolerance = 0.1
+unit = "ms"
+explanation = "The confirmations arrive at 2 ms and 40 ms. The second one completes the quorum, so the write takes 40 ms instead of 80 ms. This is the Else half of PACELC: fewer confirmations mean lower latency, but a read must be designed so it still sees the write."
+
+[[questions.steps]]
+flow = ["dc1", "dc2"]
+highlight = ["dc1", "dc2"]
+labels = { dc1 = "2 ms", dc2 = "40 ms: done" }
+caption = "The second confirmation ends the wait. The third replica catches up in the background."
+
+[[questions]]
+prompt = "A write is confirmed. Which guarantee says that every later read, by any client, returns that write or a newer one?"
+choices = [
+  "Eventual consistency",
+  "Read-your-writes",
+  "Monotonic reads",
+  "Strong consistency (linearizability)",
+]
+answer = 4
+explanation = "Strong consistency makes the replicas behave like one copy: once a write is confirmed, nobody reads an older value. Eventual consistency only promises that replicas agree if writes stop. Read-your-writes and monotonic reads are weaker promises about what one client sees."

@@ -1,0 +1,110 @@
+id = "circuit-breaker"
+title = "Trip a circuit breaker"
+stage = "quiz"
+xp = 110
+statement = """
+Checkout calls a fraud check for each order.
+
+- 100 orders per second need a fraud check. It normally answers in 50 ms. Calls time out after 2 s.
+- Checkout has 200 threads. Fraud check calls may use only 40 of them, a separate pool called a bulkhead.
+- A circuit breaker wraps the fraud check. It opens when 50% or more of the last 20 calls fail. While open, calls fail at once. After 30 seconds it goes half-open and lets a few trial calls through.
+
+Little's law for threads: busy threads = call rate x time each call holds a thread.
+"""
+
+[diagram]
+nodes = [
+  { id = "shoppers", label = "Shoppers", at = [0, 0] },
+  { id = "checkout", label = "Checkout", at = [1, 0] },
+  { id = "fraud", label = "Fraud check", at = [2, 0] },
+  { id = "review", label = "Review queue", at = [1, 1] },
+]
+links = [["shoppers", "checkout"], ["checkout", "fraud"], ["checkout", "review"]]
+
+[[diagram.steps]]
+flow = ["shoppers", "checkout", "fraud"]
+packets = 3
+
+[[questions]]
+prompt = "How many threads do fraud check calls hold on average when the fraud check is healthy?"
+answer = 5
+tolerance = 0.1
+unit = "threads"
+hint = "Call rate x time each call takes."
+explanation = "100 calls per second x 0.05 s = 5 threads. The 40-thread pool has plenty of room on a normal day."
+
+[[questions.steps]]
+flow = ["checkout", "fraud"]
+packets = 2
+labels = { checkout = "100/s x 0.05 s", fraud = "50 ms" }
+caption = "Fast calls hold few threads."
+
+[[questions]]
+prompt = "The fraud check hangs, so every call waits for the full 2 s timeout. Without the bulkhead, how many threads would fraud calls hold?"
+answer = 200
+tolerance = 0.1
+unit = "threads"
+explanation = "100 calls per second x 2 s = 200 threads, every thread checkout has. One slow dependency would stop all of checkout, including orders that never need a fraud check. A slow dependency is often worse than a dead one, because each call holds a thread for the full timeout."
+
+[[questions.steps]]
+flow = ["shoppers", "checkout", "fraud"]
+packets = 6
+down = ["fraud"]
+highlight = ["checkout"]
+labels = { checkout = "200 of 200 busy", fraud = "hangs: 2 s" }
+caption = "Same call rate, 40 times the wait: 40 times the threads."
+
+[[questions]]
+prompt = "With the 40-thread bulkhead in place, what happens to orders that do not need a fraud check while the fraud check hangs?"
+choices = [
+  "They fail too, because checkout is out of threads",
+  "They wait for a free thread in the fraud check pool",
+  "They keep using the other 160 threads and succeed",
+  "They are sent to the fraud check anyway",
+]
+answer = 3
+explanation = "The fraud calls fill their own 40 threads, and extra fraud calls are rejected at once. The other 160 threads keep serving everything else. Bulkheads, named after the walls inside a ship, keep a leak in one part from sinking the whole."
+
+[[questions.steps]]
+flow = ["shoppers", "checkout"]
+packets = 3
+down = ["fraud"]
+labels = { checkout = "160 threads free", fraud = "pool 40/40" }
+caption = "The bulkhead caps the damage at its own pool."
+
+[[questions]]
+prompt = "The breaker opened. After 30 seconds it goes half-open and lets a few trial calls through. The trial calls fail. What does the breaker do?"
+choices = [
+  "It closes, because it has waited long enough",
+  "It lets all traffic through to test the fraud check harder",
+  "It stays half-open until someone resets it",
+  "It opens again and waits another cool-down",
+]
+answer = 4
+explanation = "Half-open is a test. Failed trials mean the fraud check is still sick, so the breaker opens again and keeps load off it. When trials succeed, it closes and normal traffic resumes. The cycle is closed, open, half-open, then closed or open again."
+
+[[questions.steps]]
+flow = ["checkout", "fraud"]
+down = ["fraud"]
+highlight = ["checkout"]
+labels = { checkout = "open again" }
+caption = "A failed trial sends the breaker back to open."
+
+[[questions]]
+prompt = "The breaker is open, so the fraud check is unavailable. What should checkout do with new orders?"
+choices = [
+  "Reject every order until the fraud check returns",
+  "Accept small orders now and review them later, and hold large orders",
+  "Call the fraud check anyway, with a longer timeout",
+  "Approve every order and skip the check for good",
+]
+answer = 2
+explanation = "Graceful degradation keeps the core function working with reduced quality. Small orders carry little risk, so they go through and are checked later from the review queue. Large orders wait. Rejecting everything turns a fraud-check outage into a shop outage."
+
+[[questions.steps]]
+flow = ["shoppers", "checkout", "review"]
+packets = 3
+down = ["fraud"]
+highlight = ["review"]
+labels = { review = "check later" }
+caption = "Degrade on purpose: keep selling, and catch up on checks later."

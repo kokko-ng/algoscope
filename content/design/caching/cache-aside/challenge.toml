@@ -1,0 +1,52 @@
+id = "cache-aside"
+title = "Read through a cache"
+stage = "watch"
+xp = 40
+statement = """
+A cache is a fast store, usually in memory, that holds copies of data that is read often. Watch the most common pattern, cache-aside: the app checks the cache first, and loads from the database only on a miss.
+
+A hit is a read that the cache answers. The hit ratio is the share of reads that are hits.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 0] },
+  { id = "app", label = "App server", at = [1, 0] },
+  { id = "cache", label = "Cache", at = [2, 0] },
+  { id = "db", label = "Database", at = [1, 1] },
+]
+links = [["users", "app"], ["app", "cache"], ["app", "db"]]
+
+[[diagram.steps]]
+flow = ["users", "app", "cache"]
+labels = { cache = "miss" }
+caption = "A user asks for product 7. The app checks the cache first, and the key is not there: a miss."
+
+[[diagram.steps]]
+flow = ["app", "db"]
+highlight = ["db"]
+labels = { db = "query 10 ms" }
+caption = "On a miss, the app queries the database. This is the slow path."
+
+[[diagram.steps]]
+flow = ["app", "cache"]
+highlight = ["cache"]
+labels = { cache = "set, TTL 60 s" }
+caption = "The app stores the result in the cache with a time to live (TTL). The entry expires after 60 seconds, which limits how stale it can get."
+
+[[diagram.steps]]
+flow = ["users", "app", "cache"]
+packets = 4
+highlight = ["cache"]
+labels = { cache = "hit 1 ms" }
+caption = "Later reads of product 7 are hits. They come from memory in 1 ms and never touch the database."
+
+[[diagram.steps]]
+highlight = ["cache"]
+labels = { cache = "full: evict LRU" }
+caption = "Memory is limited. When the cache is full, LRU (least recently used) eviction removes the entry that was read longest ago."
+
+[[diagram.steps]]
+flow = ["app", "db"]
+labels = { cache = "90% hits", db = "10% of reads" }
+caption = "With 90% hits, 1 read in 10 reaches the database. Average latency: 0.9 x 1 ms + 0.1 x 11 ms = 2 ms, because a miss pays for the cache check and the query."

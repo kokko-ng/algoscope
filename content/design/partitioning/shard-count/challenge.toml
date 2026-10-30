@@ -1,0 +1,100 @@
+id = "shard-count"
+title = "Count the shards"
+stage = "quiz"
+xp = 100
+statement = """
+A messaging service is moving to a sharded database.
+
+- It stores 60 TB of messages today and adds 20 TB each year. Plan for 3 years of growth.
+- One shard should hold at most 4 TB, so that backups, rebuilds and moves stay quick.
+- The peak is 400,000 writes per second. One shard handles 20,000 writes per second.
+- Each shard is a leader with 2 followers, on 3 separate machines.
+- Keys map to shards with consistent hashing.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [1, 0] },
+  { id = "router", label = "Router", at = [1, 1] },
+  { id = "s1", label = "Shard 1", at = [0, 2] },
+  { id = "s2", label = "Shard 2", at = [1, 2] },
+  { id = "sn", label = "Shard N", at = [2, 2] },
+]
+links = [["app", "router"], ["router", "s1"], ["router", "s2"], ["router", "sn"]]
+
+[[diagram.steps]]
+flow = ["app", "router", "s1"]
+
+[[diagram.steps]]
+flow = ["app", "router", "s2"]
+
+[[diagram.steps]]
+flow = ["app", "router", "sn"]
+
+[[questions]]
+prompt = "How many shards does the data need in 3 years?"
+answer = 30
+tolerance = 0.1
+unit = "shards"
+hint = "Find the total data in 3 years, then divide by the limit per shard."
+explanation = "60 TB + 3 x 20 TB = 120 TB. 120 TB / 4 TB = 30 shards."
+
+[[questions.steps]]
+highlight = ["s1", "s2", "sn"]
+labels = { router = "120 TB / 4 TB", s1 = "4 TB", s2 = "4 TB", sn = "4 TB" }
+caption = "Storage alone needs 30 shards."
+
+[[questions]]
+prompt = "How many shards do the peak writes need?"
+answer = 20
+tolerance = 0.1
+unit = "shards"
+explanation = "400,000 / 20,000 = 20 shards. Each shard owns different keys, so the writes divide between the shards. Followers alone cannot do this, because each follower applies every write."
+
+[[questions.steps]]
+flow = ["app", "router", "sn"]
+packets = 5
+labels = { router = "400k writes/s", sn = "20k/s each" }
+caption = "Writes split across shards, so write capacity grows with the shard count."
+
+[[questions]]
+prompt = "How many shards should you plan for?"
+choices = [
+  "20, the count for the writes",
+  "25, the average of the two counts",
+  "30, the larger of the two counts",
+  "50, the sum of the two counts",
+]
+answer = 3
+explanation = "Each shard brings both 4 TB of space and 20,000 writes per second. 30 shards hold the 120 TB, and 30 x 20,000 = 600,000 writes per second covers the peak with room to spare. Plan for the limit you hit first, which gives the larger count."
+
+[[questions.steps]]
+highlight = ["s1", "s2", "sn"]
+labels = { sn = "x 30 shards" }
+caption = "30 shards meet both the storage limit and the write limit."
+
+[[questions]]
+prompt = "How many database machines does the cluster need?"
+answer = 90
+tolerance = 0.1
+unit = "machines"
+explanation = "30 shards x 3 machines (1 leader + 2 followers) = 90 machines. Partitioning and replication work together: partitioning splits the data, and replication keeps each part available when a machine fails."
+
+[[questions.steps]]
+highlight = ["s1", "s2", "sn"]
+labels = { s1 = "1 + 2 copies", s2 = "1 + 2 copies", sn = "1 + 2 copies" }
+caption = "Every shard is its own small leader-follower group."
+
+[[questions]]
+prompt = "Later the cluster grows from 30 to 31 shards. About what percentage of the keys move to the new shard? Give a percentage."
+answer = 3.2
+tolerance = 0.25
+unit = "%"
+hint = "With consistent hashing, the new shard takes about its fair share of the keys."
+explanation = "The new shard ends up with about 1/31 of the keys, which is 3.2%, and only those keys move. With hash % N, a key stays only if hash % 30 equals hash % 31. That is true for just 1 key in 31, so about 97% of the keys would move."
+
+[[questions.steps]]
+flow = ["router", "sn"]
+highlight = ["sn"]
+labels = { router = "hash ring", sn = "new: 1/31" }
+caption = "Consistent hashing moves only the keys the new shard takes over."

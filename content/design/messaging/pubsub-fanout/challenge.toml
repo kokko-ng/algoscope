@@ -1,0 +1,110 @@
+id = "pubsub-fanout"
+title = "Fan out events"
+stage = "quiz"
+xp = 100
+statement = """
+When a customer places an order, three services must react: Email sends a receipt, Inventory reserves stock and Analytics records the sale. Each service runs 4 instances.
+
+- The order service publishes 300 order events per second.
+- In a work queue, each message goes to one consumer.
+- In publish/subscribe, a topic keeps one subscription per service. Each subscription gets its own copy of every message and keeps its own backlog.
+"""
+
+[diagram]
+nodes = [
+  { id = "orders", label = "Order service", at = [0, 1] },
+  { id = "topic", label = "Topic", at = [1, 1] },
+  { id = "email", label = "Email", at = [2, 0] },
+  { id = "stock", label = "Inventory", at = [2, 1] },
+  { id = "stats", label = "Analytics", at = [2, 2] },
+]
+links = [["orders", "topic"], ["topic", "email"], ["topic", "stock"], ["topic", "stats"]]
+
+[[diagram.steps]]
+flow = ["orders", "topic", "email"]
+
+[[diagram.steps]]
+flow = ["orders", "topic", "stock"]
+
+[[diagram.steps]]
+flow = ["orders", "topic", "stats"]
+
+[[questions]]
+prompt = "Which design delivers every order event to all three services?"
+choices = [
+  "One work queue that all 12 instances read from",
+  "One work queue per instance, filled in turn",
+  "A topic with one subscription for each service",
+  "A dead-letter queue for each service",
+]
+answer = 3
+explanation = "In a single work queue, each event goes to one of the 12 instances, so two of the three services miss it. A topic copies each event to every subscription, and each service reads its own subscription."
+
+[[questions.steps]]
+flow = ["orders", "topic", "stock"]
+highlight = ["email", "stock", "stats"]
+labels = { email = "copy 1", stock = "copy 2", stats = "copy 3" }
+caption = "Publish once. Every subscribed service gets its own copy."
+
+[[questions]]
+prompt = "The 4 Email instances share the Email subscription. How many of them handle a given order event?"
+choices = [
+  "One, because the instances compete for messages in their subscription",
+  "All 4, so that no instance misses an event",
+  "None, because a topic only stores events",
+  "Two, for redundancy",
+]
+answer = 1
+explanation = "Pub/sub fans out between services. Inside one service, the instances share the work, and each message goes to one of them. That is why adding instances raises a service's throughput instead of sending more receipts."
+
+[[questions.steps]]
+flow = ["orders", "topic", "email"]
+highlight = ["email"]
+labels = { email = "1 of 4 instances" }
+caption = "Fan-out between services, competing consumers inside each service."
+
+[[questions]]
+prompt = "How many messages per second does the topic deliver in total, across the three subscriptions?"
+answer = 900
+tolerance = 0.1
+unit = "messages per second"
+explanation = "300 events per second x 3 subscriptions = 900 deliveries per second. Each new subscriber adds a full copy of the stream, so fan-out multiplies the load on the messaging system."
+
+[[questions.steps]]
+flow = ["orders", "topic", "stats"]
+packets = 3
+labels = { orders = "300/s", topic = "x 3 = 900/s" }
+caption = "Delivered volume = publish rate x number of subscriptions."
+
+[[questions]]
+prompt = "Analytics is down for 15 minutes while events keep arriving at 300 per second. When it returns, it processes 500 events per second. How many minutes does it need to catch up?"
+answer = 22.5
+tolerance = 0.1
+unit = "minutes"
+hint = "Backlog = rate x downtime. Time to drain = backlog / (consume rate - produce rate)."
+explanation = "Backlog: 300 x 900 s = 270,000 events. Net drain rate: 500 - 300 = 200 per second. Time: 270,000 / 200 = 1,350 s = 22.5 minutes. The lag that consumers report is the number to watch: it shows how far behind a subscriber is."
+
+[[questions.steps]]
+flow = ["topic", "stats"]
+packets = 6
+highlight = ["stats"]
+labels = { topic = "lag 270,000", stats = "net 200/s" }
+caption = "The subscription kept every event, so Analytics catches up without loss."
+
+[[questions]]
+prompt = "While Analytics was down, what happened to Email and Inventory?"
+choices = [
+  "They stopped, because the topic waited for Analytics",
+  "They kept working, because each subscription has its own backlog",
+  "They also received the events meant for Analytics",
+  "They slowed to the speed of Analytics",
+]
+answer = 2
+explanation = "Subscriptions are independent. Email and Inventory kept reading their own copies while Analytics' copy waited. This decoupling is the point: one slow or failed consumer does not stop the order service or the other consumers."
+
+[[questions.steps]]
+flow = ["orders", "topic", "email"]
+down = ["stats"]
+highlight = ["email", "stock"]
+labels = { stats = "down: queued" }
+caption = "One failed subscriber builds its own backlog. The others keep going."

@@ -1,0 +1,110 @@
+id = "feed-cache"
+title = "Size the feed cache"
+stage = "quiz"
+xp = 120
+statement = """
+Each active user's feed is kept in an in-memory cache.
+
+- 300 million daily active users.
+- Each feed keeps its newest 500 entries.
+- An entry is a post ID (8 bytes) and an author ID (8 bytes): 16 bytes.
+- A full post with its text and metadata is 1 KB (1,000 bytes).
+- Each cache node has 64 GB of usable memory.
+
+Ignore the overhead of the cache's own data structures. Use 1 GB = 10^9 bytes and 1 TB = 10^12 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "workers", label = "Fan-out workers", at = [0, 0] },
+  { id = "cache1", label = "Cache node 1", at = [1, 0] },
+  { id = "cache38", label = "Cache node 38", at = [1, 1] },
+  { id = "feedsvc", label = "Feed service", at = [2, 0] },
+  { id = "poststore", label = "Post store", at = [2, 1] },
+]
+links = [["workers", "cache1"], ["workers", "cache38"], ["feedsvc", "cache1"], ["feedsvc", "poststore"]]
+
+[[diagram.steps]]
+flow = ["workers", "cache1"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["feedsvc", "cache1"]
+
+[[diagram.steps]]
+flow = ["feedsvc", "poststore"]
+
+[[questions]]
+prompt = "How much memory do all the feeds need? Give the answer in TB."
+answer = 2.4
+tolerance = 0.25
+unit = "TB"
+hint = "Users x entries per feed x bytes per entry."
+explanation = "300,000,000 x 500 x 16 bytes = 2,400,000,000,000 bytes = 2.4 TB."
+
+[[questions.steps]]
+flow = ["workers", "cache1"]
+packets = 3
+labels = { cache1 = "2.4 TB total" }
+caption = "Users times entries times entry size gives the cache size."
+
+[[questions]]
+prompt = "How many cache nodes hold that, before replication?"
+answer = 38
+tolerance = 0.25
+unit = "nodes"
+explanation = "2.4 TB / 64 GB = 2,400 GB / 64 GB = 37.5, so 38 nodes. Each user's feed lives on one node, chosen by a hash of the user ID. With a replica of each node, the cluster has 76."
+
+[[questions.steps]]
+flow = ["workers", "cache38"]
+packets = 3
+highlight = ["cache1", "cache38"]
+labels = { cache1 = "64 GB", cache38 = "64 GB" }
+caption = "Total size divided by memory per node gives the node count."
+
+[[questions]]
+prompt = "How much memory would the feeds need if each entry held the full 1 KB post instead of IDs? Give the answer in TB."
+answer = 150
+tolerance = 0.25
+unit = "TB"
+explanation = "300,000,000 x 500 x 1,000 bytes = 150,000,000,000,000 bytes = 150 TB. That is over 60 times more, because each post is copied into hundreds of feeds."
+
+[[questions.steps]]
+flow = ["workers", "cache38"]
+packets = 7
+highlight = ["cache38"]
+labels = { cache38 = "150 TB" }
+caption = "Copying full posts multiplies their size by the fan-out."
+
+[[questions]]
+prompt = "Why do the feeds hold post IDs and not the posts?"
+choices = [
+  "The post is stored once, so an edit or a delete changes one record, and the feed cache stays small enough to keep in memory",
+  "IDs sort faster than text, which is the main cost of reading a feed",
+  "The post store cannot be read by the feed service",
+  "IDs never need to be looked up again",
+]
+answer = 1
+explanation = "A feed of IDs costs 16 bytes per entry instead of 1,000. To show a page, the feed service reads the 20 or so IDs for that page and fetches those posts from the post store or its cache in one batch. An edit or delete changes the post once, and every feed sees it."
+
+[[questions.steps]]
+flow = ["feedsvc", "poststore"]
+highlight = ["poststore"]
+labels = { feedsvc = "20 IDs", poststore = "fetch 20 posts" }
+caption = "Read IDs from the feed, then fetch only the posts on this page."
+
+[[questions]]
+prompt = "Half of all registered users have not opened the app in 30 days. What do you do with their feeds?"
+choices = [
+  "Keep fanning out to them, so their feed is ready if they return",
+  "Delete their accounts",
+  "Skip them during fan-out and let their cached feeds expire. Rebuild a feed from the followed accounts when the user returns.",
+  "Move their feeds to the same cache nodes as active users",
+]
+answer = 3
+explanation = "Fan-out to inactive users spends writes and memory on feeds that nobody reads. Skipping them reduces both. A returning user waits a little longer once, while the feed is rebuilt by fan-out on read, and then is back on the fast path."
+
+[[questions.steps]]
+flow = ["workers", "cache1"]
+labels = { workers = "active only" }
+caption = "Spend fan-out work only on feeds that are likely to be read."

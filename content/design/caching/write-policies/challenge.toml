@@ -1,0 +1,108 @@
+id = "write-policies"
+title = "Choose a write policy"
+stage = "quiz"
+xp = 120
+statement = """
+Three ways to handle writes when data is cached:
+
+- Cache-aside: writes go to the database, and the app deletes the cached copy. The next read misses and loads the new value.
+- Write-through: each write goes to the cache and to the database before it is confirmed.
+- Write-back: each write goes to the cache only and is confirmed at once. The cache saves changes to the database later, in batches.
+
+A cache stampede happens when a popular entry expires and many requests miss at the same moment, so they all query the database.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App server", at = [0, 0] },
+  { id = "cache", label = "Cache", at = [1, 0] },
+  { id = "db", label = "Database", at = [1, 1] },
+]
+links = [["app", "cache"], ["cache", "db"], ["app", "db"]]
+
+[[diagram.steps]]
+flow = ["app", "cache"]
+
+[[diagram.steps]]
+flow = ["app", "db"]
+
+[[questions]]
+prompt = "A payments ledger must never lose a write it has confirmed, even if a cache node crashes. Which policy breaks that rule?"
+choices = ["Cache-aside", "Write-through", "Write-back", "None: all three keep every confirmed write"]
+answer = 3
+explanation = "Write-back confirms a write while it exists only in the cache. If the cache node crashes before it saves the batch, those confirmed writes are gone. Cache-aside and write-through confirm a write only after the database has it."
+
+[[questions.steps]]
+flow = ["app", "cache"]
+packets = 3
+down = ["cache"]
+labels = { cache = "unsaved writes" }
+caption = "A write-back cache that crashes loses every change it had not yet saved."
+
+[[questions]]
+prompt = "A page view counter gets 50,000 increments per second, spread over 2,000 pages. With write-back, the cache saves each page's count to the database once every 10 seconds. How many database writes per second does that make?"
+answer = 200
+tolerance = 0.1
+unit = "writes per second"
+hint = "Each page makes one database write per save, however many increments it got."
+explanation = "Each of the 2,000 counters is saved once every 10 seconds: 2,000 / 10 = 200 writes per second, instead of 50,000. Write-back suits data like counters, where losing a few seconds of counts in a crash is acceptable."
+
+[[questions.steps]]
+flow = ["cache", "db"]
+packets = 2
+labels = { cache = "50,000/s in", db = "200/s" }
+caption = "The cache merges many increments into one write per page."
+
+[[questions]]
+prompt = "With cache-aside, a user changes their display name. What should the write path do?"
+choices = [
+  "Update the cache first, then write the database",
+  "Write the database, then delete the cached entry",
+  "Nothing: the TTL will remove the old name",
+  "Write the database, then wait for LRU to evict the old entry",
+]
+answer = 2
+explanation = "Write the database first, so it holds the truth, then delete the cached entry so the next read loads the new name. Updating the cache first can leave a value the database never stored, if the database write fails. Waiting for the TTL or for eviction shows the old name for up to the full TTL, or longer."
+
+[[questions.steps]]
+flow = ["app", "db"]
+labels = { db = "1. write" }
+caption = "First the database gets the new name."
+
+[[questions.steps]]
+flow = ["app", "cache"]
+highlight = ["cache"]
+labels = { cache = "2. delete key" }
+caption = "Then the cached copy goes. The next read misses and loads the new name."
+
+[[questions]]
+prompt = "A hot entry gets 10,000 reads per second. It expires, and rebuilding it takes a 100 ms database query. With no protection, about how many requests miss and query the database before the first rebuild finishes?"
+answer = 1000
+tolerance = 0.25
+unit = "requests"
+hint = "Every read in the 100 ms before the entry is back is a miss."
+explanation = "During the 100 ms of the first rebuild, every read misses: 10,000 x 0.1 s = 1,000 requests, and each runs the same query. One expiry becomes 1,000 identical queries at once, which can overload the database."
+
+[[questions.steps]]
+flow = ["app", "db"]
+packets = 5
+highlight = ["db"]
+labels = { cache = "expired", db = "1,000 queries" }
+caption = "Every miss in the 100 ms window runs the same query."
+
+[[questions]]
+prompt = "Which change stops the stampede?"
+choices = [
+  "Shorten the TTL so the entry is rebuilt more often",
+  "Let one request rebuild the entry while the others wait for it or get the old value",
+  "Switch from LRU to random eviction",
+  "Change the write policy from cache-aside to write-back",
+]
+answer = 2
+explanation = "Let only one request rebuild: a short lock on the key, or a cache that merges identical misses. The others wait for the result, or get the old value for a moment. One query replaces 1,000. A shorter TTL makes expiries, and so stampedes, more frequent. Random spread in TTLs (jitter) also helps when many keys were set at the same time."
+
+[[questions.steps]]
+flow = ["app", "db"]
+highlight = ["cache"]
+labels = { cache = "lock: 1 rebuild", db = "1 query" }
+caption = "One request rebuilds the entry. The rest wait for it."

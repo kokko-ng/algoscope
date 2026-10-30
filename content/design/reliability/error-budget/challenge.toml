@@ -1,0 +1,94 @@
+id = "error-budget"
+title = "Spend an error budget"
+stage = "quiz"
+xp = 100
+statement = """
+Terms:
+
+- SLI (service level indicator): a measured number, such as the fraction of minutes in which the service answered correctly.
+- SLO (service level objective): the target for the SLI, such as 99.9% over 30 days.
+- SLA (service level agreement): a promise to customers, with a penalty if it is broken.
+- Error budget: the downtime the SLO allows, (1 - SLO) x period.
+
+Use 8,760 hours in a year (365 days) and 43,200 minutes in a 30-day month.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 0] },
+  { id = "service", label = "Service", at = [1, 0] },
+  { id = "monitor", label = "Monitoring", at = [2, 0] },
+]
+links = [["users", "service"], ["service", "monitor"]]
+
+[[diagram.steps]]
+flow = ["users", "service", "monitor"]
+packets = 3
+labels = { monitor = "SLI 99.95%" }
+
+[[questions]]
+prompt = "How many hours of downtime a year does 99.9% availability allow?"
+answer = 8.76
+tolerance = 0.1
+unit = "hours"
+explanation = "Downtime fraction: 1 - 0.999 = 0.001. 0.001 x 8,760 hours = 8.76 hours a year."
+
+[[questions.steps]]
+flow = ["users", "service"]
+labels = { service = "99.9%: 8.76 h/yr" }
+caption = "Three nines leave 0.1% of the year: under 9 hours."
+
+[[questions]]
+prompt = "How many minutes of downtime a year does 99.99% availability allow?"
+answer = 52.56
+tolerance = 0.1
+unit = "minutes"
+explanation = "1 - 0.9999 = 0.0001. 0.0001 x 8,760 hours = 0.876 hours = 52.56 minutes, about 52.6 minutes. One more nine cuts the downtime by ten, and one bad release can use the whole year's allowance."
+
+[[questions.steps]]
+flow = ["users", "service"]
+labels = { service = "99.99%: 52.6 min" }
+caption = "Four nines leave less than an hour a year."
+
+[[questions]]
+prompt = "The SLO is 99.9% over a 30-day month. How many minutes of error budget does the team have each month?"
+answer = 43.2
+tolerance = 0.1
+unit = "minutes"
+explanation = "0.001 x 43,200 minutes = 43.2 minutes a month. The budget turns the SLO into a resource: the team can spend it on releases and experiments."
+
+[[questions.steps]]
+flow = ["service", "monitor"]
+highlight = ["monitor"]
+labels = { monitor = "budget 43.2 min" }
+caption = "Error budget = (1 - SLO) x period."
+
+[[questions]]
+prompt = "This month, a bad release caused a 25-minute full outage. How many minutes of the 99.9% budget are left?"
+answer = 18.2
+tolerance = 0.1
+unit = "minutes"
+explanation = "43.2 - 25 = 18.2 minutes. Over half the budget is gone. A common policy: while the budget is low, slow down risky releases and spend effort on reliability until the window resets."
+
+[[questions.steps]]
+flow = ["service", "monitor"]
+down = ["service"]
+labels = { monitor = "18.2 min left" }
+caption = "Outages spend the budget. When it runs low, releases slow down."
+
+[[questions]]
+prompt = "The internal SLO is 99.9%. Which SLA should the team offer customers?"
+choices = [
+  "99.5%, looser than the SLO",
+  "99.99%, stricter than the SLO",
+  "Exactly 99.9%, the same as the SLO",
+  "100%, because customers expect it",
+]
+answer = 1
+explanation = "The SLA carries penalties, so it should be easier to meet than the internal target. With an SLO of 99.9% and an SLA of 99.5%, the team sees the SLO miss and reacts long before it breaks the contract. A 100% promise cannot be kept, and every service fails sometimes."
+
+[[questions.steps]]
+flow = ["users", "service", "monitor"]
+highlight = ["monitor"]
+labels = { users = "SLA 99.5%", monitor = "SLO 99.9%" }
+caption = "Keep a margin between the promise and the internal target."

@@ -1,0 +1,57 @@
+id = "nines-walkthrough"
+title = "Nines, chains and spares"
+stage = "watch"
+xp = 40
+statement = """
+Availability is the fraction of time a service works. Watch how it becomes downtime, how a chain of parts loses nines, and how spares win them back.
+
+Figures to remember: a year has 8,760 hours (365 days), and a 30-day month has 43,200 minutes. Downtime = (1 - availability) x period.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 1] },
+  { id = "lb", label = "Load balancer", at = [1, 1] },
+  { id = "appa", label = "App zone A", at = [2, 0] },
+  { id = "db", label = "Database", at = [2, 1] },
+  { id = "appb", label = "App zone B", at = [2, 2] },
+]
+links = [["users", "lb"], ["lb", "appa"], ["lb", "appb"], ["appa", "db"], ["appb", "db"]]
+
+[[diagram.steps]]
+flow = ["users", "lb", "appa", "db"]
+highlight = ["lb", "appa", "db"]
+labels = { users = "99.9% up" }
+caption = "99.9% (three nines) allows 0.1% downtime: 0.001 x 8,760 h = 8.76 hours a year, or 43.2 minutes in a 30-day month."
+
+[[diagram.steps]]
+flow = ["users", "lb", "appa", "db"]
+highlight = ["lb", "appa", "db"]
+labels = { users = "99.99% up" }
+caption = "Each extra nine divides downtime by ten. 99.99% allows about 52.6 minutes a year, and 99.999% about 5.3 minutes."
+
+[[diagram.steps]]
+flow = ["users", "lb", "appa", "db"]
+packets = 2
+labels = { lb = "99.9%", appa = "99.9%", db = "99.9%" }
+caption = "A request needs every part of the chain, so multiply: 0.999 x 0.999 x 0.999 = 0.997. That is about 26 hours down a year, three times one part's downtime."
+
+[[diagram.steps]]
+flow = ["users", "lb", "appb", "db"]
+packets = 2
+down = ["appa"]
+highlight = ["appb"]
+labels = { appa = "down (99%)", appb = "up (99%)" }
+caption = "Two app servers in different zones fail independently. The app tier is down only if both are: 1 - 0.01 x 0.01 = 99.99%, from two servers of 99% each."
+
+[[diagram.steps]]
+flow = ["users", "lb", "appb"]
+down = ["db"]
+labels = { db = "only copy" }
+caption = "The database has one copy, so it is a single point of failure. Spare app servers do not help when the one database is down."
+
+[[diagram.steps]]
+flow = ["users", "lb", "appa", "db"]
+highlight = ["users"]
+labels = { users = "budget 43.2 min" }
+caption = "A service level objective (SLO) of 99.9% a month leaves an error budget of 43.2 minutes. Teams spend it on releases and risk, and slow down when it runs out."

@@ -1,0 +1,99 @@
+id = "connections"
+title = "Hold the connections"
+stage = "quiz"
+xp = 120
+statement = """
+A chat service has these numbers at peak:
+
+- 20 million users are online at the same time.
+- One gateway server can hold 100,000 open connections.
+- An online user receives one message every 2 minutes on average.
+- Each client sends a presence heartbeat every 30 seconds.
+
+The team compares WebSockets with polling, where each client asks for new messages every 5 seconds.
+"""
+
+[diagram]
+nodes = [
+  { id = "clients", label = "Clients", at = [0, 1] },
+  { id = "lb", label = "Load balancer", at = [1, 1] },
+  { id = "gw1", label = "Gateway 1", at = [2, 0] },
+  { id = "gwmid", label = "More gateways", at = [2, 1] },
+  { id = "gwn", label = "Gateway N", at = [2, 2] },
+]
+links = [["clients", "lb"], ["lb", "gw1"], ["lb", "gwmid"], ["lb", "gwn"]]
+
+[[diagram.steps]]
+flow = ["clients", "lb", "gw1"]
+
+[[diagram.steps]]
+flow = ["clients", "lb", "gwn"]
+
+[[questions]]
+prompt = "How many gateway servers hold all the connections, with each server at its full limit?"
+answer = 200
+tolerance = 0.1
+unit = "servers"
+explanation = "20,000,000 / 100,000 = 200 gateway servers. A server at its limit has no room to take connections from another server that fails, so this is a lower bound."
+
+[[questions.steps]]
+flow = ["clients", "lb", "gwmid"]
+packets = 5
+highlight = ["gw1", "gwmid", "gwn"]
+labels = { gwmid = "100,000 each" }
+caption = "Connections divided by connections per server gives the server count."
+
+[[questions]]
+prompt = "The team keeps each gateway at 80% of its limit, so it has room to absorb clients when a gateway restarts. How many servers are needed?"
+answer = 250
+tolerance = 0.1
+unit = "servers"
+explanation = "80% of 100,000 is 80,000 connections per server. 20,000,000 / 80,000 = 250 servers. When one gateway restarts, its clients reconnect and spread over the spare room of the others."
+
+[[questions.steps]]
+flow = ["clients", "lb", "gwn"]
+down = ["gw1"]
+labels = { gwn = "80,000 each" }
+caption = "Headroom lets the remaining servers take the clients of a failed one."
+
+[[questions]]
+prompt = "With polling every 5 seconds, how many requests per second reach the servers?"
+answer = 4000000
+tolerance = 0.1
+unit = "requests per second"
+explanation = "20,000,000 / 5 = 4,000,000 requests per second, all the time, whether or not there are messages. With WebSockets, the open connections cost memory, but traffic flows only when there is something to send."
+
+[[questions.steps]]
+flow = ["clients", "lb", "gwmid"]
+packets = 7
+highlight = ["lb"]
+labels = { lb = "4M polls/s" }
+caption = "Polling sends a request every interval from every client."
+
+[[questions]]
+prompt = "What percent of those polls return no new message?"
+answer = 95.8
+tolerance = 0.1
+unit = "percent"
+hint = "How many messages does a user receive, on average, in one 5-second interval?"
+explanation = "A user receives one message per 120 seconds, so one 5-second poll finds 5 / 120 = 0.042 messages on average. About 4% of polls find something, and about 96% come back empty. Shorter intervals give faster delivery but even more empty polls. A pushed message needs no request at all."
+
+[[questions.steps]]
+flow = ["clients", "lb"]
+packets = 7
+labels = { lb = "~96% empty" }
+caption = "Most polls are wasted. Push sends data only when there is data."
+
+[[questions]]
+prompt = "How many presence heartbeats per second arrive?"
+answer = 666667
+tolerance = 0.1
+unit = "heartbeats per second"
+explanation = "20,000,000 / 30 = about 667,000 heartbeats per second. Presence alone is busier than most services. Common ways to reduce it: send heartbeats over the open WebSocket instead of as new requests, use longer intervals, and tell only the contacts who have the chat open when a status changes."
+
+[[questions.steps]]
+flow = ["clients", "lb", "gw1"]
+packets = 7
+highlight = ["clients"]
+labels = { clients = "20M / 30 s" }
+caption = "Users divided by the heartbeat interval gives the heartbeat rate."

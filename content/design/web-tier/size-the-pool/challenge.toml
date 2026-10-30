@@ -1,0 +1,98 @@
+id = "size-the-pool"
+title = "Size a server pool"
+stage = "quiz"
+xp = 100
+statement = """
+An API must serve a peak of 24,000 requests per second.
+
+- One app server handles 1,500 requests per second at 100% CPU.
+- Latency rises sharply near full CPU, so the target is at most 75% CPU at the peak.
+- The servers are spread evenly across 3 zones (separate data centers in one region). A whole zone can fail.
+
+Round each server count up to a whole server.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Clients", at = [0, 1] },
+  { id = "lb", label = "Load balancer", at = [1, 1] },
+  { id = "app1", label = "App 1", at = [2, 0] },
+  { id = "app2", label = "App 2", at = [2, 1] },
+  { id = "appn", label = "App N", at = [2, 2] },
+]
+links = [["client", "lb"], ["lb", "app1"], ["lb", "app2"], ["lb", "appn"]]
+
+[[diagram.steps]]
+flow = ["client", "lb", "app1"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["client", "lb", "app2"]
+packets = 2
+
+[[diagram.steps]]
+flow = ["client", "lb", "appn"]
+packets = 2
+
+[[questions]]
+prompt = "How many servers does the peak need if every server runs at 100% CPU?"
+answer = 16
+tolerance = 0.1
+unit = "servers"
+hint = "Divide the peak by the capacity of one server."
+explanation = "24,000 / 1,500 = 16 servers. This is the floor. At this size every server runs flat out at the peak, so any burst or failure overloads the pool."
+
+[[questions.steps]]
+flow = ["client", "lb", "app1"]
+packets = 4
+labels = { lb = "24,000/s", app1 = "1,500/s" }
+caption = "16 servers x 1,500 = 24,000 requests per second, with nothing to spare."
+
+[[questions]]
+prompt = "How many servers does the peak need at the 75% CPU target?"
+answer = 22
+tolerance = 0.1
+unit = "servers"
+hint = "At 75%, one server takes 0.75 x 1,500 requests per second."
+explanation = "At 75%, one server takes 0.75 x 1,500 = 1,125 requests per second. 24,000 / 1,125 = 21.3, so round up to 22 servers. The spare 25% absorbs bursts and keeps queues short."
+
+[[questions.steps]]
+flow = ["client", "lb", "app2"]
+packets = 3
+highlight = ["app1", "app2", "appn"]
+labels = { app1 = "1,125/s", app2 = "1,125/s", appn = "1,125/s" }
+caption = "Each server stops at 75% of its capacity: 22 x 1,125 = 24,750 requests per second."
+
+[[questions]]
+prompt = "The pool must still serve the peak at 75% CPU after a whole zone fails. How many servers do you need in total?"
+answer = 33
+tolerance = 0.1
+unit = "servers"
+hint = "After a failure, 2 of the 3 zones must hold the 22 servers from the last question."
+explanation = "The 2 zones that survive must run 22 servers between them, so each zone needs 11. 3 zones x 11 = 33 servers. On a normal day each server runs at about 50% CPU (24,000 / 33 = 727 requests per second). That spare capacity is the price of surviving a zone loss."
+
+[[questions.steps]]
+flow = ["client", "lb", "app2"]
+packets = 3
+down = ["appn"]
+highlight = ["app1", "app2"]
+labels = { app1 = "zone 1: 11", app2 = "zone 2: 11", appn = "zone 3 down" }
+caption = "Zone 3 fails, and zones 1 and 2 still hold 22 servers: enough for the peak at 75% CPU."
+
+[[questions]]
+prompt = "Someone suggests one machine with 16 times the CPU of an app server, instead of a pool. What is the main problem?"
+choices = [
+  "Each request runs slower on a large machine",
+  "A load balancer cannot send traffic to one machine",
+  "One machine is a single point of failure, and machine size has an upper limit",
+  "A bigger machine needs different application code",
+]
+answer = 3
+explanation = "Vertical scaling is simple and needs no code change, so it is a fine first step. But one machine has no failover: a crash or a deploy stops the whole service. The largest machine you can buy also sets a ceiling on growth. Horizontal scaling removes both limits."
+
+[[questions.steps]]
+flow = ["client", "lb", "app1"]
+packets = 2
+down = ["app1"]
+labels = { app1 = "1 big server" }
+caption = "With one big server, one crash stops every request."

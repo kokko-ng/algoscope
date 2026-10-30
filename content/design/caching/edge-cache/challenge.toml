@@ -1,0 +1,101 @@
+id = "edge-cache"
+title = "Serve static files from the edge"
+stage = "quiz"
+xp = 100
+statement = """
+A CDN (content delivery network) is a set of cache servers, called edges, placed close to users around the world. An edge serves a file from its cache, or fetches it from your origin servers on a miss.
+
+- A site has 2,000 page loads per second at the peak.
+- Each page load fetches 1 MB of static files: images, scripts and styles.
+- The origin is in one region. For a far user, a round trip takes 150 ms to the origin and 20 ms to the nearest edge.
+- The CDN hit ratio is 95%.
+
+Use 1 GB = 1,000 MB.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Far users", at = [0, 0] },
+  { id = "edge", label = "CDN edge", at = [1, 0] },
+  { id = "origin", label = "Origin", at = [2, 0] },
+]
+links = [["users", "edge"], ["edge", "origin"]]
+
+[[diagram.steps]]
+flow = ["users", "edge"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["users", "edge", "origin"]
+
+[[questions]]
+prompt = "Without a CDN, how much static data must the origin send per second at the peak? Give the answer in GB per second."
+answer = 2
+tolerance = 0.1
+unit = "GB per second"
+explanation = "2,000 page loads x 1 MB = 2,000 MB = 2 GB per second. That is 16 gigabits per second of traffic leaving one region."
+
+[[questions.steps]]
+flow = ["users", "edge", "origin"]
+packets = 4
+highlight = ["origin"]
+labels = { origin = "2 GB/s" }
+caption = "Without the CDN, every file comes from the origin: 2 GB per second."
+
+[[questions]]
+prompt = "With the CDN, only misses reach the origin. How much data does the origin send per second now? Give the answer in MB per second."
+answer = 100
+tolerance = 0.1
+unit = "MB per second"
+explanation = "5% of 2,000 MB per second = 100 MB per second. The edges serve the other 1,900 MB per second, so the origin's traffic falls by 20 times."
+
+[[questions.steps]]
+flow = ["edge", "origin"]
+labels = { edge = "1,900 MB/s", origin = "100 MB/s" }
+caption = "Only the 5% of misses travel back to the origin."
+
+[[questions]]
+prompt = "What is the average round trip for a far user's file request through the CDN? A miss costs the edge round trip plus the origin round trip."
+answer = 27.5
+tolerance = 0.1
+unit = "ms"
+hint = "A miss costs 20 + 150 ms. Weight the hit and the miss by how often each happens."
+explanation = "Hit: 20 ms. Miss: 20 + 150 = 170 ms. Average: 0.95 x 20 + 0.05 x 170 = 19 + 8.5 = 27.5 ms, against 150 ms without a CDN. The edge wins because it is closer, and no faster server can beat distance."
+
+[[questions.steps]]
+flow = ["users", "edge"]
+packets = 3
+labels = { edge = "0.95 x 20 ms" }
+caption = "Hits stop at the nearby edge."
+
+[[questions.steps]]
+flow = ["users", "edge", "origin"]
+labels = { origin = "0.05 x 170 ms" }
+caption = "Misses pay for both round trips."
+
+[[questions]]
+prompt = "The CDN keeps app.js for one year. A release changes app.js. How do users get the new file at once?"
+choices = [
+  "Lower the TTL of every file to one minute",
+  "Put a hash of the content in the file name, such as app.3f9a.js, and point the page at the new name",
+  "Ask users to clear their browser cache",
+  "Keep app.js only on the origin",
+]
+answer = 2
+explanation = "New content gets a new URL, so no cache anywhere holds an old copy of it, and the old file can stay cached for a year without harm. A one-minute TTL sends far more misses to the origin and still serves the old file for up to a minute."
+
+[[questions.steps]]
+flow = ["users", "edge", "origin"]
+labels = { edge = "miss: new URL", origin = "app.3f9a.js" }
+caption = "The first request for the new name misses once. Then the edge caches it."
+
+[[questions]]
+prompt = "Which response is a poor fit for a shared CDN cache?"
+choices = ["Product photos", "A video file", "A page that shows one user's account balance", "A font file"]
+answer = 3
+explanation = "A shared cache serves the same copy to everyone. A user's balance is private and changes often, so it must come from the origin. Photos, videos and fonts are the same for every user and rarely change, which is what a CDN serves best."
+
+[[questions.steps]]
+flow = ["users", "edge", "origin"]
+labels = { edge = "pass through", origin = "private data" }
+caption = "Private, changing data skips the shared cache."

@@ -1,0 +1,72 @@
+id = "queue-walkthrough"
+title = "Put a queue between the work"
+stage = "watch"
+xp = 40
+statement = """
+Users upload photos, and each photo needs 2 seconds of resizing. Watch how a queue lets the web servers answer fast while workers do the slow part at their own pace.
+
+Two terms:
+
+- A producer puts messages on the queue. A consumer (a worker) takes them off and processes them.
+- The backlog is the number of messages that wait in the queue.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 0] },
+  { id = "web", label = "Web server", at = [0, 1] },
+  { id = "queue", label = "Queue", at = [1, 1] },
+  { id = "w1", label = "Worker 1", at = [2, 0] },
+  { id = "w2", label = "Worker 2", at = [2, 1] },
+  { id = "w3", label = "Worker 3", at = [2, 2] },
+  { id = "dlq", label = "Dead letters", at = [0, 2] },
+]
+links = [
+  ["users", "web"],
+  ["web", "queue"],
+  ["queue", "w1"],
+  ["queue", "w2"],
+  ["queue", "w3"],
+  ["queue", "dlq"],
+]
+
+[[diagram.steps]]
+flow = ["users", "web"]
+packets = 3
+highlight = ["web"]
+labels = { web = "resize: 2 s each" }
+caption = "Without a queue, the web server resizes the photo while the user waits. A spike of uploads ties up every web server for seconds at a time."
+
+[[diagram.steps]]
+flow = ["users", "web", "queue"]
+packets = 3
+labels = { web = "replies in 20 ms", queue = "+1 job" }
+caption = "With a queue, the web server adds a job message and replies at once. The producer no longer waits for the consumer."
+
+[[diagram.steps]]
+flow = ["queue", "w2"]
+packets = 2
+highlight = ["w1", "w2", "w3"]
+labels = { w1 = "busy", w2 = "busy", w3 = "busy" }
+caption = "Workers pull jobs at their own pace. Producers and consumers now scale, deploy and fail independently."
+
+[[diagram.steps]]
+flow = ["users", "web", "queue"]
+packets = 7
+highlight = ["queue"]
+labels = { web = "250 jobs/s", queue = "backlog grows" }
+caption = "A spike adds 250 jobs per second, but the workers finish only 150. The queue absorbs the extra 100 per second as a backlog instead of dropping uploads."
+
+[[diagram.steps]]
+flow = ["queue", "w2"]
+packets = 5
+highlight = ["queue"]
+labels = { queue = "6,000 waiting", w2 = "150 jobs/s" }
+caption = "The spike ends with 6,000 jobs waiting and 100 new jobs per second. Time to drain = backlog / (consume - produce) = 6,000 / (150 - 100) = 120 s."
+
+[[diagram.steps]]
+flow = ["queue", "dlq"]
+down = ["w3"]
+highlight = ["dlq"]
+labels = { w3 = "crashed", dlq = "poison message" }
+caption = "Worker 3 crashes before it acknowledges a job, so the queue delivers that job again: at-least-once. A job that fails on every try moves to a dead-letter queue for a person to inspect."

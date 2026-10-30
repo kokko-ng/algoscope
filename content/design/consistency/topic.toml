@@ -1,0 +1,7 @@
+id = "consistency"
+title = "Consistency and quorums"
+zone = "The Hall of Mirrors"
+summary = "Copies of data drift apart. Learn what a partition forces you to give up, how quorums make reads see writes, and which guarantees a user notices when replicas lag."
+prereqs = ["partitioning"]
+order = 6
+challenges = ["replicas-and-quorums", "partition-choice", "quorum-math", "session-guarantees"]

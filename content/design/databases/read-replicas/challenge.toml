@@ -1,0 +1,108 @@
+id = "read-replicas"
+title = "Add read replicas"
+stage = "quiz"
+xp = 100
+statement = """
+A forum's database gets 30,000 queries per second at the peak: 90% reads and 10% writes.
+
+- One database node handles 8,000 queries per second.
+- Writes go to the leader. Every follower also applies every write, and applying one write costs as much as one query.
+- Reads go to followers only.
+
+Relational (SQL) databases offer tables, joins, a fixed schema and transactions that change several rows at once. Many NoSQL stores (key-value, document, wide-column) give up joins and multi-row transactions so that the data spreads across many nodes more easily.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [0, 1] },
+  { id = "leader", label = "Leader", at = [1, 1] },
+  { id = "f1", label = "Follower 1", at = [2, 0] },
+  { id = "fn", label = "Follower N", at = [2, 2] },
+]
+links = [["app", "leader"], ["leader", "f1"], ["leader", "fn"], ["app", "f1"], ["app", "fn"]]
+
+[[diagram.steps]]
+flow = ["app", "leader"]
+
+[[diagram.steps]]
+flow = ["leader", "f1"]
+
+[[diagram.steps]]
+flow = ["app", "fn"]
+packets = 3
+
+[[questions]]
+prompt = "How many reads per second reach the followers at the peak?"
+answer = 27000
+tolerance = 0.1
+unit = "reads per second"
+explanation = "90% of 30,000 = 27,000 reads per second. The other 3,000 queries per second are writes, which go to the leader."
+
+[[questions.steps]]
+flow = ["app", "fn"]
+packets = 4
+labels = { leader = "3,000 writes/s", fn = "27,000 reads/s" }
+caption = "Reads and writes take different paths."
+
+[[questions]]
+prompt = "How many reads per second can one follower still serve?"
+answer = 5000
+tolerance = 0.1
+unit = "reads per second"
+hint = "Subtract the writes that each follower applies from its capacity."
+explanation = "Each follower applies all 3,000 writes per second, which leaves 8,000 - 3,000 = 5,000 queries per second for reads. Followers copy the write load. They do not share it."
+
+[[questions.steps]]
+flow = ["leader", "f1"]
+packets = 2
+labels = { f1 = "3,000 + 5,000" }
+caption = "Applying the writes uses part of every follower's capacity."
+
+[[questions]]
+prompt = "How many followers do the reads need? Round up to a whole follower."
+answer = 6
+tolerance = 0.1
+unit = "followers"
+explanation = "27,000 / 5,000 = 5.4, so round up to 6 followers. If you forget the replicated writes, you get 27,000 / 8,000 = 3.4, so 4 followers. Those 4 can serve only 20,000 reads per second, and the peak would be 35% over their capacity."
+
+[[questions.steps]]
+flow = ["app", "f1"]
+packets = 3
+highlight = ["f1", "fn"]
+labels = { f1 = "5,000 reads/s", fn = "x 6 followers" }
+caption = "6 followers x 5,000 = 30,000 reads per second, enough for 27,000."
+
+[[questions]]
+prompt = "Writes grow to 9,000 per second. Why do more followers no longer help?"
+choices = [
+  "Followers stop serving reads while writes are running",
+  "The leader and every follower must apply all 9,000 writes, more than the 8,000 queries one node can handle",
+  "Replication lag makes the followers return errors",
+  "A leader can stream its log to at most 6 followers",
+]
+answer = 2
+explanation = "Replication copies every write to every node. Adding nodes adds read capacity, but no write capacity. At 9,000 writes per second no node can keep up, whatever the number of followers. The way out is to split the data, so that each node holds part of it and takes part of the writes. That is partitioning."
+
+[[questions.steps]]
+flow = ["leader", "f1"]
+packets = 5
+highlight = ["leader", "f1"]
+labels = { leader = "9,000 > 8,000", f1 = "9,000 > 8,000" }
+caption = "Every node must apply every write, so the write rate caps the whole group."
+
+[[questions]]
+prompt = "Which need points most clearly to a relational (SQL) database?"
+choices = [
+  "Store 1 KB session blobs, each read and written by one key, at a very high rate",
+  "Move money between two accounts, so that both balances change together or neither does",
+  "Store records whose fields differ from one record to the next",
+  "Spread the data over many nodes from the start, with no joins needed",
+]
+answer = 2
+explanation = "Moving money changes two rows in one transaction: both change, or neither does. Transactions across rows, and joins, are where relational databases are strongest. Lookups by one key, records with varying fields and easy spreading across many nodes are what key-value and document stores are built for."
+
+[[questions.steps]]
+flow = ["app", "leader"]
+highlight = ["leader"]
+labels = { leader = "1 transaction" }
+caption = "Both balances change in one transaction, or neither does."

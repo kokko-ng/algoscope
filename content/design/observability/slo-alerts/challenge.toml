@@ -1,0 +1,108 @@
+id = "slo-alerts"
+title = "Signals and burn-rate alerts"
+stage = "quiz"
+xp = 110
+statement = """
+A checkout API serves 200 requests per second on average. It calls a database and five other services.
+
+- SLO: 99.9% of requests succeed, measured over 30 days.
+- The error budget is the share of requests that may fail: 0.1%.
+- The burn rate is the current error rate divided by the error rate the SLO allows. At a burn rate of 1, the budget lasts exactly 30 days.
+
+The team uses two checklists. RED, for each service: Rate, Errors, Duration. USE, for each resource: Utilization, Saturation, Errors.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 0] },
+  { id = "api", label = "Checkout API", at = [1, 0] },
+  { id = "db", label = "Database", at = [2, 0] },
+  { id = "telemetry", label = "Telemetry", at = [1, 1] },
+  { id = "alert", label = "On-call alert", at = [1, 2] },
+]
+links = [["users", "api"], ["api", "db"], ["api", "telemetry"], ["telemetry", "alert"]]
+
+[[diagram.steps]]
+flow = ["users", "api", "db"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["api", "telemetry"]
+packets = 2
+
+[[questions]]
+prompt = "One checkout out of thousands took 4 seconds. You want to see which of its downstream calls it waited on. Which signal shows that?"
+choices = [
+  "A latency histogram metric for the API",
+  "The API's request log, one line per request",
+  "A trace of that request, with one span per downstream call",
+  "The database CPU utilization graph",
+]
+answer = 3
+explanation = "A trace records each call inside one request as a span with its start time and duration, so the slow span stands out. A metric aggregates many requests and loses the single request. A log line per request gives the total time, but not the breakdown across services. CPU utilization is about one resource, not one request."
+
+[[questions.steps]]
+flow = ["users", "api", "db"]
+highlight = ["telemetry"]
+labels = { telemetry = "trace: 6 spans" }
+caption = "Each downstream call becomes a span. The longest span is the cause."
+
+[[questions]]
+prompt = "In the USE method, which measurement is saturation for a CPU?"
+choices = [
+  "The percent of time the CPU is busy",
+  "The number of threads waiting in the run queue for a CPU",
+  "The number of requests per second the process serves",
+  "The count of hardware errors reported by the CPU",
+]
+answer = 2
+explanation = "Saturation is work that waits because the resource is full. For a CPU, that is the run queue. The percent of time busy is utilization: a CPU can be 100% busy with nothing waiting, or it can be short of capacity when queued work grows. Requests per second is Rate from RED. Hardware errors are the E in USE."
+
+[[questions.steps]]
+flow = ["users", "api"]
+packets = 6
+highlight = ["api"]
+labels = { api = "run queue: 8" }
+caption = "A growing queue of waiting work is the first sign of a full resource."
+
+[[questions]]
+prompt = "How many requests may fail in 30 days before the SLO is broken?"
+answer = 518400
+tolerance = 0.1
+unit = "requests"
+hint = "Requests per second x seconds in 30 days x 0.1%."
+explanation = "200 x 86,400 x 30 = 518,400,000 requests in 30 days. 0.1% of that is 518,400 failed requests. This is the error budget: it is spent by outages, bad deploys and slow dependencies."
+
+[[questions.steps]]
+flow = ["api", "telemetry"]
+packets = 3
+labels = { telemetry = "budget 518,400" }
+caption = "The budget is a count of failures that the SLO allows over the window."
+
+[[questions]]
+prompt = "In the last hour, 0.5% of requests failed. What is the burn rate?"
+answer = 5
+tolerance = 0.1
+unit = "times the allowed rate"
+explanation = "The SLO allows 0.1% failures. 0.5% / 0.1% = 5. The service spends its budget 5 times faster than the SLO can afford."
+
+[[questions.steps]]
+flow = ["telemetry", "alert"]
+highlight = ["alert"]
+labels = { alert = "burn rate 5" }
+caption = "Burn rate compares the current error rate with the allowed error rate."
+
+[[questions]]
+prompt = "If the burn rate stays at that level, how many days until the whole 30-day budget is gone?"
+answer = 6
+tolerance = 0.1
+unit = "days"
+explanation = "At a burn rate of 1 the budget lasts 30 days. At a burn rate of 5 it lasts 30 / 5 = 6 days. An alert on burn rate pages someone for a problem that will break the SLO. It ignores a short spike that uses little budget, which a plain error-rate threshold would page for."
+
+[[questions.steps]]
+flow = ["telemetry", "alert"]
+packets = 3
+down = ["api"]
+highlight = ["alert"]
+labels = { alert = "gone in 6 days" }
+caption = "Fast burns page someone now. Slow burns open a ticket."

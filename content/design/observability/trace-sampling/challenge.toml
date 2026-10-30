@@ -1,0 +1,106 @@
+id = "trace-sampling"
+title = "Sample traces at scale"
+stage = "quiz"
+xp = 100
+statement = """
+A system handles 50,000 requests per second. A collector receives the traces and decides which ones to keep.
+
+- Each request makes a trace of 20 spans.
+- A stored span is 500 bytes.
+- 0.05% of requests fail.
+- Traces are kept for 7 days.
+
+Use 86,400 seconds in a day and 1 TB = 10^12 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "services", label = "Services", at = [0, 0] },
+  { id = "collector", label = "Collector", at = [1, 0] },
+  { id = "store", label = "Trace store", at = [2, 0] },
+  { id = "dropped", label = "Dropped", at = [1, 1] },
+]
+links = [["services", "collector"], ["collector", "store"], ["collector", "dropped"]]
+
+[[diagram.steps]]
+flow = ["services", "collector", "dropped"]
+packets = 5
+
+[[diagram.steps]]
+flow = ["services", "collector", "store"]
+
+[[questions]]
+prompt = "If the collector keeps every trace, how much trace data arrives each day? Give the answer in TB."
+answer = 43.2
+tolerance = 0.25
+unit = "TB per day"
+hint = "Requests per second x spans x bytes per span, then x 86,400."
+explanation = "50,000 x 20 x 500 bytes = 500,000,000 bytes = 500 MB per second. 500 MB x 86,400 = 43,200,000 MB = 43.2 TB each day. Kept for 7 days, that is over 300 TB just for traces."
+
+[[questions.steps]]
+flow = ["services", "collector", "store"]
+packets = 7
+highlight = ["store"]
+labels = { store = "43.2 TB/day" }
+caption = "Full tracing at high request rates costs more than the service it watches."
+
+[[questions]]
+prompt = "The collector keeps a random 1% of traces. How much storage do 7 days of traces need? Give the answer in TB."
+answer = 3.02
+tolerance = 0.25
+unit = "TB"
+explanation = "43.2 TB x 1% = 0.432 TB per day. 0.432 TB x 7 = 3.02 TB. A 1% sample still has 500 traces per second, which is plenty to study common requests."
+
+[[questions.steps]]
+flow = ["services", "collector", "store"]
+labels = { store = "~3 TB / 7 days" }
+caption = "Sampling divides storage by the sampling rate."
+
+[[questions]]
+prompt = "The 1% sample is chosen when each request starts. What is the problem, and the fix?"
+choices = [
+  "Failed requests are dropped as often as any others, so 99% of error traces are lost. Decide after the trace ends and keep every failed or slow trace.",
+  "The sample keeps too many error traces. Lower the rate to 0.1%.",
+  "Sampling makes the error-rate metric wrong. Stop sampling.",
+  "Spans of one request end up in different traces. Add more spans.",
+]
+answer = 1
+explanation = "A decision at the start cannot know how the request will end. Errors are 0.05% of requests, so a random 1% keeps only 0.25 error traces per second, and those are the traces you need most. Tail-based sampling waits until a trace is complete, then keeps all errors and slow requests plus a small random share of the rest. Metrics count every request, so trace sampling does not change them."
+
+[[questions.steps]]
+flow = ["services", "collector", "store"]
+highlight = ["collector"]
+labels = { collector = "keep errors" }
+caption = "Decide after the request ends, when you know whether it failed."
+
+[[questions]]
+prompt = "The collector keeps every failed trace plus 1% of the successful ones. How many traces per second does it keep?"
+answer = 525
+tolerance = 0.1
+unit = "traces per second"
+hint = "Count the failed requests first, then 1% of the rest."
+explanation = "Failed: 50,000 x 0.05% = 25 traces per second, all kept. Successful: 49,975 x 1% = 499.75 per second. Total: about 525 traces per second. Storage grows by only 5%, and every error is kept."
+
+[[questions.steps]]
+flow = ["services", "collector", "store"]
+packets = 3
+labels = { collector = "25 + 500 /s" }
+caption = "Keep all of the rare, important traces and a sample of the common ones."
+
+[[questions]]
+prompt = "Someone adds the user ID as a label on the request-count metric. There are 10 million users. What happens?"
+choices = [
+  "Nothing: a label only renames the metric",
+  "The metric splits into a separate time series per user, up to 10 million series, which the metrics store cannot keep cheaply",
+  "The metric becomes a trace",
+  "Requests from users without an ID are not counted",
+]
+answer = 2
+explanation = "A metrics store keeps one time series for each combination of label values. A label with 10 million values can turn one series into 10 million, which multiplies memory and query cost. Keep metric labels to a small set of values, such as endpoint and status code. Put per-user detail in logs and traces."
+
+[[questions.steps]]
+flow = ["services", "collector"]
+packets = 7
+highlight = ["collector"]
+labels = { collector = "10M series" }
+caption = "High-cardinality detail belongs in logs and traces, not in metric labels."

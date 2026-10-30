@@ -1,0 +1,105 @@
+id = "indexes-and-lag"
+title = "Indexes, lag and failover"
+stage = "quiz"
+xp = 120
+statement = """
+A users table has 100 million rows. Without an index, a lookup by email reads every row: O(n).
+
+An index keeps the emails sorted, each with a pointer to its row. A search can then halve the range at each step, as binary search does: O(log n). Real databases use a B-tree, where each tree node holds many keys, so each level divides the range by much more than 2.
+
+The database uses asynchronous leader-follower replication.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [0, 1] },
+  { id = "leader", label = "Leader", at = [1, 1] },
+  { id = "f1", label = "Follower 1", at = [2, 0] },
+  { id = "f2", label = "Follower 2", at = [2, 2] },
+]
+links = [["app", "leader"], ["leader", "f1"], ["leader", "f2"], ["app", "f1"], ["app", "f2"]]
+
+[[diagram.steps]]
+flow = ["app", "leader"]
+
+[[diagram.steps]]
+flow = ["leader", "f1"]
+
+[[diagram.steps]]
+flow = ["app", "f2"]
+
+[[questions]]
+prompt = "About how many halving steps does a binary search need to find one email among 100 million sorted emails?"
+answer = 27
+tolerance = 0.25
+unit = "steps"
+hint = "Count how many times you can halve 100 million before 1 is left: log2 of 100,000,000."
+explanation = "log2(100,000,000) is about 26.6, so 27 steps. As a check: 2^10 is about 1,000, so 2^27 is about 134 million, just above 100 million. A full scan reads up to 100 million rows. The index reads 27 entries."
+
+[[questions.steps]]
+flow = ["app", "leader"]
+highlight = ["leader"]
+labels = { leader = "27 steps" }
+caption = "O(log n): each step halves what is left."
+
+[[questions]]
+prompt = "A B-tree node holds 100 keys, so each level divides the range by 100. How many levels does the index need for 100 million rows?"
+answer = 4
+tolerance = 0.1
+unit = "levels"
+explanation = "100^4 = 100,000,000, so 4 levels. A lookup reads 4 tree nodes. The top levels are read so often that they stay in memory, so a lookup usually costs one or two disk reads."
+
+[[questions.steps]]
+flow = ["app", "leader"]
+highlight = ["leader"]
+labels = { leader = "100^4 = 100M" }
+caption = "Four levels of 100 keys each cover 100 million rows."
+
+[[questions]]
+prompt = "What does each extra index cost?"
+choices = [
+  "Reads that filter on other columns get slower",
+  "Every insert and update must also change the index, so writes get slower and storage grows",
+  "The table can no longer be replicated",
+  "Rows must be stored in the order they were inserted",
+]
+answer = 2
+explanation = "An index is a second, sorted copy of a column. Every write must update it too, and it takes disk and memory. Index the columns your queries filter on, and no more."
+
+[[questions.steps]]
+flow = ["app", "leader"]
+packets = 2
+labels = { leader = "row + index" }
+caption = "Each write now changes the row and every index on the table."
+
+[[questions]]
+prompt = "A user saves a new bio. The page reloads from a follower that lags 2 seconds, and the old bio appears. Which fix gives read-your-writes without sending every read to the leader?"
+choices = [
+  "Add more followers",
+  "For a short time after a user writes, read that user's own data from the leader",
+  "Increase the cache TTL",
+  "Switch replication from synchronous to asynchronous",
+]
+answer = 2
+explanation = "Only the user who wrote needs to see the write at once. Route their own reads to the leader for a window longer than the usual lag, or to a follower that has caught up with their write. Other users read from followers and see the change a moment later."
+
+[[questions.steps]]
+flow = ["app", "leader"]
+highlight = ["leader"]
+labels = { leader = "user's own read", f2 = "lag 2 s" }
+caption = "The writer reads from the leader. Everyone else can wait for the follower."
+
+[[questions]]
+prompt = "The leader confirms 2,000 writes per second. The most up-to-date follower lags by 0.5 seconds. The leader crashes, and that follower is promoted. About how many confirmed writes are lost?"
+answer = 1000
+tolerance = 0.25
+unit = "writes"
+hint = "The new leader is missing the writes from the last 0.5 seconds."
+explanation = "The follower is missing the last 0.5 seconds of writes: 2,000 x 0.5 = 1,000 writes that users were told had succeeded. Synchronous replication to at least one follower avoids this loss, but then each write waits for that follower."
+
+[[questions.steps]]
+flow = ["app", "f1"]
+down = ["leader"]
+highlight = ["f1"]
+labels = { leader = "1,000 unsent", f1 = "new leader" }
+caption = "Writes that never left the old leader are gone after failover."

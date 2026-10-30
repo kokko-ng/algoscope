@@ -1,0 +1,7 @@
+id = "reliability"
+title = "Availability and reliability"
+zone = "The Watchtower"
+summary = "Count the nines, multiply them along a chain and add spares in parallel. Set objectives, spend error budgets and plan how much time and data a disaster may cost."
+prereqs = ["caching", "databases"]
+order = 9
+challenges = ["nines-walkthrough", "error-budget", "serial-parallel", "zones-and-regions"]

@@ -1,0 +1,56 @@
+id = "leader-follower"
+title = "Copies of the record"
+stage = "watch"
+xp = 40
+statement = """
+One database node can fail, and it can serve only so many queries. Replication keeps copies of the data on several nodes.
+
+In leader-follower replication, one node, the leader, takes all the writes. The followers copy the leader's log of changes and serve reads.
+"""
+
+[diagram]
+nodes = [
+  { id = "app", label = "App servers", at = [0, 1] },
+  { id = "leader", label = "Leader", at = [1, 1] },
+  { id = "f1", label = "Follower 1", at = [2, 0] },
+  { id = "f2", label = "Follower 2", at = [2, 2] },
+]
+links = [["app", "leader"], ["leader", "f1"], ["leader", "f2"], ["app", "f1"], ["app", "f2"]]
+
+[[diagram.steps]]
+flow = ["app", "leader"]
+packets = 2
+highlight = ["leader"]
+labels = { leader = "all writes" }
+caption = "Every write goes to the leader. It applies the write and appends it to its log of changes."
+
+[[diagram.steps]]
+flow = ["leader", "f1"]
+packets = 2
+labels = { f1 = "apply log" }
+caption = "The leader streams the log to each follower. Followers apply the same changes in the same order, so they hold the same data a little later."
+
+[[diagram.steps]]
+flow = ["app", "f2"]
+packets = 4
+highlight = ["f1", "f2"]
+labels = { f1 = "reads", f2 = "reads" }
+caption = "Followers serve reads. Most services read far more than they write, so each added follower adds read capacity."
+
+[[diagram.steps]]
+flow = ["app", "f2"]
+labels = { leader = "bio = new", f2 = "bio = old" }
+caption = "Replication is usually asynchronous, so followers lag behind. A user who saves and then reads from a lagging follower sees the old value."
+
+[[diagram.steps]]
+flow = ["app", "leader"]
+highlight = ["leader"]
+labels = { leader = "user's own read" }
+caption = "Read-your-writes: for a short time after a user writes, send that user's reads to the leader. Everyone else still reads from followers."
+
+[[diagram.steps]]
+flow = ["app", "f1"]
+down = ["leader"]
+highlight = ["f1"]
+labels = { f1 = "new leader" }
+caption = "Failover: when the leader fails, a follower is promoted and takes the writes. Changes that had not reached it yet are lost."

@@ -1,0 +1,104 @@
+id = "history-and-groups"
+title = "Store history and fan out to groups"
+stage = "quiz"
+xp = 140
+statement = """
+The chat service keeps every message:
+
+- 2 billion messages are sent per day.
+- 90% go to one-to-one chats. 10% go to groups, which have 50 members on average.
+- A group message is delivered to every member except the sender.
+- Each message is stored once, even in a group. A stored message is 200 bytes.
+- History is kept for 5 years, with 3 copies.
+
+Use 86,400 seconds in a day, 365 days in a year, 1 GB = 10^9 bytes and 1 PB = 10^15 bytes.
+"""
+
+[diagram]
+nodes = [
+  { id = "sender", label = "Sender", at = [0, 0] },
+  { id = "chat", label = "Chat service", at = [1, 0] },
+  { id = "store", label = "Message store", at = [2, 0] },
+  { id = "members", label = "Group members", at = [0, 1] },
+  { id = "gateways", label = "Gateways", at = [1, 1] },
+]
+links = [["sender", "chat"], ["chat", "store"], ["chat", "gateways"], ["gateways", "members"]]
+
+[[diagram.steps]]
+flow = ["sender", "chat", "store"]
+
+[[diagram.steps]]
+flow = ["chat", "gateways", "members"]
+packets = 5
+
+[[questions]]
+prompt = "How many messages per second does the store write, on average?"
+answer = 23148
+tolerance = 0.25
+unit = "writes per second"
+explanation = "2,000,000,000 / 86,400 = about 23,100 writes per second. Each message is stored once, so group size does not change this number."
+
+[[questions.steps]]
+flow = ["sender", "chat", "store"]
+packets = 5
+labels = { store = "~23,000 writes/s" }
+caption = "Daily messages divided by seconds in a day."
+
+[[questions]]
+prompt = "How much new message data arrives each day, before copies? Give the answer in GB."
+answer = 400
+tolerance = 0.25
+unit = "GB per day"
+explanation = "2,000,000,000 x 200 bytes = 400,000,000,000 bytes = 400 GB each day."
+
+[[questions.steps]]
+flow = ["chat", "store"]
+packets = 3
+labels = { store = "+400 GB/day" }
+caption = "Messages times message size gives the daily growth."
+
+[[questions]]
+prompt = "How much storage do 5 years of history need, with 3 copies? Give the answer in PB."
+answer = 2.19
+tolerance = 0.25
+unit = "PB"
+hint = "Daily growth x days in 5 years x copies."
+explanation = "400 GB x 365 x 5 = 730,000 GB = 730 TB. With 3 copies: 2,190 TB, about 2.2 PB. Most of it is old history that is rarely read, so it can move to cheaper storage after some months."
+
+[[questions.steps]]
+flow = ["chat", "store"]
+highlight = ["store"]
+labels = { store = "~2.2 PB" }
+caption = "Retention and replication multiply the daily growth."
+
+[[questions]]
+prompt = "How many deliveries to devices per second does the service make, on average? Count one delivery per receiving user."
+answer = 134259
+tolerance = 0.25
+unit = "deliveries per second"
+hint = "One-to-one messages make 1 delivery each. Group messages make 49 each."
+explanation = "One-to-one: 1,800,000,000 x 1 = 1.8 billion deliveries a day. Groups: 200,000,000 x 49 = 9.8 billion. Total: 11.6 billion a day. 11,600,000,000 / 86,400 = about 134,000 deliveries per second. Groups are 10% of messages but 84% of deliveries, which is why a group message is stored once and fanned out only as deliveries."
+
+[[questions.steps]]
+flow = ["chat", "gateways", "members"]
+packets = 7
+highlight = ["members"]
+labels = { members = "49 per message" }
+caption = "A group message is stored once but delivered to every other member."
+
+[[questions]]
+prompt = "Which partition key suits the message table?"
+choices = [
+  "The conversation ID, with messages sorted by sequence number inside it",
+  "The time the message was sent",
+  "The sender's user ID",
+  "A random number for each message",
+]
+answer = 1
+explanation = "Clients read history one conversation at a time, newest first, or after a sequence number. With the conversation ID as the key, that read is one range scan on one partition. Partitioning by time puts all current writes on one hot partition. By sender, a conversation's messages spread over two partitions, or 50 in a group. Random keys spread writes well but make every history read ask every partition."
+
+[[questions.steps]]
+flow = ["sender", "chat", "store"]
+highlight = ["store"]
+labels = { store = "key: conv ID" }
+caption = "Partition by the unit that is read together."

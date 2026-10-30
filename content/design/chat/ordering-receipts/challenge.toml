@@ -1,0 +1,92 @@
+id = "ordering-receipts"
+title = "Order and acknowledge"
+stage = "quiz"
+xp = 130
+statement = """
+Messages in one conversation can enter through different gateways, and server clocks can differ by tens of milliseconds.
+
+- The service carries 2 billion one-to-one messages per day.
+- Each message makes two receipts that go back to the sender: delivered and read.
+- Each message in a conversation gets a sequence number: 1, 2, 3, and so on.
+
+Use 86,400 seconds in a day.
+"""
+
+[diagram]
+nodes = [
+  { id = "sender", label = "Sender", at = [0, 0] },
+  { id = "gwa", label = "Gateway A", at = [1, 0] },
+  { id = "chat", label = "Chat service", at = [1, 1] },
+  { id = "store", label = "Message store", at = [2, 1] },
+  { id = "receiver", label = "Receiver", at = [0, 2] },
+  { id = "gwb", label = "Gateway B", at = [1, 2] },
+]
+links = [["sender", "gwa"], ["gwa", "chat"], ["chat", "store"], ["chat", "gwb"], ["gwb", "receiver"]]
+
+[[diagram.steps]]
+flow = ["sender", "gwa", "chat", "gwb", "receiver"]
+
+[[diagram.steps]]
+flow = ["receiver", "gwb", "chat", "gwa", "sender"]
+
+[[questions]]
+prompt = "Which way of ordering messages is correct and also scales with the number of conversations?"
+choices = [
+  "Sort by the time on the sender's device",
+  "Sort by the time each gateway received the message",
+  "One counter per conversation, owned by the chat server that handles that conversation",
+  "One counter for every message in the whole service",
+]
+answer = 3
+explanation = "A per-conversation counter gives a single, gap-free order inside each conversation, and different conversations never wait on each other. Device clocks can be wrong by minutes. Gateway clocks differ, so two close messages can swap. One global counter also orders correctly, but every message in the service must pass through it, so it becomes a bottleneck."
+
+[[questions.steps]]
+flow = ["sender", "gwa", "chat", "store"]
+highlight = ["chat"]
+labels = { chat = "conv 7: next 42" }
+caption = "Order is needed only inside a conversation, so each conversation gets its own counter."
+
+[[questions]]
+prompt = "A client has every message up to sequence 1,040. The next push it receives is sequence 1,044. How many messages must it fetch to fill the gap?"
+answer = 3
+tolerance = 0.1
+unit = "messages"
+explanation = "The missing numbers are 1,041, 1,042 and 1,043: three messages. The client fetches them from the store, by asking for everything after 1,040, and shows 1,044 after them. Sequence numbers make gaps visible, so a lost push is repaired instead of silently skipped."
+
+[[questions.steps]]
+flow = ["store", "chat", "gwb", "receiver"]
+packets = 3
+labels = { receiver = "gap: 1041-1043" }
+caption = "A jump in the sequence means messages are missing. The client fetches them."
+
+[[questions]]
+prompt = "How many events per second does the chat service handle, counting messages and both receipts?"
+answer = 69444
+tolerance = 0.25
+unit = "events per second"
+hint = "Each message makes three events: the message, a delivered receipt and a read receipt."
+explanation = "2,000,000,000 / 86,400 = about 23,100 messages per second. Each makes 3 events, so 23,148 x 3 = about 69,400 events per second. Receipts double the traffic of the messages themselves, which is why many services batch them, for example by sending one read receipt for the newest message read."
+
+[[questions.steps]]
+flow = ["receiver", "gwb", "chat", "gwa", "sender"]
+packets = 2
+labels = { chat = "~69,000 events/s" }
+caption = "Receipts are small, but there are two for every message."
+
+[[questions]]
+prompt = "The sender's app times out and sends a message again, but the server had already stored the first copy. How do you avoid a duplicate?"
+choices = [
+  "Never retry, and accept that some messages are lost",
+  "The client gives each message a unique ID when it is created. The server stores a message only if that ID is new in the conversation, and acks the copy either way.",
+  "Compare the text with the previous message and drop it if it is the same",
+  "Retry through a different gateway, which cannot make duplicates",
+]
+answer = 2
+explanation = "Retries make delivery at-least-once, so the same message can arrive twice. A client-made ID makes the write idempotent: the second copy finds the ID and is ignored, and the client still gets its ack. Comparing text would drop real messages that repeat, such as two \"ok\" replies. The gateway does not change whether the first copy was stored."
+
+[[questions.steps]]
+flow = ["sender", "gwa", "chat", "store"]
+packets = 2
+highlight = ["store"]
+labels = { store = "ID seen: skip" }
+caption = "A unique message ID turns a retry into a harmless repeat."

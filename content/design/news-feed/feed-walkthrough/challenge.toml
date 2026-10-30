@@ -1,0 +1,62 @@
+id = "feed-walkthrough"
+title = "Building a home feed"
+stage = "watch"
+xp = 40
+statement = """
+A feed can be built at two times. Fan-out on write copies each new post into every follower's feed when it is posted. Fan-out on read collects posts from every followed account when the feed is opened.
+
+Watch how a post travels to its followers' feeds, why very large accounts break fan-out on write, and how the two approaches combine.
+"""
+
+[diagram]
+nodes = [
+  { id = "author", label = "Author", at = [0, 0] },
+  { id = "posts", label = "Post service", at = [1, 0] },
+  { id = "queue", label = "Fan-out queue", at = [2, 0] },
+  { id = "reader", label = "Reader", at = [0, 1] },
+  { id = "feeds", label = "Feed cache", at = [1, 1] },
+  { id = "workers", label = "Workers", at = [2, 1] },
+]
+links = [["author", "posts"], ["posts", "queue"], ["queue", "workers"], ["workers", "feeds"], ["feeds", "reader"], ["feeds", "posts"]]
+
+[[diagram.steps]]
+flow = ["author", "posts"]
+labels = { author = "1 post" }
+caption = "An author posts. The post is saved once in the post store."
+
+[[diagram.steps]]
+flow = ["posts", "queue", "workers"]
+packets = 3
+highlight = ["queue"]
+caption = "The post service puts a fan-out job on a queue and returns at once. Workers do the slow part in the background, so the author does not wait."
+
+[[diagram.steps]]
+flow = ["workers", "feeds"]
+packets = 5
+labels = { workers = "200 followers", feeds = "+1 ID each" }
+caption = "Fan-out on write: a worker adds the post ID to the cached feed of each follower. 200 followers means 200 small writes."
+
+[[diagram.steps]]
+flow = ["reader", "feeds"]
+highlight = ["feeds"]
+labels = { feeds = "1 lookup" }
+caption = "Opening the feed is now one cache lookup. The work was done at write time, and reads are far more common than posts."
+
+[[diagram.steps]]
+flow = ["posts", "queue", "workers"]
+packets = 7
+highlight = ["author"]
+labels = { author = "50M followers", workers = "50M writes" }
+caption = "The celebrity problem: one post from an account with 50 million followers makes 50 million writes, and its last followers see it minutes late."
+
+[[diagram.steps]]
+flow = ["reader", "feeds", "posts"]
+highlight = ["posts"]
+labels = { posts = "pull big ones" }
+caption = "The hybrid: push posts from ordinary accounts, and pull posts from the few very large accounts when the feed is read. Merge the two lists."
+
+[[diagram.steps]]
+flow = ["feeds", "reader"]
+packets = 3
+labels = { reader = "next: cursor" }
+caption = "The feed comes back one page at a time. Each page ends with a cursor that marks the last item, so new posts do not shift the next page."

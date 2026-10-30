@@ -1,0 +1,115 @@
+id = "zones-and-regions"
+title = "Plan for a lost region"
+stage = "quiz"
+xp = 110
+statement = """
+A service runs in region 1, which has two zones: separate data centers a few kilometers apart. Its database:
+
+- Primary in zone A. It copies each write synchronously to a standby in zone B: a write succeeds only after the standby has it.
+- A second standby in region 2, copied asynchronously. It runs about 5 seconds behind.
+- A backup to object storage every 6 hours.
+- The service takes 2,000 writes per second.
+
+Two recovery targets:
+
+- RTO (recovery time objective): the longest the service may be down after a disaster.
+- RPO (recovery point objective): the most data, measured in time, that may be lost.
+"""
+
+[diagram]
+nodes = [
+  { id = "users", label = "Users", at = [0, 0] },
+  { id = "primary", label = "DB zone A", at = [1, 0] },
+  { id = "remote", label = "DB region 2", at = [2, 0] },
+  { id = "standby", label = "DB zone B", at = [1, 1] },
+  { id = "backup", label = "Backups", at = [1, 2] },
+]
+links = [["users", "primary"], ["users", "standby"], ["primary", "remote"], ["primary", "standby"], ["standby", "backup"]]
+
+[[diagram.steps]]
+flow = ["users", "primary", "standby"]
+
+[[diagram.steps]]
+flow = ["users", "primary", "remote"]
+
+[[questions]]
+prompt = "Zone A loses power, and the standby in zone B takes over. How much committed data is lost?"
+choices = [
+  "None: every committed write was already on the standby",
+  "About 5 seconds of writes",
+  "Up to 6 hours of writes",
+  "Everything since the last restart",
+]
+answer = 1
+explanation = "Synchronous replication confirms a write only after the standby has it, so every committed write survives: the RPO for a zone failure is zero. The RTO is the time to detect the failure and promote the standby, often under a minute."
+
+[[questions.steps]]
+flow = ["users", "standby"]
+down = ["primary"]
+highlight = ["standby"]
+labels = { standby = "RPO = 0" }
+caption = "The synchronous standby already holds every committed write."
+
+[[questions]]
+prompt = "The whole of region 1 goes down, and region 2 is promoted. About how many committed writes are lost?"
+answer = 10000
+tolerance = 0.25
+unit = "writes"
+hint = "Writes per second x replication lag."
+explanation = "Region 2 is about 5 seconds behind. 2,000 writes per second x 5 s = 10,000 writes that region 1 had confirmed but region 2 never received. Asynchronous replication gives an RPO equal to the lag."
+
+[[questions.steps]]
+flow = ["primary", "remote"]
+down = ["primary", "standby"]
+highlight = ["remote"]
+labels = { remote = "5 s x 2,000/s" }
+caption = "Writes still in flight to the remote region are lost with region 1."
+
+[[questions]]
+prompt = "Suppose only the 6-hourly backups survive. What is the worst-case data loss, in hours?"
+answer = 6
+tolerance = 0.1
+unit = "hours"
+explanation = "If the disaster strikes just before the next backup, everything since the last one is gone: up to 6 hours of writes, which is 2,000 x 21,600 = 43.2 million writes. Backups give a large RPO, and restoring them often takes hours, a large RTO. They protect against loss of everything, including mistakes that replication copies faithfully."
+
+[[questions.steps]]
+flow = ["standby", "backup"]
+down = ["primary", "standby", "remote"]
+highlight = ["backup"]
+labels = { backup = "up to 6 h old" }
+caption = "Backup interval sets the worst-case loss."
+
+[[questions]]
+prompt = "Which failure does the two-zone setup in region 1 NOT protect against?"
+choices = [
+  "A failed disk",
+  "A crashed server",
+  "A power loss in one data center",
+  "A bad network change pushed to the whole region",
+]
+answer = 4
+explanation = "Zones in one region have separate power and buildings, so they survive the loss of a disk, a server or a whole data center. A failure that spans the region, such as a bad configuration rollout or a regional control-plane outage, takes all zones down together. Only a second region covers that."
+
+[[questions.steps]]
+flow = ["users", "primary", "remote"]
+down = ["primary", "standby"]
+highlight = ["remote"]
+labels = { remote = "still up" }
+caption = "Zones cover a building. Regions cover a whole area."
+
+[[questions]]
+prompt = "Why not copy writes to region 2 synchronously as well, to make its RPO zero?"
+choices = [
+  "It would double the storage cost of the database",
+  "Each write would wait for a cross-region round trip, and stop if the link failed",
+  "Synchronous replication cannot copy data farther than 100 km",
+  "Region 2 would then lose its own backups",
+]
+answer = 2
+explanation = "A round trip between zones takes about a millisecond, but between regions it can take 50 ms or more. Waiting for region 2 on every write adds that to each write, and a cut link would stop writes. That is the PACELC trade again: lower latency, or stronger guarantees."
+
+[[questions.steps]]
+flow = ["primary", "remote"]
+highlight = ["remote"]
+labels = { standby = "~1 ms away", remote = "~50 ms away" }
+caption = "Distance turns synchronous safety into latency on every write."

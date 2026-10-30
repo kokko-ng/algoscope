@@ -1,0 +1,7 @@
+id = "chat"
+title = "Case study: chat service"
+zone = "The Whispering Gallery"
+summary = "A chat service pushes each message to the right device within moments, in the order it was sent, and keeps it for years. Size the open connections and presence traffic, order messages per conversation, and store history for one-to-one chats and groups."
+prereqs = ["messaging", "consistency"]
+order = 13
+challenges = ["chat-walkthrough", "connections", "ordering-receipts", "history-and-groups"]

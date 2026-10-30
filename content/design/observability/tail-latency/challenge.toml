@@ -1,0 +1,103 @@
+id = "tail-latency"
+title = "Tame the tail"
+stage = "quiz"
+xp = 100
+statement = """
+A search front end sends each query to leaf servers in parallel and waits for every answer before it replies.
+
+- A test sends 1,000 requests to one leaf. 970 take 20 ms and 30 take 2,000 ms.
+- In production, each leaf call is slow (about 1 s) 1% of the time, independently of the others.
+
+The p99 latency is the value that 99% of requests are faster than.
+"""
+
+[diagram]
+nodes = [
+  { id = "client", label = "Client", at = [0, 1] },
+  { id = "fe", label = "Front end", at = [1, 1] },
+  { id = "leafa", label = "Leaf 1", at = [2, 0] },
+  { id = "leafb", label = "Leaf 2 to 99", at = [2, 1] },
+  { id = "leafc", label = "Leaf 100", at = [2, 2] },
+]
+links = [["client", "fe"], ["fe", "leafa"], ["fe", "leafb"], ["fe", "leafc"]]
+
+[[diagram.steps]]
+flow = ["client", "fe", "leafb"]
+packets = 3
+
+[[diagram.steps]]
+flow = ["fe", "leafc"]
+highlight = ["leafc"]
+labels = { leafc = "slow 1%" }
+
+[[questions]]
+prompt = "What is the average latency of the 1,000 test requests?"
+answer = 79.4
+tolerance = 0.1
+unit = "ms"
+hint = "Add the time of every request, then divide by 1,000."
+explanation = "970 x 20 ms = 19,400 ms. 30 x 2,000 ms = 60,000 ms. Total: 79,400 ms. 79,400 / 1,000 = 79.4 ms. No request took 79.4 ms: the average describes nobody."
+
+[[questions.steps]]
+flow = ["client", "fe"]
+packets = 5
+labels = { fe = "avg 79.4 ms" }
+caption = "The average mixes fast and slow requests into a number that matches neither."
+
+[[questions]]
+prompt = "What is the p99 latency of the 1,000 test requests?"
+choices = ["20 ms", "79.4 ms", "1,000 ms", "2,000 ms"]
+answer = 4
+explanation = "Sort the requests. Positions 1 to 970 take 20 ms and positions 971 to 1,000 take 2,000 ms. The p99 is at position 990, which is 2,000 ms. Because 3% of requests are slow, both p98 and p99 land in the slow group. The p95 is still 20 ms, at position 950."
+
+[[questions.steps]]
+flow = ["client", "fe"]
+packets = 5
+highlight = ["fe"]
+labels = { fe = "p99 = 2,000 ms" }
+caption = "The p99 shows the slow requests that the average hides."
+
+[[questions]]
+prompt = "One query fans out to 100 leaves. What percent of queries wait for at least one slow leaf?"
+answer = 63.4
+tolerance = 0.1
+unit = "percent"
+hint = "A query is fast only if all 100 calls are fast: 0.99^100."
+explanation = "The chance that all 100 calls are fast is 0.99^100 = 0.366. So 1 - 0.366 = 0.634: about 63% of queries are slow. A 1-in-100 event at each leaf becomes the normal case for the whole query."
+
+[[questions.steps]]
+flow = ["fe", "leafc"]
+highlight = ["leafc"]
+labels = { fe = "63% slow", leafc = "slow 1%" }
+caption = "The query waits for its slowest call, so the slowest leaf sets its latency."
+
+[[questions]]
+prompt = "The front end now fans out to only 10 leaves. What percent of queries are slow?"
+answer = 9.56
+tolerance = 0.1
+unit = "percent"
+explanation = "0.99^10 = 0.904, so 1 - 0.904 = 0.096: about 9.6% of queries are slow. Fewer calls per request means fewer chances to hit the tail. Fan-out width is a latency cost, not only a throughput cost."
+
+[[questions.steps]]
+flow = ["fe", "leafb"]
+packets = 2
+labels = { fe = "9.6% slow" }
+caption = "Each call you remove from the fan-out removes a chance to be slow."
+
+[[questions]]
+prompt = "You must keep the 100-leaf fan-out. Which change reduces the share of slow queries the most?"
+choices = [
+  "Raise every leaf timeout from 1 s to 5 s",
+  "When a leaf has not answered by its p95 time, send a backup copy of the call to another replica and use the first answer",
+  "Report the average latency instead of the p99",
+  "Add a retry that runs after the slow call finishes",
+]
+answer = 2
+explanation = "A backup (hedged) request runs only for the few calls that are already late, so it adds about 5% more load. Both copies are slow only about 1% x 1% = 0.01% of the time, so across 100 calls about 1% of queries wait for the tail, down from 63%. A longer timeout lets slow calls run longer. A retry after the slow call adds its time to the slow call's time. Changing the report hides the problem but does not fix it."
+
+[[questions.steps]]
+flow = ["fe", "leafb"]
+down = ["leafc"]
+highlight = ["leafb"]
+labels = { leafb = "backup copy", leafc = "late" }
+caption = "The first answer wins. The late call is ignored."
