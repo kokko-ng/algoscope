@@ -95,6 +95,21 @@ fn inside(p: Placed, (x, y): (u16, u16)) -> bool {
     x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + 3
 }
 
+/// Whether a link leaves this node downward. Such a link can use the row under the box, so notes go beside it.
+fn links_down(diagram: &Diagram, id: &str) -> bool {
+    let row = |id: &str| diagram.nodes.iter().find(|n| n.id == id).map(|n| n.at[1]);
+    diagram.links.iter().any(|[a, b]| {
+        let other = if a == id {
+            b
+        } else if b == id {
+            a
+        } else {
+            return false;
+        };
+        row(other) > row(id)
+    })
+}
+
 /// Draw the diagram for one step, `frame_in_step` frames into it (see `FRAMES_PER_STEP`).
 pub fn render(
     diagram: &Diagram,
@@ -112,6 +127,12 @@ pub fn render(
     let routes = |a: &str, b: &str| -> Option<Vec<(u16, u16)>> {
         let (pa, pb) = (placed.get(a)?, placed.get(b)?);
         let others: Vec<Placed> = placed.iter().filter(|(id, _)| *id != a && *id != b).map(|(_, p)| *p).collect();
+        // a flow against a link's direction retraces the drawn link
+        if diagram.links.iter().any(|[x, y]| x == b && y == a) && !diagram.links.iter().any(|[x, y]| x == a && y == b) {
+            let mut cells = route_avoiding(*pb, *pa, &others);
+            cells.reverse();
+            return Some(cells);
+        }
         Some(route_avoiding(*pa, *pb, &others))
     };
     for [a, b] in &diagram.links {
@@ -167,7 +188,7 @@ pub fn render(
         put(buf, area, p.x + 1, p.y + 1, &format!("{label:^inner$}"), style);
         if let Some(note) = step.and_then(|s| s.labels.get(&node.id)) {
             let w = note.width() as u16;
-            let x = p.cx().saturating_sub(w / 2).max(area.x);
+            let x = if links_down(diagram, &node.id) { p.cx() + 2 } else { p.cx().saturating_sub(w / 2).max(area.x) };
             put(buf, area, x, p.y + 3, note, t.bold(t.warn));
         }
     }
@@ -183,8 +204,12 @@ pub fn render(
         }
         if !path.is_empty() {
             let progress = (frame_in_step as f64 / MOVE as f64).min(1.0);
+            // stagger packets so every one of them finishes its trip within the moving frames
+            let n = f64::from(s.packets.max(1));
+            let gap = (0.9 / n).min(0.18);
+            let span = 1.0 + gap * (n - 1.0);
             for k in 0..s.packets.max(1) {
-                let p = progress - f64::from(k) * 0.18;
+                let p = progress * span - f64::from(k) * gap;
                 if (0.0..1.0).contains(&p) || (p >= 1.0 && k == 0 && frame_in_step < MOVE) {
                     let idx = ((p.clamp(0.0, 1.0)) * (path.len() - 1) as f64).round() as usize;
                     let (x, y) = path[idx];

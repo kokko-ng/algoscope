@@ -77,5 +77,5 @@ explanation = "2 TB x 365 x 5 = 3,650 TB. With 3 copies: 10,950 TB, which is abo
 [[questions.steps]]
 flow = ["app", "blobs"]
 highlight = ["blobs"]
-labels = { blobs = "2 TB x 1,825 days x 3 = ~11 PB" }
+labels = { blobs = "~11 PB in 5 years" }
 caption = "Replication multiplies storage. Three copies protect the data if a disk or a data center fails."

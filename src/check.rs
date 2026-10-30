@@ -26,13 +26,36 @@ pub fn expected_slope(decl: &str) -> Option<(f64, f64)> {
     })
 }
 
+/// Longest note under a diagram node before it runs into its neighbours.
+const LABEL_MAX: usize = 24;
+/// Packets beyond this blur into a solid line.
+const PACKETS_MAX: u8 = 12;
+/// Longest node label that fits a box in a three-column diagram.
+const NODE_LABEL_MAX: usize = 16;
+
 /// Static checks for a system design challenge: answers, tolerances, diagram references and explanations.
 pub fn check_design(ch: &Challenge) -> Vec<String> {
     let mut problems = Vec::new();
     let m = &ch.meta;
     let nodes: Vec<&str> = m.diagram.iter().flat_map(|d| d.nodes.iter().map(|n| n.id.as_str())).collect();
+    let linked = |a: &str, b: &str| {
+        m.diagram.iter().any(|d| d.links.iter().any(|[x, y]| (x == a && y == b) || (x == b && y == a)))
+    };
     let check_steps = |steps: &[DiagramStep], at: &str, problems: &mut Vec<String>| {
         for (i, s) in steps.iter().enumerate() {
+            for pair in s.flow.windows(2) {
+                if !linked(&pair[0], &pair[1]) {
+                    problems.push(format!("{at} step {}: flow {} -> {} has no link", i + 1, pair[0], pair[1]));
+                }
+            }
+            for (node, label) in &s.labels {
+                if label.chars().count() > LABEL_MAX {
+                    problems.push(format!("{at} step {}: label on `{node}` is over {LABEL_MAX} characters", i + 1));
+                }
+            }
+            if s.packets > PACKETS_MAX {
+                problems.push(format!("{at} step {}: more than {PACKETS_MAX} packets", i + 1));
+            }
             for id in s.flow.iter().chain(&s.highlight).chain(&s.down).chain(s.labels.keys()) {
                 if !nodes.contains(&id.as_str()) {
                     problems.push(format!("{at} step {}: unknown node `{id}`", i + 1));
@@ -44,6 +67,14 @@ pub fn check_design(ch: &Challenge) -> Vec<String> {
         }
     };
     if let Some(d) = &m.diagram {
+        for n in &d.nodes {
+            if n.label.chars().count() > NODE_LABEL_MAX {
+                problems.push(format!("node `{}` label is over {NODE_LABEL_MAX} characters", n.id));
+            }
+            if n.at[0] > 2 || n.at[1] > 2 {
+                problems.push(format!("node `{}` is outside the 3 x 3 grid", n.id));
+            }
+        }
         for [a, b] in &d.links {
             for id in [a, b] {
                 if !nodes.contains(&id.as_str()) {
