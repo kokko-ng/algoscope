@@ -15,7 +15,9 @@ def expression(operands, rng):
             if abs(a * right) < 10**6:
                 ops.append("*")
             op = rng.choice(ops)
-            values.append({"+": a + right, "-": a - right, "*": a * right, "/": truncate_div(a, right) if right else 0}[op])
+            values.append(
+                {"+": a + right, "-": a - right, "*": a * right, "/": truncate_div(a, right) if right else 0}[op]
+            )
             tokens.append(op)
         else:
             v = rng.randint(-20, 20)

@@ -1,13 +1,6 @@
 def visual():
     ops = [("insert", v) for v in [50, 30, 70, 20, 40, 60, 80, 35]]
-    return ops + [
-        ("contains", 35),
-        ("contains", 65),
-        ("delete", 20),
-        ("delete", 40),
-        ("delete", 50),
-        ("inorder",),
-    ]
+    return [*ops, ("contains", 35), ("contains", 65), ("delete", 20), ("delete", 40), ("delete", 50), ("inorder",)]
 
 
 def fixed():
@@ -16,14 +9,14 @@ def fixed():
 
     return [
         [("contains", 1), ("delete", 1), ("inorder",)],
-        build([5]) + [("delete", 5), ("contains", 5), ("inorder",)],
-        build([5, 3, 8]) + [("delete", 3), ("inorder",), ("contains", 3)],
-        build([5, 3, 8, 7]) + [("delete", 8), ("inorder",), ("contains", 7)],
-        build([5, 3, 8, 1]) + [("delete", 3), ("inorder",)],
-        build([5, 3, 8, 6, 9]) + [("delete", 5), ("inorder",), ("contains", 5), ("contains", 6)],
-        build([10, 5, 20, 15, 30, 17, 16]) + [("delete", 10), ("inorder",), ("delete", 15), ("inorder",)],
-        build([4, 2, 6, 4, 2]) + [("inorder",), ("delete", 9), ("inorder",)],
-        build([1, 2, 3, 4, 5]) + [("delete", 1), ("delete", 3), ("inorder",), ("contains", 4)],
+        [*build([5]), ("delete", 5), ("contains", 5), ("inorder",)],
+        [*build([5, 3, 8]), ("delete", 3), ("inorder",), ("contains", 3)],
+        [*build([5, 3, 8, 7]), ("delete", 8), ("inorder",), ("contains", 7)],
+        [*build([5, 3, 8, 1]), ("delete", 3), ("inorder",)],
+        [*build([5, 3, 8, 6, 9]), ("delete", 5), ("inorder",), ("contains", 5), ("contains", 6)],
+        [*build([10, 5, 20, 15, 30, 17, 16]), ("delete", 10), ("inorder",), ("delete", 15), ("inorder",)],
+        [*build([4, 2, 6, 4, 2]), ("inorder",), ("delete", 9), ("inorder",)],
+        [*build([1, 2, 3, 4, 5]), ("delete", 1), ("delete", 3), ("inorder",), ("contains", 4)],
     ]
 
 

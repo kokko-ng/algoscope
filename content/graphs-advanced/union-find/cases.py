@@ -24,7 +24,7 @@ def fixed():
 def cases(n, rng):
     ops = [("__init__", n)]
     if n == 0:
-        return [ops + [("count",)]]
+        return [[*ops, ("count",)]]
     for _ in range(2 * n):
         r = rng.random()
         a, b = rng.randrange(n), rng.randrange(n)

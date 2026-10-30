@@ -1,5 +1,14 @@
 def visual():
-    return [("append", 4), ("append", 7), ("append", 1), ("get", 1), ("append", 9), ("set", 0, 3), ("pop",), ("__len__",)]
+    return [
+        ("append", 4),
+        ("append", 7),
+        ("append", 1),
+        ("get", 1),
+        ("append", 9),
+        ("set", 0, 3),
+        ("pop",),
+        ("__len__",),
+    ]
 
 
 def cases(n, rng):

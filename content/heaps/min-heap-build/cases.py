@@ -1,6 +1,6 @@
 def visual():
     ops = [("push", v) for v in [6, 3, 8, 1, 5, 9, 2]]
-    return ops + [("peek",), ("pop",), ("pop",), ("push", 4), ("pop",), ("__len__",)]
+    return [*ops, ("peek",), ("pop",), ("pop",), ("push", 4), ("pop",), ("__len__",)]
 
 
 def fixed():

@@ -9,9 +9,8 @@ def solve(nums, target):
                 hi = mid - 1
             else:
                 lo = mid + 1
+        elif nums[mid] < target <= nums[hi]:
+            lo = mid + 1
         else:
-            if nums[mid] < target <= nums[hi]:
-                lo = mid + 1
-            else:
-                hi = mid - 1
+            hi = mid - 1
     return -1

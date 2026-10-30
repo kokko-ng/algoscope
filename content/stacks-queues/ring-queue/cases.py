@@ -1,16 +1,46 @@
 def visual():
     return [
         ("__init__", 4),
-        ("enqueue", 1), ("enqueue", 2), ("enqueue", 3), ("dequeue",), ("dequeue",),
-        ("enqueue", 4), ("enqueue", 5), ("enqueue", 6), ("enqueue", 7), ("peek",), ("dequeue",), ("__len__",),
+        ("enqueue", 1),
+        ("enqueue", 2),
+        ("enqueue", 3),
+        ("dequeue",),
+        ("dequeue",),
+        ("enqueue", 4),
+        ("enqueue", 5),
+        ("enqueue", 6),
+        ("enqueue", 7),
+        ("peek",),
+        ("dequeue",),
+        ("__len__",),
     ]
 
 
 def fixed():
     return [
         [("dequeue",), ("peek",), ("__len__",)],
-        [("__init__", 1), ("enqueue", 1), ("enqueue", 2), ("enqueue", 3), ("dequeue",), ("dequeue",), ("dequeue",), ("dequeue",)],
-        [("__init__", 2), ("enqueue", 1), ("dequeue",), ("enqueue", 2), ("enqueue", 3), ("enqueue", 4), ("peek",), ("dequeue",), ("dequeue",), ("dequeue",)],
+        [
+            ("__init__", 1),
+            ("enqueue", 1),
+            ("enqueue", 2),
+            ("enqueue", 3),
+            ("dequeue",),
+            ("dequeue",),
+            ("dequeue",),
+            ("dequeue",),
+        ],
+        [
+            ("__init__", 2),
+            ("enqueue", 1),
+            ("dequeue",),
+            ("enqueue", 2),
+            ("enqueue", 3),
+            ("enqueue", 4),
+            ("peek",),
+            ("dequeue",),
+            ("dequeue",),
+            ("dequeue",),
+        ],
     ]
 
 

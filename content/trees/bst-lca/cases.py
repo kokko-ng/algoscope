@@ -49,10 +49,7 @@ def cases(n, rng):
     n = max(n, 1)
     values = rng.sample(range(10 * n), n)
     root, _, _ = _bst(values)
-    out = []
-    for _ in range(3):
-        out.append((root, rng.choice(values), rng.choice(values)))
-    return out
+    return [(root, rng.choice(values), rng.choice(values)) for _ in range(3)]
 
 
 def bench(n, rng):

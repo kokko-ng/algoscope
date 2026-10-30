@@ -2,7 +2,7 @@ from collections import deque
 
 
 def solve(graph):
-    indegree = {node: 0 for node in graph}
+    indegree = dict.fromkeys(graph, 0)
     for node in graph:
         for after in graph[node]:
             indegree[after] += 1

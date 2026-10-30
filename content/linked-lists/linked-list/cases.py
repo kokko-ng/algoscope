@@ -1,7 +1,14 @@
 def visual():
     return [
-        ("push_back", 4), ("push_back", 7), ("push_front", 2), ("push_back", 9),
-        ("find", 7), ("remove", 9), ("push_back", 5), ("pop_front",), ("__len__",),
+        ("push_back", 4),
+        ("push_back", 7),
+        ("push_front", 2),
+        ("push_back", 9),
+        ("find", 7),
+        ("remove", 9),
+        ("push_back", 5),
+        ("pop_front",),
+        ("__len__",),
     ]
 
 
@@ -10,7 +17,15 @@ def fixed():
         [("pop_front",), ("find", 1), ("remove", 1), ("__len__",)],
         [("push_back", 1), ("remove", 1), ("push_back", 2), ("pop_front",), ("pop_front",), ("__len__",)],
         [("push_front", 1), ("pop_front",), ("push_back", 3), ("push_front", 2), ("find", 3), ("__len__",)],
-        [("push_back", 1), ("push_back", 2), ("remove", 2), ("push_back", 3), ("find", 3), ("pop_front",), ("pop_front",)],
+        [
+            ("push_back", 1),
+            ("push_back", 2),
+            ("remove", 2),
+            ("push_back", 3),
+            ("find", 3),
+            ("pop_front",),
+            ("pop_front",),
+        ],
         [("push_back", 5), ("push_back", 5), ("remove", 5), ("find", 5), ("__len__",)],
     ]
 
@@ -42,7 +57,6 @@ def bench(n, rng):
     for i in range(n):
         ops.append(("push_back", i))
         ops.append(("push_front", -i))
-    for i in range(n // 2):
-        ops.append(("pop_front",))
+    ops += [("pop_front",)] * (n // 2)
     ops += [("find", n - 1), ("remove", n // 2), ("push_back", n), ("__len__",)]
     return [ops]
