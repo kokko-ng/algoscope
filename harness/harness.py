@@ -109,6 +109,14 @@ def canon(x, _depth=0):
     return repr(x)
 
 
+def args_text(case, limit=200):
+    """Show a function case as its arguments, without the outer tuple."""
+    if isinstance(case, tuple):
+        text = ", ".join(short_json(a, limit) for a in case)
+        return text if len(text) <= limit else text[:limit] + "..."
+    return short_json(case, limit)
+
+
 def short_json(x, limit=200):
     try:
         text = json.dumps(canon(x), default=repr)
@@ -214,7 +222,7 @@ def run_visual(cfg, run_dir, out):
     out["frames"] = rec.frames
     out["truncated"] = rec.truncated
     out["stdout"] = capture.getvalue()
-    out["input"] = short_json(case, 400)
+    out["input"] = args_text(case, 400)
     out["expected"] = short_json(expected, 400)
     if "error" not in out and not rec.truncated:
         out["got"] = short_json(got, 400)
@@ -274,12 +282,12 @@ def run_score(cfg, run_dir, out):
                 got = sol.run(copy.deepcopy(case))
             except Exception as exc:
                 out["error"] = user_traceback(exc, sol_path)
-                out["error"]["input"] = short_json(case)
+                out["error"]["input"] = args_text(case)
                 break
             if compare(cases_mod, case, got, expected):
                 passed += 1
             elif len(failures) < 3:
-                failures.append({"input": short_json(case), "expected": short_json(expected), "got": short_json(got)})
+                failures.append({"input": args_text(case), "expected": short_json(expected), "got": short_json(got)})
     out["passed"] = passed
     out["total"] = len(suite)
     out["failures"] = failures

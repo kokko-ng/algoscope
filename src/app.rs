@@ -303,8 +303,12 @@ impl App {
                 }
                 summary.push(Span::styled(format!("  {elapsed}"), t.dim()));
                 lines.push(Line::from(summary));
-                lines.push(Line::from(vec![Span::styled("input    ", t.dim()), Span::raw(v.input.clone())]));
+                let watching = ws.editor.readonly;
+                if !v.input.is_empty() && !watching {
+                    lines.push(Line::from(vec![Span::styled("input    ", t.dim()), Span::raw(v.input.clone())]));
+                }
                 match (v.passed, &v.got) {
+                    _ if watching => {}
                     (Some(true), Some(got)) => lines.push(Line::from(vec![
                         Span::styled("output   ", t.dim()),
                         Span::styled(got.clone(), t.bold(t.good)),
@@ -520,6 +524,14 @@ impl App {
     }
 
     fn work_key(&mut self, key: KeyEvent) {
+        // Esc followed quickly by a key arrives as Alt+key; split it back into the two presses
+        if let (KeyCode::Char(c), true) = (key.code, key.modifiers.contains(KeyModifiers::ALT)) {
+            if matches!(&self.screen, Screen::Work(ws) if ws.focus == Focus::Editor) {
+                self.work_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+                self.work_key(KeyEvent::new(KeyCode::Char(c), key.modifiers - KeyModifiers::ALT));
+                return;
+            }
+        }
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let Screen::Work(ws) = &mut self.screen else { return };
         if ws.focus == Focus::Editor {
@@ -575,6 +587,11 @@ impl App {
             KeyCode::Char('t') => self.toggle_theme(),
             KeyCode::Char('v') => self.toggle_keymap(),
             KeyCode::Char('?') => self.help = true,
+            KeyCode::Char(':') if self.settings.keymap == KeymapKind::Vim => {
+                ws.focus = Focus::Editor;
+                ws.editor.vim.mode = crate::tui::editor::VimMode::Command;
+                ws.editor.vim.cmdline.clear();
+            }
             KeyCode::Char('q') | KeyCode::Esc => self.go_home(),
             KeyCode::Char('r') => {
                 if ws.editor.readonly {
