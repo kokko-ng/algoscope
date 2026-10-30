@@ -14,14 +14,48 @@ pub enum Tok {
 
 const KEYWORDS: &[&str] = &[
     "False", "None", "True", "and", "as", "assert", "async", "await", "break", "case", "class", "continue", "def",
-    "del", "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda",
-    "match", "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield",
+    "del", "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "match",
+    "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield",
 ];
 
 const BUILTINS: &[&str] = &[
-    "abs", "all", "any", "bool", "dict", "divmod", "enumerate", "filter", "float", "frozenset", "hash", "int",
-    "isinstance", "iter", "len", "list", "map", "max", "min", "next", "object", "ord", "chr", "print", "range",
-    "reversed", "round", "self", "set", "sorted", "str", "sum", "super", "tuple", "type", "zip", "float",
+    "abs",
+    "all",
+    "any",
+    "bool",
+    "dict",
+    "divmod",
+    "enumerate",
+    "filter",
+    "float",
+    "frozenset",
+    "hash",
+    "int",
+    "isinstance",
+    "iter",
+    "len",
+    "list",
+    "map",
+    "max",
+    "min",
+    "next",
+    "object",
+    "ord",
+    "chr",
+    "print",
+    "range",
+    "reversed",
+    "round",
+    "self",
+    "set",
+    "sorted",
+    "str",
+    "sum",
+    "super",
+    "tuple",
+    "type",
+    "zip",
+    "float",
 ];
 
 /// Token kind for each char of each line.
@@ -34,17 +68,14 @@ pub fn highlight(lines: &[String]) -> Vec<Vec<Tok>> {
         let mut i = 0;
         let mut after_def = false;
         if let Some(q) = in_triple {
-            match find_triple(&chars, 0, q) {
-                Some(end) => {
-                    toks[..end].fill(Tok::Str);
-                    i = end;
-                    in_triple = None;
-                }
-                None => {
-                    toks.fill(Tok::Str);
-                    out.push(toks);
-                    continue;
-                }
+            if let Some(end) = find_triple(&chars, 0, q) {
+                toks[..end].fill(Tok::Str);
+                i = end;
+                in_triple = None;
+            } else {
+                toks.fill(Tok::Str);
+                out.push(toks);
+                continue;
             }
         }
         while i < chars.len() {
@@ -55,16 +86,13 @@ pub fn highlight(lines: &[String]) -> Vec<Vec<Tok>> {
             }
             if c == '"' || c == '\'' {
                 if i + 2 < chars.len() && chars[i + 1] == c && chars[i + 2] == c {
-                    match find_triple(&chars, i + 3, c) {
-                        Some(end) => {
-                            toks[i..end].fill(Tok::Str);
-                            i = end;
-                        }
-                        None => {
-                            toks[i..].fill(Tok::Str);
-                            in_triple = Some(c);
-                            i = chars.len();
-                        }
+                    if let Some(end) = find_triple(&chars, i + 3, c) {
+                        toks[i..end].fill(Tok::Str);
+                        i = end;
+                    } else {
+                        toks[i..].fill(Tok::Str);
+                        in_triple = Some(c);
+                        i = chars.len();
                     }
                     continue;
                 }
@@ -90,7 +118,7 @@ pub fn highlight(lines: &[String]) -> Vec<Vec<Tok>> {
                 toks[start..i].fill(Tok::Decorator);
                 continue;
             }
-            if c.is_ascii_digit() || (c == '.' && chars.get(i + 1).is_some_and(|d| d.is_ascii_digit())) {
+            if c.is_ascii_digit() || (c == '.' && chars.get(i + 1).is_some_and(char::is_ascii_digit)) {
                 let prev_word = i > 0 && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_');
                 let start = i;
                 while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '.' || chars[i] == '_') {
@@ -158,7 +186,7 @@ mod tests {
         let line = "    x = 'a#b' + 12  # note";
         let at = |s: &str| line.find(s).unwrap();
         assert_eq!(k[1][at("'a#b'")], Tok::Str);
-        assert_eq!(k[1][at("#b") ], Tok::Str);
+        assert_eq!(k[1][at("#b")], Tok::Str);
         assert_eq!(k[1][at("12")], Tok::Number);
         assert_eq!(k[1][at("# note")], Tok::Comment);
     }

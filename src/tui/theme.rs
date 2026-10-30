@@ -159,6 +159,7 @@ impl Theme {
         Style::default().fg(self.accent)
     }
 
+    #[expect(clippy::unused_self, reason = "called as a theme method like every other style")]
     pub fn bold(&self, c: Color) -> Style {
         Style::default().fg(c).add_modifier(Modifier::BOLD)
     }

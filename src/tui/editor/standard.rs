@@ -4,6 +4,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{Action, Editor, Group, INDENT, Pos};
 
+#[expect(clippy::too_many_lines, reason = "a flat key table reads better than split handlers")]
 pub fn handle(e: &mut Editor, key: KeyEvent) -> Action {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     let shift = key.modifiers.contains(KeyModifiers::SHIFT);
@@ -11,8 +12,14 @@ pub fn handle(e: &mut Editor, key: KeyEvent) -> Action {
 
     // movement, optionally extending the selection
     let moved = match key.code {
-        KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down | KeyCode::Home | KeyCode::End
-        | KeyCode::PageUp | KeyCode::PageDown => {
+        KeyCode::Left
+        | KeyCode::Right
+        | KeyCode::Up
+        | KeyCode::Down
+        | KeyCode::Home
+        | KeyCode::End
+        | KeyCode::PageUp
+        | KeyCode::PageDown => {
             if shift {
                 if e.anchor.is_none() {
                     e.anchor = Some(e.cur);
@@ -162,23 +169,20 @@ pub fn handle(e: &mut Editor, key: KeyEvent) -> Action {
 }
 
 fn copy(e: &mut Editor, cut: bool) {
-    match e.selection().filter(|(a, b)| a != b) {
-        Some((a, b)) => {
-            e.register.text = e.text_range(a, b);
-            e.register.linewise = false;
-            if cut {
-                e.checkpoint(Group::Other);
-                e.delete_range(a, b);
-                e.anchor = None;
-            }
+    if let Some((a, b)) = e.selection().filter(|(a, b)| a != b) {
+        e.register.text = e.text_range(a, b);
+        e.register.linewise = false;
+        if cut {
+            e.checkpoint(Group::Other);
+            e.delete_range(a, b);
+            e.anchor = None;
         }
-        None => {
-            e.register.text = e.lines[e.cur.row].clone();
-            e.register.linewise = true;
-            if cut {
-                e.checkpoint(Group::Other);
-                e.delete_lines(e.cur.row, e.cur.row);
-            }
+    } else {
+        e.register.text = e.lines[e.cur.row].clone();
+        e.register.linewise = true;
+        if cut {
+            e.checkpoint(Group::Other);
+            e.delete_lines(e.cur.row, e.cur.row);
         }
     }
 }

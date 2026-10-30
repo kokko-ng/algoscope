@@ -131,11 +131,8 @@ pub fn render(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             _ => {}
         }
     }
-    let legend: Vec<String> = sets
-        .iter()
-        .enumerate()
-        .map(|(i, (n, _))| format!("{} {n}", if i == 0 { "●" } else { "◆" }))
-        .collect();
+    let legend: Vec<String> =
+        sets.iter().enumerate().map(|(i, (n, _))| format!("{} {n}", if i == 0 { "●" } else { "◆" })).collect();
     header(spec, ctx, area, buf, &format!("{} nodes  {}", g.nodes.len(), legend.join("  ")));
     let pos = positions(&g, spec);
     let cols = pos.iter().map(|p| p.0 + 1).max().unwrap_or(1);
@@ -143,7 +140,7 @@ pub fn render(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let col_w = ((area.width as usize).saturating_sub(lw) / cols.max(1)).clamp(lw + 2, 18);
     let xy = |i: usize| -> (i32, i32) {
         let (c, r) = pos[i];
-        (area.x as i32 + (c * col_w) as i32 + 1, area.y as i32 + 2 + (r * 2) as i32)
+        (i32::from(area.x) + (c * col_w) as i32 + 1, i32::from(area.y) + 2 + (r * 2) as i32)
     };
     // edges first, nodes drawn over them
     for (a, b, w) in &g.edges {
@@ -158,7 +155,7 @@ pub fn render(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             }
         }
         if let Some(w) = w {
-            let (mx, my) = ((x0 + x1) / 2, (y0 + y1) / 2);
+            let (mx, my) = (i32::midpoint(x0, x1), i32::midpoint(y0, y1));
             if mx >= 0 && my >= 0 {
                 put(buf, area, mx as u16, my as u16, w, t.accent());
             }
@@ -170,16 +167,16 @@ pub fn render(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             continue;
         }
         let mut style = t.text();
-        if let Some((_, visited)) = sets.first() {
-            if visited.contains(name) {
-                style = t.bold(t.good);
-            }
+        if let Some((_, visited)) = sets.first()
+            && visited.contains(name)
+        {
+            style = t.bold(t.good);
         }
         // the frontier is drawn over visited: queued nodes are usually also marked seen
-        if let Some((_, frontier)) = sets.get(1) {
-            if frontier.contains(name) {
-                style = t.bold(t.warn);
-            }
+        if let Some((_, frontier)) = sets.get(1)
+            && frontier.contains(name)
+        {
+            style = t.bold(t.warn);
         }
         if current.contains(name) {
             style = t.bold(t.pointer).add_modifier(Modifier::REVERSED);

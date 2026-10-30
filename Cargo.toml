@@ -17,3 +17,28 @@ unicode-width = "0.2.3"
 
 [dev-dependencies]
 insta = "1.49.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_qualifications = "deny"
+missing_debug_implementations = "allow"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+# Terminal geometry converts between usize, u16, i64 and f64 constantly; values are bounded by screen size.
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+cast_precision_loss = "allow"
+cast_possible_wrap = "allow"
+# x, y, w, h are the natural names in drawing code.
+many_single_char_names = "allow"
+# Binary crate: no public API to document.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+module_name_repetitions = "allow"
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+print_stderr = "deny"

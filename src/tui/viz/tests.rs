@@ -1,5 +1,7 @@
 //! Snapshot tests for the visualisers and the main screens, rendered to a test buffer.
 
+#![expect(clippy::needless_pass_by_value, reason = "test helpers take json! values directly")]
+
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
@@ -39,7 +41,7 @@ pub fn render_challenge(key: &str, step: usize, theme: ThemeKind, w: u16, h: u16
         ws.editor.set_text(&ch.reference);
         let n = v.frames.len();
         ws.visual = Some(v);
-        ws.timeline = crate::runner::trace::Timeline::new(n, 3);
+        ws.timeline = runner::trace::Timeline::new(n, 3);
         ws.timeline.playing = false;
         ws.timeline.seek(step.min(n.saturating_sub(1)));
         ws.timeline.since_change = 100;
@@ -49,7 +51,16 @@ pub fn render_challenge(key: &str, step: usize, theme: ThemeKind, w: u16, h: u16
     term.draw(|f| ui::draw(f, &mut app)).unwrap();
     let text = buffer_text(term.backend().buffer());
     // the session clock changes between runs
-    text.lines().map(|l| if l.contains("help") && l.contains(':') { l.split("  ").next().unwrap_or("").to_string() } else { l.to_string() }).collect::<Vec<_>>().join("\n")
+    text.lines()
+        .map(|l| {
+            if l.contains("help") && l.contains(':') {
+                l.split("  ").next().unwrap_or("").to_string()
+            } else {
+                l.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[test]
@@ -90,7 +101,11 @@ fn draw(views: &str, frame: Value, prev: Option<Value>, w: u16, h: u16) -> Strin
     let prev = prev.map(|p| Frame::from_json(&p));
     let theme = Theme::new(ThemeKind::Stealth);
     let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
-    let viz = VizView { ctx: Ctx { theme: &theme, frame: &frame, prev: prev.as_ref(), tween: 1.0 }, views: &views, caption: None };
+    let viz = VizView {
+        ctx: Ctx { theme: &theme, frame: &frame, prev: prev.as_ref(), tween: 1.0 },
+        views: &views,
+        caption: None,
+    };
     viz.render(buf.area, &mut buf);
     buffer_text(&buf)
 }
@@ -114,7 +129,11 @@ fn array_with_pointers_window_and_access() {
         "locals": {"k": 3}, "reads": [["nums", 2]], "writes": [["nums", 4]]});
     insta::assert_snapshot!(draw(
         "[[view]]\nvar = \"nums\"\nas = \"array\"\npointers = [\"lo\", \"hi\"]\nwindow = [\"lo\", \"hi\"]",
-        frame, None, 60, 9));
+        frame,
+        None,
+        60,
+        9
+    ));
 }
 
 #[test]
@@ -127,8 +146,15 @@ fn bars_view() {
 fn grid_view_marks_changes() {
     let row = |v: Value| list(v);
     let prev = json!({"line": 1, "vars": {"dp": list(json!([row(json!([1, 2, 3])), row(json!([4, 0, 0]))]))}});
-    let frame = json!({"line": 2, "vars": {"dp": list(json!([row(json!([1, 2, 3])), row(json!([4, 6, 0]))])), "r": 1, "c": 1}});
-    insta::assert_snapshot!(draw("[[view]]\nvar = \"dp\"\nas = \"grid\"\npointers = [\"r\", \"c\"]", frame, Some(prev), 40, 6));
+    let frame =
+        json!({"line": 2, "vars": {"dp": list(json!([row(json!([1, 2, 3])), row(json!([4, 6, 0]))])), "r": 1, "c": 1}});
+    insta::assert_snapshot!(draw(
+        "[[view]]\nvar = \"dp\"\nas = \"grid\"\npointers = [\"r\", \"c\"]",
+        frame,
+        Some(prev),
+        40,
+        6
+    ));
 }
 
 #[test]
@@ -136,7 +162,13 @@ fn linked_list_with_pointers() {
     let frame = json!({"line": 4, "vars": {"head": r(1), "slow": r(2), "fast": r(3)},
         "heap": {"1": node("ListNode", json!({"val": 1, "next": r(2)})), "2": node("ListNode", json!({"val": 2, "next": r(3)})),
                  "3": node("ListNode", json!({"val": 3, "next": null}))}});
-    insta::assert_snapshot!(draw("[[view]]\nvar = \"head\"\nas = \"linked\"\npointers = [\"slow\", \"fast\"]", frame, None, 50, 5));
+    insta::assert_snapshot!(draw(
+        "[[view]]\nvar = \"head\"\nas = \"linked\"\npointers = [\"slow\", \"fast\"]",
+        frame,
+        None,
+        50,
+        5
+    ));
 }
 
 #[test]
@@ -158,7 +190,13 @@ fn binary_tree() {
 #[test]
 fn heap_view() {
     let frame = json!({"line": 2, "vars": {"items": list(json!([1, 3, 2, 7, 4, 5])), "i": 4}});
-    insta::assert_snapshot!(draw("[[view]]\nvar = \"self.items\"\nas = \"heap\"\npointers = [\"i\"]".replace("self.items", "items").as_str(), frame, None, 40, 11));
+    insta::assert_snapshot!(draw(
+        "[[view]]\nvar = \"self.items\"\nas = \"heap\"\npointers = [\"i\"]".replace("self.items", "items").as_str(),
+        frame,
+        None,
+        40,
+        11
+    ));
 }
 
 #[test]
@@ -183,7 +221,13 @@ fn graph_view_with_visited_and_frontier() {
     let frame = json!({"line": 5, "vars": {
         "graph": adj(vec![("A", vec!["B", "C"]), ("B", vec!["D"]), ("C", vec!["D"]), ("D", vec![])]),
         "node": "B", "seen": {"k": "set", "items": ["A", "B", "C"], "len": 3}, "queue": {"k": "deque", "items": ["C"], "len": 1}}});
-    insta::assert_snapshot!(draw("[[view]]\nvar = \"graph\"\nas = \"graph\"\npointers = [\"node\", \"seen\", \"queue\"]", frame, None, 50, 9));
+    insta::assert_snapshot!(draw(
+        "[[view]]\nvar = \"graph\"\nas = \"graph\"\npointers = [\"node\", \"seen\", \"queue\"]",
+        frame,
+        None,
+        50,
+        9
+    ));
 }
 
 #[test]
@@ -200,7 +244,8 @@ fn map_buckets_stack_queue_value() {
 #[test]
 fn every_challenge_renders() {
     let lib = Library::load().unwrap();
-    let keys: Vec<String> = lib.topics.iter().flat_map(|t| t.challenges.iter().map(|c| c.key())).collect();
+    let keys: Vec<String> =
+        lib.topics.iter().flat_map(|t| t.challenges.iter().map(crate::content::Challenge::key)).collect();
     std::thread::scope(|s| {
         for chunk in keys.chunks(keys.len().div_ceil(8)) {
             s.spawn(move || {
@@ -237,7 +282,7 @@ fn home_screen_lists_every_topic() {
 
 /// Prints sample renders: `cargo test print_samples -- --ignored --nocapture`.
 #[test]
-#[ignore]
+#[ignore = "prints sample renders for manual inspection"]
 fn print_samples() {
     let keys = std::env::var("ALGOSCOPE_SAMPLES").unwrap_or_else(|_| "trees/inorder-walkthrough".into());
     for key in keys.split(',') {

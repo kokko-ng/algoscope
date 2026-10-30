@@ -124,7 +124,8 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
     let Some(topic) = app.lib.topics.get(app.topic_idx) else { return };
     let state = app.topic_state(app.topic_idx);
     let mut text: Vec<Line> = Vec::new();
-    let title = if t.is_game() { format!("{}  ({})", topic.meta.zone, topic.meta.title) } else { topic.meta.title.clone() };
+    let title =
+        if t.is_game() { format!("{}  ({})", topic.meta.zone, topic.meta.title) } else { topic.meta.title.clone() };
     text.push(Line::from(Span::styled(title, t.bold(t.title))));
     for l in wrap(&topic.meta.summary, right.width.saturating_sub(4) as usize) {
         text.push(Line::from(Span::styled(l, t.text())));
@@ -140,7 +141,7 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
     text.push(Line::from(""));
     for (ci, ch) in topic.challenges.iter().enumerate() {
         let p = app.progress.get(&ch.key());
-        let stage = match ch.meta.stage {
+        let stage_label = match ch.meta.stage {
             Stage::Watch => t.labels.watch,
             Stage::Build => t.labels.build,
             Stage::Apply => t.labels.apply,
@@ -162,7 +163,7 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
         }
         text.push(Line::from(vec![
             Span::styled(format!(" [{mark}] "), t.dim()),
-            Span::styled(format!("{:<12}", stage), t.accent()),
+            Span::styled(format!("{stage_label:<12}"), t.accent()),
             Span::styled(ch.meta.title.clone(), style),
             Span::styled(format!("  {} {}", ch.meta.xp, t.labels.xp), t.dim()),
             Span::styled(format!("  {grade}"), gstyle),
@@ -174,7 +175,8 @@ fn draw_home(f: &mut Frame, app: &App, area: Rect) {
         t.dim(),
     )));
     let hours = app.progress.seconds_practised as f64 / 3600.0;
-    let done: usize = app.lib.topics.iter().flat_map(|t| &t.challenges).filter(|c| app.progress.is_done(&c.key())).count();
+    let done: usize =
+        app.lib.topics.iter().flat_map(|t| &t.challenges).filter(|c| app.progress.is_done(&c.key())).count();
     text.push(Line::from(Span::styled(
         format!("{done}/{} done   {hours:.1}h practised", app.lib.total_challenges()),
         t.dim(),
@@ -272,10 +274,11 @@ fn draw_work(f: &mut Frame, app: &mut App, area: Rect) {
     let frame = ws.visual.as_ref().and_then(|v| v.frames.get(ws.timeline.pos));
     let (tw, th) = EditorView::text_area(code, ws.editor.lines.len());
     ws.editor.ensure_visible(th as usize, tw as usize);
-    if frame.is_some() && ws.focus == Focus::Viz {
-        if let Some(fr) = frame {
-            ws.editor.reveal_line(fr.line as usize);
-        }
+    if frame.is_some()
+        && ws.focus == Focus::Viz
+        && let Some(fr) = frame
+    {
+        ws.editor.reveal_line(fr.line as usize);
     }
     let title = if ch.meta.stage == Stage::Watch { "reference.py".to_string() } else { "solution.py".to_string() };
     let view = EditorView {
@@ -305,14 +308,14 @@ fn draw_viz(
     let tl = &ws.timeline;
     let mut title = t.labels.trace.to_string();
     let mut bottom = Vec::new();
-    if let Some(v) = &ws.visual {
-        if !v.frames.is_empty() {
-            title = format!("{}  step {}/{}", t.labels.trace, tl.pos + 1, tl.len);
-            let state = if tl.playing { "playing" } else { "paused" };
-            bottom.push(Span::styled(format!(" {state}  speed {}/7 ", tl.speed + 1), t.dim()));
-            if focused {
-                bottom.push(Span::styled(" space play  <- -> step  [ ] speed  z zoom ", t.dim()));
-            }
+    if let Some(v) = &ws.visual
+        && !v.frames.is_empty()
+    {
+        title = format!("{}  step {}/{}", t.labels.trace, tl.pos + 1, tl.len);
+        let state = if tl.playing { "playing" } else { "paused" };
+        bottom.push(Span::styled(format!(" {state}  speed {}/7 ", tl.speed + 1), t.dim()));
+        if focused {
+            bottom.push(Span::styled(" space play  <- -> step  [ ] speed  z zoom ", t.dim()));
         }
     }
     if zoomed {
@@ -333,12 +336,16 @@ fn draw_viz(
     };
     let prev = if tl.pos > 0 { v.frames.get(tl.pos - 1) } else { None };
     let tween_ticks = (crate::runner::trace::SPEEDS[tl.speed] / 33).clamp(1, 8) as f64;
-    let tween = (tl.since_change as f64 / tween_ticks).min(1.0);
+    let tween = (f64::from(tl.since_change) / tween_ticks).min(1.0);
     // most recent caption reached so far
     let caption = if captions.is_empty() {
         None
     } else {
-        v.frames[..=tl.pos].iter().rev().find_map(|fr| captions.iter().find(|c| c.line == fr.line)).map(|c| c.text.as_str())
+        v.frames[..=tl.pos]
+            .iter()
+            .rev()
+            .find_map(|fr| captions.iter().find(|c| c.line == fr.line))
+            .map(|c| c.text.as_str())
     };
     let viz = VizView { ctx: Ctx { theme: t, frame, prev, tween }, views, caption };
     viz.render(inner, f.buffer_mut());
@@ -395,21 +402,22 @@ fn draw_celebration(f: &mut Frame, app: &App, area: Rect) {
     let sparks = ["*", "+", ".", "·", "x"];
     let colors = [t.accent, t.accent2, t.warn, t.good];
     let buf = f.buffer_mut();
-    for i in 0..(w as u64 * 2) {
-        let seed = i.wrapping_mul(2654435761) ^ (ms / 90);
-        let x = r.x + (seed % w as u64) as u16;
-        let y = r.y + ((seed / 7 + ms / 160) % h as u64) as u16;
-        if (seed >> 5) % 3 == 0 {
+    for i in 0..(u64::from(w) * 2) {
+        let seed = i.wrapping_mul(2_654_435_761) ^ (ms / 90);
+        let x = r.x + (seed % u64::from(w)) as u16;
+        let y = r.y + ((seed / 7 + ms / 160) % u64::from(h)) as u16;
+        if (seed >> 5).is_multiple_of(3) {
             let s = sparks[(seed % sparks.len() as u64) as usize];
             buf.set_string(x, y, s, ratatui::style::Style::default().fg(colors[(seed % 4) as usize]));
         }
     }
     let reveal = ((ms / 40) as usize).min(c.title.len());
     let title: String = c.title.chars().take(reveal).collect();
-    let mut lines = vec![Line::from(""), Line::from(""), Line::from(Span::styled(
-        format!("{:^w$}", spaced(&title), w = w as usize - 2),
-        t.bold(t.warn),
-    ))];
+    let mut lines = vec![
+        Line::from(""),
+        Line::from(""),
+        Line::from(Span::styled(format!("{:^w$}", spaced(&title), w = w as usize - 2), t.bold(t.warn))),
+    ];
     lines.push(Line::from(""));
     for l in &c.lines {
         lines.push(Line::from(Span::styled(format!("{:^w$}", l, w = w as usize - 2), t.bold(t.accent))));

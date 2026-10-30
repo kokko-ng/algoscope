@@ -93,12 +93,11 @@ impl App {
             saved_seconds: 0,
         };
         // start on the topic of the last challenge played
-        if let Some(last) = app.progress.last_challenge.clone() {
-            if let Some((topic, _)) = last.split_once('/') {
-                if let Some(i) = app.lib.topics.iter().position(|t| t.meta.id == topic) {
-                    app.topic_idx = i;
-                }
-            }
+        if let Some(last) = app.progress.last_challenge.clone()
+            && let Some((topic, _)) = last.split_once('/')
+            && let Some(i) = app.lib.topics.iter().position(|t| t.meta.id == topic)
+        {
+            app.topic_idx = i;
         }
         app
     }
@@ -218,11 +217,11 @@ impl App {
     pub fn go_home(&mut self) {
         if let Screen::Work(ws) = &self.screen {
             let key = ws.key.clone();
-            if let Some((topic, id)) = key.split_once('/') {
-                if let Some(ti) = self.lib.topics.iter().position(|t| t.meta.id == topic) {
-                    self.topic_idx = ti;
-                    self.chal_idx = self.lib.topics[ti].challenges.iter().position(|c| c.meta.id == id).unwrap_or(0);
-                }
+            if let Some((topic, id)) = key.split_once('/')
+                && let Some(ti) = self.lib.topics.iter().position(|t| t.meta.id == topic)
+            {
+                self.topic_idx = ti;
+                self.chal_idx = self.lib.topics[ti].challenges.iter().position(|c| c.meta.id == id).unwrap_or(0);
             }
         }
         self.close_workspace();
@@ -315,7 +314,10 @@ impl App {
                         Span::styled("  ok", t.good_style()),
                     ])),
                     (Some(false), Some(got)) => {
-                        lines.push(Line::from(vec![Span::styled("output   ", t.dim()), Span::styled(got.clone(), t.bold(t.bad))]));
+                        lines.push(Line::from(vec![
+                            Span::styled("output   ", t.dim()),
+                            Span::styled(got.clone(), t.bold(t.bad)),
+                        ]));
                         lines.push(Line::from(vec![Span::styled("expected ", t.dim()), Span::raw(v.expected.clone())]));
                     }
                     _ => {}
@@ -333,7 +335,7 @@ impl App {
                     ws.report = Some(report.clone());
                     let key = ws.key.clone();
                     if base_ok {
-                        self.finish_challenge(&key, Some(report), lines);
+                        self.finish_challenge(&key, Some(&report), lines);
                         return;
                     }
                 }
@@ -346,14 +348,14 @@ impl App {
     }
 
     /// Record completion, award XP and celebrate.
-    fn finish_challenge(&mut self, key: &str, report: Option<Report>, mut lines: Vec<Line<'static>>) {
+    fn finish_challenge(&mut self, key: &str, report: Option<&Report>, mut lines: Vec<Line<'static>>) {
         let Some(ch) = self.lib.challenge(key) else { return };
         let base = ch.meta.xp;
         let hints = self.progress.get(key).hints_used;
-        let grade = report.as_ref().map(|r| r.grade);
+        let grade = report.map(|r| r.grade);
         let earned = scoring::award(base, grade, hints);
         let level_before = scoring::level(self.progress.xp);
-        let delta = self.progress.complete(key, earned, grade, report.as_ref().map(|r| r.ratio));
+        let delta = self.progress.complete(key, earned, grade, report.map(|r| r.ratio));
         let level_after = scoring::level(self.progress.xp);
         let t = &self.theme;
         let xp = t.labels.xp;
@@ -427,10 +429,10 @@ impl App {
     // ---- input ----------------------------------------------------------
 
     pub fn on_paste(&mut self, text: &str) {
-        if let Screen::Work(ws) = &mut self.screen {
-            if ws.focus == Focus::Editor {
-                ws.editor.paste(text);
-            }
+        if let Screen::Work(ws) = &mut self.screen
+            && ws.focus == Focus::Editor
+        {
+            ws.editor.paste(text);
         }
     }
 
@@ -539,12 +541,12 @@ impl App {
 
     fn work_key(&mut self, key: KeyEvent) {
         // Esc followed quickly by a key arrives as Alt+key; split it back into the two presses
-        if let (KeyCode::Char(c), true) = (key.code, key.modifiers.contains(KeyModifiers::ALT)) {
-            if matches!(&self.screen, Screen::Work(ws) if ws.focus == Focus::Editor) {
-                self.work_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-                self.work_key(KeyEvent::new(KeyCode::Char(c), key.modifiers - KeyModifiers::ALT));
-                return;
-            }
+        if let (KeyCode::Char(c), true) = (key.code, key.modifiers.contains(KeyModifiers::ALT))
+            && matches!(&self.screen, Screen::Work(ws) if ws.focus == Focus::Editor)
+        {
+            self.work_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            self.work_key(KeyEvent::new(KeyCode::Char(c), key.modifiers - KeyModifiers::ALT));
+            return;
         }
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let Screen::Work(ws) = &mut self.screen else { return };
@@ -581,7 +583,7 @@ impl App {
         let reset_armed = std::mem::take(&mut ws.confirm_reset);
         match key.code {
             KeyCode::Char(' ') => ws.timeline.toggle(),
-            KeyCode::Right | KeyCode::Char('.') | KeyCode::Char('l') => ws.timeline.step(1),
+            KeyCode::Right | KeyCode::Char('.' | 'l') => ws.timeline.step(1),
             KeyCode::Left | KeyCode::Char(',') => ws.timeline.step(-1),
             KeyCode::Down | KeyCode::Char('J') => ws.timeline.step(10),
             KeyCode::Up | KeyCode::Char('K') => ws.timeline.step(-10),
@@ -592,7 +594,7 @@ impl App {
             KeyCode::Char('z') => ws.zoom = !ws.zoom,
             KeyCode::PageDown => ws.problem_scroll = ws.problem_scroll.saturating_add(3),
             KeyCode::PageUp => ws.problem_scroll = ws.problem_scroll.saturating_sub(3),
-            KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('e') | KeyCode::Tab | KeyCode::BackTab => {
+            KeyCode::Enter | KeyCode::Char('i' | 'e') | KeyCode::Tab | KeyCode::BackTab => {
                 ws.focus = Focus::Editor;
                 ws.zoom = false;
             }
@@ -640,7 +642,10 @@ impl App {
             self.progress.use_hint(&ws.key);
         }
         ws.log.push(Line::from(Span::styled(
-            format!("{} {} revealed (-10% {} on this one)", self.theme.labels.hint, ws.hints_shown, self.theme.labels.xp),
+            format!(
+                "{} {} revealed (-10% {} on this one)",
+                self.theme.labels.hint, ws.hints_shown, self.theme.labels.xp
+            ),
             self.theme.dim(),
         )));
     }
@@ -674,7 +679,7 @@ fn fmt_num(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);
@@ -735,7 +740,10 @@ fn score_lines(lines: &mut Vec<Line<'static>>, s: &ScoreResult, t: &Theme, elaps
         t.dim(),
     )));
     if let Some(n) = s.step_limit_hit {
-        lines.push(Line::from(Span::styled(format!("stopped measuring at n={n}: step budget exceeded"), t.bold(t.warn))));
+        lines.push(Line::from(Span::styled(
+            format!("stopped measuring at n={n}: step budget exceeded"),
+            t.bold(t.warn),
+        )));
     }
     Some((report, true))
 }

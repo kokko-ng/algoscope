@@ -32,7 +32,9 @@ fn event_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> Result<
         let timeout = TICK.saturating_sub(last.elapsed());
         if event::poll(timeout)? {
             match event::read()? {
-                Event::Key(key) if key.kind == KeyEventKind::Press || key.kind == KeyEventKind::Repeat => app.on_key(key),
+                Event::Key(key) if key.kind == KeyEventKind::Press || key.kind == KeyEventKind::Repeat => {
+                    app.on_key(key);
+                }
                 Event::Paste(text) => app.on_paste(&text),
                 _ => {}
             }

@@ -321,10 +321,7 @@ impl Editor {
 
     /// Start of the current or previous word (vim `b`).
     pub fn word_back(&self, from: Pos) -> Pos {
-        let mut p = match self.prev(from) {
-            Some(p) => p,
-            None => return from,
-        };
+        let Some(mut p) = self.prev(from) else { return from };
         while self.char_at(p).is_some_and(char::is_whitespace) {
             match self.prev(p) {
                 Some(q) => p = q,
@@ -343,10 +340,7 @@ impl Editor {
 
     /// End of the current or next word (vim `e`).
     pub fn word_end(&self, from: Pos) -> Pos {
-        let mut p = match self.next(from) {
-            Some(p) => p,
-            None => return from,
-        };
+        let Some(mut p) = self.next(from) else { return from };
         while self.char_at(p).is_some_and(char::is_whitespace) {
             match self.next(p) {
                 Some(q) => p = q,

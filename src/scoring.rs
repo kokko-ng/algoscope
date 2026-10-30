@@ -52,11 +52,8 @@ pub struct Report {
 
 /// Least-squares slope of ln(steps) against ln(n): the empirical growth exponent.
 pub fn slope(points: &[(u32, u64)]) -> f64 {
-    let pts: Vec<(f64, f64)> = points
-        .iter()
-        .filter(|(n, s)| *n > 0 && *s > 0)
-        .map(|(n, s)| ((*n as f64).ln(), (*s as f64).ln()))
-        .collect();
+    let pts: Vec<(f64, f64)> =
+        points.iter().filter(|(n, s)| *n > 0 && *s > 0).map(|(n, s)| (f64::from(*n).ln(), (*s as f64).ln())).collect();
     if pts.len() < 2 {
         return 0.0;
     }
@@ -75,12 +72,7 @@ pub fn grade(steps: &Steps, limit_hit: bool) -> Report {
     let user_slope = slope(&steps.user);
     let ref_slope = slope(&steps.reference);
     let (n, user_steps) = steps.user.last().copied().unwrap_or((0, 0));
-    let ref_steps = steps
-        .reference
-        .iter()
-        .find(|(rn, _)| *rn == n)
-        .map(|(_, s)| *s)
-        .unwrap_or(0);
+    let ref_steps = steps.reference.iter().find(|(rn, _)| *rn == n).map_or(0, |(_, s)| *s);
     let ratio = if ref_steps == 0 { 1.0 } else { user_steps as f64 / ref_steps as f64 };
     let same_class = !limit_hit && user_slope <= ref_slope + CLASS_MARGIN;
     let grade = if same_class && ratio <= 1.25 {
@@ -107,9 +99,9 @@ pub fn growth_name(exp: f64) -> &'static str {
 
 /// XP earned for a submission, before subtracting what was already awarded.
 pub fn award(base: u32, grade: Option<Grade>, hints_used: u32) -> u32 {
-    let mult = grade.map(Grade::multiplier).unwrap_or(1.0);
-    let hint_factor = 1.0 - 0.1 * hints_used.min(3) as f64;
-    (base as f64 * mult * hint_factor).round() as u32
+    let mult = grade.map_or(1.0, Grade::multiplier);
+    let hint_factor = 1.0 - 0.1 * f64::from(hints_used.min(3));
+    (f64::from(base) * mult * hint_factor).round() as u32
 }
 
 /// Level for a total XP: level L needs 50 * L * (L + 1) XP.
@@ -122,7 +114,7 @@ pub fn level(xp: u64) -> u32 {
 }
 
 pub fn level_floor(l: u32) -> u64 {
-    50 * l as u64 * (l as u64 + 1)
+    50 * u64::from(l) * (u64::from(l) + 1)
 }
 
 /// Progress through the current level, 0.0..1.0.
@@ -138,7 +130,7 @@ mod tests {
     use super::*;
 
     fn curve(f: impl Fn(f64) -> f64) -> Vec<(u32, u64)> {
-        [64u32, 128, 256, 512].iter().map(|&n| (n, f(n as f64).round() as u64)).collect()
+        [64u32, 128, 256, 512].iter().map(|&n| (n, f(f64::from(n)).round() as u64)).collect()
     }
 
     #[test]

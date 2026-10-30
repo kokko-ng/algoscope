@@ -37,11 +37,9 @@ impl V {
                 None => V::Float(n.as_f64().unwrap_or(f64::NAN)),
             },
             Value::String(s) => V::Str(s.clone()),
-            Value::Array(items) => V::Seq {
-                kind: SeqKind::List,
-                items: items.iter().map(V::from_json).collect(),
-                len: items.len(),
-            },
+            Value::Array(items) => {
+                V::Seq { kind: SeqKind::List, items: items.iter().map(V::from_json).collect(), len: items.len() }
+            }
             Value::Object(map) => {
                 let kind = map.get("k").and_then(Value::as_str).unwrap_or("");
                 let len = map.get("len").and_then(Value::as_u64).unwrap_or(0) as usize;
@@ -82,7 +80,7 @@ impl V {
     pub fn as_int(&self) -> Option<i64> {
         match self {
             V::Int(i) => Some(*i),
-            V::Bool(b) => Some(*b as i64),
+            V::Bool(b) => Some(i64::from(*b)),
             _ => None,
         }
     }
@@ -209,11 +207,7 @@ impl Frame {
     }
 
     pub fn var(&self, name: &str) -> Option<&V> {
-        self.vars
-            .iter()
-            .chain(self.locals.iter())
-            .find(|(n, _)| n == name)
-            .map(|(_, v)| v)
+        self.vars.iter().chain(self.locals.iter()).find(|(n, _)| n == name).map(|(_, v)| v)
     }
 
     pub fn from_json(v: &Value) -> Frame {
@@ -261,10 +255,7 @@ impl Frame {
             vars: pairs("vars"),
             locals: pairs("locals"),
             heap,
-            stack: v
-                .get("stack")
-                .and_then(|s| serde_json::from_value(s.clone()).ok())
-                .unwrap_or_default(),
+            stack: v.get("stack").and_then(|s| serde_json::from_value(s.clone()).ok()).unwrap_or_default(),
             reads: access("reads"),
             writes: access("writes"),
             op: v.get("op").and_then(Value::as_str).map(str::to_owned),

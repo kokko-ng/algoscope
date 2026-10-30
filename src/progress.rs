@@ -31,7 +31,7 @@ pub enum KeymapKind {
 pub struct Settings {
     pub theme: ThemeKind,
     pub keymap: KeymapKind,
-    /// Playback speed index, see trace::SPEEDS.
+    /// Playback speed index, see `trace::SPEEDS`.
     pub speed: usize,
 }
 
@@ -92,7 +92,7 @@ impl Progress {
         }
         let delta = earned.saturating_sub(entry.xp_awarded);
         entry.xp_awarded += delta;
-        self.xp += delta as u64;
+        self.xp += u64::from(delta);
         delta
     }
 
@@ -101,19 +101,11 @@ impl Progress {
     }
 
     fn builds_done(&self, topic: &Topic) -> bool {
-        topic
-            .challenges
-            .iter()
-            .filter(|c| c.meta.stage == Stage::Build)
-            .all(|c| self.is_done(&c.key()))
+        topic.challenges.iter().filter(|c| c.meta.stage == Stage::Build).all(|c| self.is_done(&c.key()))
     }
 
     pub fn topic_state(&self, lib: &Library, topic: &Topic) -> TopicState {
-        let unlocked = topic
-            .meta
-            .prereqs
-            .iter()
-            .all(|p| lib.topic(p).is_some_and(|t| self.builds_done(t)));
+        let unlocked = topic.meta.prereqs.iter().all(|p| lib.topic(p).is_some_and(|t| self.builds_done(t)));
         if !unlocked {
             return TopicState::Locked;
         }
@@ -121,9 +113,10 @@ impl Progress {
         if !all_done {
             return TopicState::Open;
         }
-        let mastered = topic.challenges.iter().all(|c| {
-            c.meta.stage == Stage::Watch || self.get(&c.key()).grade.is_some_and(|g| g >= Grade::Silver)
-        });
+        let mastered = topic
+            .challenges
+            .iter()
+            .all(|c| c.meta.stage == Stage::Watch || self.get(&c.key()).grade.is_some_and(|g| g >= Grade::Silver));
         if mastered { TopicState::Mastered } else { TopicState::Done }
     }
 
@@ -142,11 +135,11 @@ impl Progress {
             .iter()
             .find(|c| !self.is_done(&c.key()))
             .or_else(|| topic.challenges.first())
-            .map(|c| c.key())
+            .map(super::content::Challenge::key)
     }
 }
 
-/// Where progress and settings live. $ALGOSCOPE_HOME overrides the platform data dir.
+/// Where progress and settings live. $`ALGOSCOPE_HOME` overrides the platform data dir.
 pub fn data_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("ALGOSCOPE_HOME") {
         return PathBuf::from(dir);
@@ -164,10 +157,7 @@ impl Store {
     }
 
     fn read<T: for<'de> Deserialize<'de> + Default>(&self, name: &str, parse: fn(&str) -> Result<T>) -> T {
-        fs::read_to_string(self.dir.join(name))
-            .ok()
-            .and_then(|raw| parse(&raw).ok())
-            .unwrap_or_default()
+        fs::read_to_string(self.dir.join(name)).ok().and_then(|raw| parse(&raw).ok()).unwrap_or_default()
     }
 
     pub fn load_progress(&self) -> Progress {

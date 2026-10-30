@@ -163,19 +163,15 @@ fn motion(e: &Editor, code: KeyCode, count: usize, g: bool) -> Option<Motion> {
         KeyCode::Char('h') | KeyCode::Left | KeyCode::Backspace => {
             charwise(Pos::new(cur.row, cur.col.saturating_sub(count)), false)
         }
-        KeyCode::Char('l') | KeyCode::Right | KeyCode::Char(' ') => {
+        KeyCode::Char('l' | ' ') | KeyCode::Right => {
             charwise(Pos::new(cur.row, (cur.col + count).min(e.line_len(cur.row))), false)
         }
-        KeyCode::Char('j') | KeyCode::Down | KeyCode::Enter => Some(Motion {
-            to: Pos::new((cur.row + count).min(rows - 1), cur.col),
-            linewise: true,
-            inclusive: true,
-        }),
-        KeyCode::Char('k') | KeyCode::Up => Some(Motion {
-            to: Pos::new(cur.row.saturating_sub(count), cur.col),
-            linewise: true,
-            inclusive: true,
-        }),
+        KeyCode::Char('j') | KeyCode::Down | KeyCode::Enter => {
+            Some(Motion { to: Pos::new((cur.row + count).min(rows - 1), cur.col), linewise: true, inclusive: true })
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            Some(Motion { to: Pos::new(cur.row.saturating_sub(count), cur.col), linewise: true, inclusive: true })
+        }
         KeyCode::Char('w') => {
             let mut p = cur;
             for _ in 0..count {
@@ -206,20 +202,22 @@ fn motion(e: &Editor, code: KeyCode, count: usize, g: bool) -> Option<Motion> {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "a flat key table reads better than split handlers")]
 fn normal(e: &mut Editor, key: KeyEvent) -> Action {
     let visual = matches!(e.vim.mode, VimMode::Visual | VimMode::VisualLine);
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
 
     if e.vim.replace {
         e.vim.replace = false;
-        if let KeyCode::Char(c) = key.code {
-            if !e.readonly && e.cur.col < e.line_len(e.cur.row) {
-                e.checkpoint(Group::Other);
-                let p = e.cur;
-                e.delete_range(p, Pos::new(p.row, p.col + 1));
-                e.insert_char(c);
-                e.cur = p;
-            }
+        if let KeyCode::Char(c) = key.code
+            && !e.readonly
+            && e.cur.col < e.line_len(e.cur.row)
+        {
+            e.checkpoint(Group::Other);
+            let p = e.cur;
+            e.delete_range(p, Pos::new(p.row, p.col + 1));
+            e.insert_char(c);
+            e.cur = p;
         }
         return Action::None;
     }
@@ -235,11 +233,11 @@ fn normal(e: &mut Editor, key: KeyEvent) -> Action {
         return Action::None;
     }
 
-    if let KeyCode::Char(c @ '0'..='9') = key.code {
-        if c != '0' || e.vim.count > 0 {
-            e.vim.count = e.vim.count * 10 + c.to_digit(10).unwrap_or(0) as usize;
-            return Action::None;
-        }
+    if let KeyCode::Char(c @ '0'..='9') = key.code
+        && (c != '0' || e.vim.count > 0)
+    {
+        e.vim.count = e.vim.count * 10 + c.to_digit(10).unwrap_or(0) as usize;
+        return Action::None;
     }
 
     if key.code == KeyCode::Esc {
@@ -362,7 +360,7 @@ fn normal(e: &mut Editor, key: KeyEvent) -> Action {
                 e.normal_clamp();
             }
         }
-        KeyCode::Char('D') | KeyCode::Char('C') if !ro => {
+        KeyCode::Char('D' | 'C') if !ro => {
             e.checkpoint(Group::Other);
             let end = Pos::new(e.cur.row, e.line_len(e.cur.row));
             e.register.text = e.delete_range(e.cur, end);
@@ -373,7 +371,7 @@ fn normal(e: &mut Editor, key: KeyEvent) -> Action {
                 e.normal_clamp();
             }
         }
-        KeyCode::Char('p') | KeyCode::Char('P') if !ro => {
+        KeyCode::Char('p' | 'P') if !ro => {
             e.checkpoint(Group::Other);
             for _ in 0..count {
                 e.put(key.code == KeyCode::Char('p'));
@@ -414,8 +412,8 @@ fn visual_key(e: &mut Editor, key: KeyEvent) -> Action {
     let linewise = e.vim.mode == VimMode::VisualLine;
     let (a, b) = if anchor <= e.cur { (anchor, e.cur) } else { (e.cur, anchor) };
     let op = match key.code {
-        KeyCode::Char('d') | KeyCode::Char('x') if !e.readonly => 'd',
-        KeyCode::Char('c') | KeyCode::Char('s') if !e.readonly => 'c',
+        KeyCode::Char('d' | 'x') if !e.readonly => 'd',
+        KeyCode::Char('c' | 's') if !e.readonly => 'c',
         KeyCode::Char('y') => 'y',
         KeyCode::Char('>') if !e.readonly => '>',
         KeyCode::Char('<') if !e.readonly => '<',

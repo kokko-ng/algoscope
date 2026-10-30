@@ -127,7 +127,7 @@ impl VizView<'_> {
             status.push(Span::styled(format!("op {op}  "), t.bold(t.warn)));
         }
         if f.ev == "return" {
-            let ret = f.ret.as_ref().map(|r| f.label(r)).unwrap_or_else(|| "None".into());
+            let ret = f.ret.as_ref().map_or_else(|| "None".into(), |r| f.label(r));
             let func = f.stack.last().map_or("?", |s| s.func.as_str());
             status.push(Span::styled(format!("{func} returns {ret}"), t.bold(t.good)));
         }
@@ -261,7 +261,7 @@ fn window_start(len: usize, fit: usize, focus: &[i64]) -> usize {
     }
     let lo = focus.iter().copied().filter(|i| *i >= 0).min().unwrap_or(0) as usize;
     let hi = focus.iter().copied().filter(|i| *i >= 0).max().unwrap_or(0) as usize;
-    let mid = (lo + hi) / 2;
+    let mid = usize::midpoint(lo, hi);
     mid.saturating_sub(fit / 2).min(len - fit)
 }
 
@@ -269,13 +269,14 @@ fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t.clamp(0.0, 1.0)
 }
 
+#[expect(clippy::too_many_lines, reason = "cells, swap animation and pointers share the same geometry")]
 fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let t = ctx.theme;
     // strings are drawn as one cell per character
     let chars;
     let v = if let V::Str(s) = v {
         let items: Vec<V> = s.chars().map(|c| V::Str(c.to_string())).collect();
-        chars = V::Seq { kind: crate::runner::trace::SeqKind::List, len: items.len(), items };
+        chars = V::Seq { kind: SeqKind::List, len: items.len(), items };
         &chars
     } else {
         v
@@ -304,15 +305,11 @@ fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         put(buf, area, area.x, area.y + 2, "..", t.dim());
     }
     let win = spec.window.as_ref().and_then(|[a, b]| Some((ctx.int(a)?, ctx.int(b)?)));
-    let swap = ctx
-        .prev_var(&spec.var)
-        .and_then(items)
-        .and_then(|p| swapped(p, vals))
-        .filter(|_| ctx.tween < 1.0);
+    let swap = ctx.prev_var(&spec.var).and_then(items).and_then(|p| swapped(p, vals)).filter(|_| ctx.tween < 1.0);
     let cell_x = |i: usize| x0 + ((i - start) * (cw + 1)) as u16;
 
     let top = area.y + 1;
-    for i in start..end {
+    for (i, label) in labels.iter().enumerate().take(end).skip(start) {
         let x = cell_x(i);
         let ii = i as i64;
         let in_win = win.is_some_and(|(a, b)| ii >= a.min(b) && ii <= a.max(b));
@@ -343,7 +340,7 @@ fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         }
         let hidden = swap.is_some_and(|(a, b)| i == a || i == b);
         if !hidden {
-            put(buf, area, x + 1, top + 1, &format!("{:^cw$}", labels[i]), style);
+            put(buf, area, x + 1, top + 1, &format!("{label:^cw$}"), style);
         }
         let idx = i.to_string();
         put(buf, area, x + 1 + ((cw - idx.len().min(cw)) / 2) as u16, top + 3, &idx, t.dim());
@@ -357,7 +354,7 @@ fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             if from < start || from >= end || to < start || to >= end {
                 continue;
             }
-            let x = lerp(cell_x(from) as f64, cell_x(to) as f64, ctx.tween).round() as u16;
+            let x = lerp(f64::from(cell_x(from)), f64::from(cell_x(to)), ctx.tween).round() as u16;
             let row = if ctx.tween < 0.85 { top } else { top + 1 };
             put(buf, area, x + 1, row, &format!("{:^cw$}", labels[to]), t.bold(t.write));
         }
@@ -368,22 +365,19 @@ fn array(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
         let Some(i) = ctx.int(name) else { continue };
         let target = |i: i64| -> f64 {
             let i = i.clamp(start as i64 - 1, end as i64) as f64;
-            x0 as f64 + (i - start as f64) * (cw + 1) as f64 + (cw / 2 + 1) as f64
+            f64::from(x0) + (i - start as f64) * (cw + 1) as f64 + (cw / 2 + 1) as f64
         };
         let mut x = target(i);
         if let Some(pi) = ctx.prev_int(name).filter(|p| *p != i) {
             x = lerp(target(pi), x, ctx.tween);
         }
-        let x = (x.round().max(area.x as f64)) as u16;
+        let x = (x.round().max(f64::from(area.x))) as u16;
         let label = format!("↑{name}");
         let w = label.width() as u16;
-        let row = rows
-            .iter()
-            .position(|r| r.iter().all(|(a, b)| x + w + 1 <= *a || x >= *b + 1))
-            .unwrap_or_else(|| {
-                rows.push(Vec::new());
-                rows.len() - 1
-            });
+        let row = rows.iter().position(|r| r.iter().all(|(a, b)| x + w < *a || x > *b)).unwrap_or_else(|| {
+            rows.push(Vec::new());
+            rows.len() - 1
+        });
         if row >= 3 {
             continue;
         }
@@ -406,7 +400,7 @@ fn bars(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
             _ => 0.0,
         })
         .collect();
-    let max = nums.iter().cloned().fold(1.0f64, |a, b| a.max(b.abs()));
+    let max = nums.iter().copied().fold(1.0f64, |a, b| a.max(b.abs()));
     let h = 7.0;
     let bw: usize = if vals.len() * 4 <= area.width as usize { 3 } else { 2 };
     let fit = (area.width as usize / (bw + 1)).max(1);
@@ -458,14 +452,9 @@ fn grid(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let Some(rows) = items(v) else { return };
     let ncols = rows.iter().filter_map(items).map(<[V]>::len).max().unwrap_or(0);
     header(spec, ctx, area, buf, &format!("{}x{}", rows.len(), ncols));
-    let cw = rows
-        .iter()
-        .filter_map(items)
-        .flat_map(|r| r.iter().map(|c| c.cell().width()))
-        .max()
-        .unwrap_or(1)
-        .clamp(1, 6)
-        + 1;
+    let cw =
+        rows.iter().filter_map(items).flat_map(|r| r.iter().map(|c| c.cell().width())).max().unwrap_or(1).clamp(1, 6)
+            + 1;
     let focus = match spec.pointers.as_slice() {
         [a, b, ..] => ctx.int(a).zip(ctx.int(b)),
         _ => None,
@@ -565,7 +554,7 @@ fn stack(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let Some(vals) = items(v) else { return };
     header(spec, ctx, area, buf, &format!("size {}", vals.len()));
     let cw = vals.iter().map(|x| ctx.frame.label(x).width()).max().unwrap_or(1).clamp(3, 14) + 2;
-    let grew = ctx.prev_var(&spec.var).and_then(items).map_or(false, |p| p.len() < vals.len());
+    let grew = ctx.prev_var(&spec.var).and_then(items).is_some_and(|p| p.len() < vals.len());
     let rows = area.height.saturating_sub(2) as usize;
     for (i, val) in vals.iter().rev().take(rows).enumerate() {
         let y = area.y + 1 + i as u16;

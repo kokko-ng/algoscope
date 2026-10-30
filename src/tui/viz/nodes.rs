@@ -41,73 +41,57 @@ pub fn linked(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let mut cur = v.clone();
     let mut count = 0;
     let mut label_end = 0u16;
-    let prev_ids: HashSet<u64> = ctx
-        .prev
-        .map(|p| p.heap.keys().copied().collect())
-        .unwrap_or_default();
+    let prev_ids: HashSet<u64> = ctx.prev.map(|p| p.heap.keys().copied().collect()).unwrap_or_default();
     loop {
-        match cur {
-            V::Ref(id) => {
-                if !seen.insert(id) {
-                    put(buf, area, x, y, &format!("↺ back to {}", node_val(ctx.frame, id)), t.bold(t.warn));
-                    break;
-                }
-                let label = format!("[{}]", node_val(ctx.frame, id));
-                let w = label.width() as u16;
-                if x + w + 3 > area.right() {
-                    put(buf, area, x, y, "...", t.dim());
-                    break;
-                }
-                let names = ptrs.get(&id);
-                let new = ctx.prev.is_some() && !prev_ids.contains(&id);
-                let style = if names.is_some() {
-                    t.bold(t.pointer)
-                } else if new {
-                    t.bold(t.good)
-                } else {
-                    t.text()
-                };
-                put(buf, area, x, y, &label, style);
-                if let Some(names) = names {
-                    // alternate above and below when labels would touch
-                    let label = format!("↓{}", names.join(","));
-                    let below = x <= label_end;
-                    if below {
-                        put(buf, area, x, y + 1, &format!("↑{}", names.join(",")), t.bold(t.pointer));
-                    } else {
-                        put(buf, area, x, y - 1, &label, t.bold(t.pointer));
-                        label_end = x + label.width() as u16;
-                    }
-                }
-                x += w;
-                let next = ctx
-                    .frame
-                    .heap
-                    .get(&id)
-                    .and_then(|o| o.field("next"))
-                    .cloned()
-                    .unwrap_or(V::None);
-                put(buf, area, x, y, "─▶", t.dim());
-                x += 2;
-                cur = next;
-                count += 1;
-                if count > 40 {
-                    put(buf, area, x, y, "...", t.dim());
-                    break;
-                }
-            }
-            _ => {
-                put(buf, area, x, y, "None", t.dim());
+        if let V::Ref(id) = cur {
+            if !seen.insert(id) {
+                put(buf, area, x, y, &format!("↺ back to {}", node_val(ctx.frame, id)), t.bold(t.warn));
                 break;
             }
+            let label = format!("[{}]", node_val(ctx.frame, id));
+            let w = label.width() as u16;
+            if x + w + 3 > area.right() {
+                put(buf, area, x, y, "...", t.dim());
+                break;
+            }
+            let names = ptrs.get(&id);
+            let new = ctx.prev.is_some() && !prev_ids.contains(&id);
+            let style = if names.is_some() {
+                t.bold(t.pointer)
+            } else if new {
+                t.bold(t.good)
+            } else {
+                t.text()
+            };
+            put(buf, area, x, y, &label, style);
+            if let Some(names) = names {
+                // alternate above and below when labels would touch
+                let label = format!("↓{}", names.join(","));
+                let below = x <= label_end;
+                if below {
+                    put(buf, area, x, y + 1, &format!("↑{}", names.join(",")), t.bold(t.pointer));
+                } else {
+                    put(buf, area, x, y - 1, &label, t.bold(t.pointer));
+                    label_end = x + label.width() as u16;
+                }
+            }
+            x += w;
+            let next = ctx.frame.heap.get(&id).and_then(|o| o.field("next")).cloned().unwrap_or(V::None);
+            put(buf, area, x, y, "─▶", t.dim());
+            x += 2;
+            cur = next;
+            count += 1;
+            if count > 40 {
+                put(buf, area, x, y, "...", t.dim());
+                break;
+            }
+        } else {
+            put(buf, area, x, y, "None", t.dim());
+            break;
         }
     }
-    let dangling: Vec<String> = spec
-        .pointers
-        .iter()
-        .filter(|n| matches!(ctx.frame.var(n), Some(V::None)))
-        .cloned()
-        .collect();
+    let dangling: Vec<String> =
+        spec.pointers.iter().filter(|n| matches!(ctx.frame.var(n), Some(V::None))).cloned().collect();
     let mut extra = String::new();
     if !dangling.is_empty() {
         extra = format!("{} = None", dangling.join(", "));
@@ -391,7 +375,14 @@ pub fn trie(spec: &ViewSpec, ctx: &Ctx, v: &V, area: Rect, buf: &mut Buffer) {
     let t = ctx.theme;
     let ptrs = ref_pointers(spec, ctx);
     header(spec, ctx, area, buf, "");
-    put(buf, area, area.x, area.y + 1, "(root)", if matches!(v, V::Ref(id) if ptrs.contains_key(id)) { t.bold(t.pointer) } else { t.dim() });
+    put(
+        buf,
+        area,
+        area.x,
+        area.y + 1,
+        "(root)",
+        if matches!(v, V::Ref(id) if ptrs.contains_key(id)) { t.bold(t.pointer) } else { t.dim() },
+    );
     let prev_ids: HashSet<u64> = ctx.prev.map(|p| p.heap.keys().copied().collect()).unwrap_or_default();
     let rows = area.height.saturating_sub(2) as usize;
     let lines = trie_lines(ctx.frame, v);

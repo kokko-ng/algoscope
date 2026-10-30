@@ -253,18 +253,21 @@ impl Library {
 
     /// Topic indices in display order, each with its tree prefix: topics hang under their deepest prerequisite.
     pub fn tree_order(&self) -> Vec<(usize, String)> {
-        let n = self.topics.len();
-        let idx = |id: &str| self.topics.iter().position(|t| t.meta.id == id);
-        let mut depth = vec![0usize; n];
-        for i in 0..n {
-            // topics are sorted by order, so prerequisites come first
-            depth[i] = self.topics[i].meta.prereqs.iter().filter_map(|p| idx(p)).map(|p| depth[p] + 1).max().unwrap_or(0);
-        }
-        let parent: Vec<Option<usize>> = (0..n)
-            .map(|i| self.topics[i].meta.prereqs.iter().filter_map(|p| idx(p)).max_by_key(|p| (depth[*p], *p)))
-            .collect();
-        fn go(i: usize, prefix: &str, last: bool, root: bool, parent: &[Option<usize>], out: &mut Vec<(usize, String)>) {
-            let branch = if root { "" } else if last { "└─ " } else { "├─ " };
+        fn go(
+            i: usize,
+            prefix: &str,
+            last: bool,
+            root: bool,
+            parent: &[Option<usize>],
+            out: &mut Vec<(usize, String)>,
+        ) {
+            let branch = if root {
+                ""
+            } else if last {
+                "└─ "
+            } else {
+                "├─ "
+            };
             out.push((i, format!("{prefix}{branch}")));
             let kids: Vec<usize> = (0..parent.len()).filter(|k| parent[*k] == Some(i)).collect();
             let next = if root { String::new() } else { format!("{prefix}{}", if last { "   " } else { "│  " }) };
@@ -272,6 +275,17 @@ impl Library {
                 go(*k, &next, j + 1 == kids.len(), false, parent, out);
             }
         }
+        let n = self.topics.len();
+        let idx = |id: &str| self.topics.iter().position(|t| t.meta.id == id);
+        let mut depth = vec![0usize; n];
+        for i in 0..n {
+            // topics are sorted by order, so prerequisites come first
+            depth[i] =
+                self.topics[i].meta.prereqs.iter().filter_map(|p| idx(p)).map(|p| depth[p] + 1).max().unwrap_or(0);
+        }
+        let parent: Vec<Option<usize>> = (0..n)
+            .map(|i| self.topics[i].meta.prereqs.iter().filter_map(|p| idx(p)).max_by_key(|p| (depth[*p], *p)))
+            .collect();
         let mut out = Vec::new();
         for root in (0..n).filter(|i| parent[*i].is_none()) {
             go(root, "", true, true, &parent, &mut out);

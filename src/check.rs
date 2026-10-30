@@ -17,7 +17,9 @@ pub fn expected_slope(decl: &str) -> Option<(f64, f64)> {
         "o(1)" | "o(logn)" | "o(log n)" => (-0.2, 0.4),
         "o(n)" | "o(v+e)" | "o(n+k)" | "o(n+m)" | "o(m+n)" | "o(e)" | "o(l)" | "o(nl)" | "o(n·l)" => (0.75, 1.2),
         "o(nlogn)" | "o(eloge)" | "o(elogv)" | "o((v+e)logv)" | "o(nlogk)" | "o(e·α(v))" | "o(eα(v))" => (0.95, 1.5),
-        "o(n^2)" | "o(n²)" | "o(nm)" | "o(n·m)" | "o(n*m)" | "o(nk)" | "o(n·k)" | "o(n*k)" | "o(n·w)" | "o(nw)" => (1.6, 2.4),
+        "o(n^2)" | "o(n²)" | "o(nm)" | "o(n·m)" | "o(n*m)" | "o(nk)" | "o(n·k)" | "o(n*k)" | "o(n·w)" | "o(nw)" => {
+            (1.6, 2.4)
+        }
         "o(n^3)" => (2.5, 3.4),
         "o(2^n)" | "o(n2^n)" | "o(n·2^n)" | "o(n*2^n)" | "o(n!)" | "o(n·n!)" => (2.5, 100.0),
         _ => return None,
@@ -30,7 +32,11 @@ fn check_one(ch: &Challenge) -> Vec<String> {
     match runner::run(ch, Mode::Visual, &ch.reference) {
         Ok(Outcome::Visual(v)) => {
             if let Some(e) = &v.error {
-                problems.push(format!("visual: reference raised: {} {}", e.text, e.internal.clone().unwrap_or_default()));
+                problems.push(format!(
+                    "visual: reference raised: {} {}",
+                    e.text,
+                    e.internal.clone().unwrap_or_default()
+                ));
             }
             if v.frames.is_empty() {
                 problems.push("visual: no frames recorded".into());
@@ -59,7 +65,11 @@ fn check_one(ch: &Challenge) -> Vec<String> {
     match runner::run(ch, Mode::Score, &ch.reference) {
         Ok(Outcome::Score(s)) => {
             if let Some(e) = &s.error {
-                problems.push(format!("score: reference raised: {} {}", e.text, e.internal.clone().unwrap_or_default()));
+                problems.push(format!(
+                    "score: reference raised: {} {}",
+                    e.text,
+                    e.internal.clone().unwrap_or_default()
+                ));
             } else if s.passed != s.total || s.total == 0 {
                 problems.push(format!("score: reference passed {}/{}", s.passed, s.total));
             }
@@ -133,7 +143,7 @@ pub fn run(lib: &Library, topic_filter: Option<&str>) -> Result<()> {
     }
     let queue = Mutex::new(jobs.iter().enumerate().collect::<Vec<_>>());
     let results = Mutex::new(vec![Vec::new(); jobs.len()]);
-    let workers = thread::available_parallelism().map_or(4, |n| n.get()).min(8);
+    let workers = thread::available_parallelism().map_or(4, std::num::NonZero::get).min(8);
     thread::scope(|s| {
         for _ in 0..workers {
             s.spawn(|| {

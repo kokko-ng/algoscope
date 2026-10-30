@@ -88,7 +88,7 @@ pub fn config(ch: &Challenge, mode: Mode) -> Value {
     cfg
 }
 
-/// Python interpreter to use: $ALGOSCOPE_PYTHON or python3.
+/// Python interpreter to use: $`ALGOSCOPE_PYTHON` or python3.
 pub fn python() -> String {
     std::env::var("ALGOSCOPE_PYTHON").unwrap_or_else(|_| "python3".into())
 }
@@ -160,7 +160,8 @@ fn run_inner(ch: &Challenge, mode: Mode, solution: &str) -> Result<Outcome> {
     let out_path = dir.path().join("out.json");
     if !out_path.exists() {
         let stderr = fs::read_to_string(&stderr_path).unwrap_or_default();
-        let tail: String = stderr.lines().rev().take(6).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+        let tail: String =
+            stderr.lines().rev().take(6).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
         return Err(anyhow!("the harness exited with {status} and no result\n{tail}"));
     }
     let raw: Value = serde_json::from_slice(&fs::read(&out_path)?).context("reading harness output")?;

@@ -36,6 +36,10 @@ fn gutter_width(lines: usize) -> u16 {
 }
 
 impl Widget for EditorView<'_> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one pass over the visible rows keeps gutter, highlight and cursor in step"
+    )]
     fn render(self, area: Rect, buf: &mut Buffer) {
         let t = self.theme;
         let ed = self.ed;
@@ -130,8 +134,7 @@ impl Widget for EditorView<'_> {
                     Tok::Str => t.string,
                     Tok::Number => t.number,
                     Tok::Comment => t.comment,
-                    Tok::Func => t.func,
-                    Tok::Decorator => t.func,
+                    Tok::Func | Tok::Decorator => t.func,
                     Tok::Text => t.fg,
                 });
                 if tok == Tok::Keyword {
@@ -156,7 +159,8 @@ impl Widget for EditorView<'_> {
                     .sum::<usize>();
                 if cx < text_w {
                     let cell = &mut buf[(text_x + cx as u16, y)];
-                    let insertish = ed.keymap == crate::progress::KeymapKind::Standard || ed.vim.mode == VimMode::Insert;
+                    let insertish =
+                        ed.keymap == crate::progress::KeymapKind::Standard || ed.vim.mode == VimMode::Insert;
                     if insertish {
                         cell.set_style(Style::default().add_modifier(Modifier::REVERSED | Modifier::SLOW_BLINK));
                     } else {
